@@ -1,0 +1,12 @@
+{
+  "name": "@blockstrike/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "smoke": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/smoke.ts"
+  },
+  "dependencies": {
+    "@blockstrike/shared": "*"
+  }
+}
