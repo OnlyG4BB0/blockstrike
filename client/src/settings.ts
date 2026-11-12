@@ -14,6 +14,8 @@ export interface Settings {
   damageNumbers: boolean;
   botCount: number;
   botMode: BotMode;
+  /** Skin scelta per ogni arma (id arma → id skin). */
+  skins: Record<string, string>;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -30,6 +32,7 @@ const DEFAULTS: Settings = {
   damageNumbers: true,
   botCount: 4,
   botMode: 'fight',
+  skins: {},
 };
 
 const STORAGE_KEY = 'blockstrike.settings.v1';
@@ -41,6 +44,13 @@ function numberIn(value: unknown, min: number, max: number, fallback: number): n
 
 function booleanOr(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function stringRecord(value: unknown): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return result;
+  for (const [key, item] of Object.entries(value)) if (typeof item === 'string') result[key] = item;
+  return result;
 }
 
 export function loadSettings(): Settings {
@@ -64,6 +74,7 @@ export function loadSettings(): Settings {
     damageNumbers: booleanOr(stored.damageNumbers, DEFAULTS.damageNumbers),
     botCount: Math.round(numberIn(stored.botCount, 0, MAX_BOTS, DEFAULTS.botCount)),
     botMode: BOT_MODES.includes(stored.botMode as BotMode) ? (stored.botMode as BotMode) : DEFAULTS.botMode,
+    skins: stringRecord(stored.skins),
   };
 }
 

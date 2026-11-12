@@ -5,7 +5,14 @@ import { byId } from './dom.ts';
 type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount';
 type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers';
 
-/** Menu di pausa: avvio della partita e impostazioni. */
+/** Armi che hanno skin, con le skin disponibili. */
+export interface SkinChoice {
+  weaponId: string;
+  weaponName: string;
+  skins: readonly { id: string; name: string }[];
+}
+
+/** Menu di pausa: avvio della partita, impostazioni e skin delle armi. */
 export class Menu {
   onPlay: () => void = () => {};
   onChange: (settings: Settings) => void = () => {};
@@ -14,8 +21,8 @@ export class Menu {
   private readonly lockError = byId('lock-error');
   private readonly settings: Settings;
 
-  constructor(settings: Settings) {
-    this.settings = { ...settings };
+  constructor(settings: Settings, skinChoices: readonly SkinChoice[]) {
+    this.settings = { ...settings, skins: { ...settings.skins } };
     byId<HTMLButtonElement>('play').addEventListener('click', () => this.onPlay());
 
     this.bindRange('set-sensitivity', 'out-sensitivity', 'sensitivity', (v) => v.toFixed(1));
@@ -31,8 +38,10 @@ export class Menu {
     mode.value = this.settings.botMode;
     mode.addEventListener('change', () => {
       this.settings.botMode = mode.value as BotMode;
-      this.onChange({ ...this.settings });
+      this.emit();
     });
+
+    this.buildSkins(skinChoices);
   }
 
   show(): void {
@@ -48,6 +57,35 @@ export class Menu {
     this.lockError.hidden = false;
   }
 
+  private emit(): void {
+    this.onChange({ ...this.settings, skins: { ...this.settings.skins } });
+  }
+
+  /** Un menu a tendina per ogni arma che ha skin. */
+  private buildSkins(choices: readonly SkinChoice[]): void {
+    const list = byId('skin-list');
+    list.replaceChildren();
+    byId('skins-section').hidden = choices.length === 0;
+    for (const choice of choices) {
+      const label = document.createElement('label');
+      label.className = 'row select-row';
+      const name = document.createElement('span');
+      name.textContent = choice.weaponName;
+      const select = document.createElement('select');
+      select.append(new Option('Predefinita', ''));
+      for (const skin of choice.skins) select.append(new Option(skin.name, skin.id));
+      const current = this.settings.skins[choice.weaponId] ?? '';
+      select.value = choice.skins.some((s) => s.id === current) ? current : '';
+      select.addEventListener('change', () => {
+        if (select.value) this.settings.skins[choice.weaponId] = select.value;
+        else delete this.settings.skins[choice.weaponId];
+        this.emit();
+      });
+      label.append(name, select);
+      list.append(label);
+    }
+  }
+
   /** @param scale il cursore mostra valore × scale (es. volume 0-1 come 0-100). */
   private bindRange(inputId: string, outputId: string, key: NumberKey, format: (value: number) => string, scale = 1): void {
     const input = byId<HTMLInputElement>(inputId);
@@ -57,7 +95,7 @@ export class Menu {
     input.addEventListener('input', () => {
       this.settings[key] = Number(input.value) / scale;
       output.textContent = format(this.settings[key]);
-      this.onChange({ ...this.settings });
+      this.emit();
     });
   }
 
@@ -66,7 +104,7 @@ export class Menu {
     input.checked = this.settings[key];
     input.addEventListener('change', () => {
       this.settings[key] = input.checked;
-      this.onChange({ ...this.settings });
+      this.emit();
     });
   }
 }

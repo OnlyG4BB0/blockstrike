@@ -1,0 +1,10 @@
+{
+  "id": "knife_ossidiana",
+  "name": "Ossidiana",
+  "weapon": "knife",
+  "colors": {
+    "blade": "#3a2d52",
+    "handle": "#7d3cff",
+    "guard": "#4a2a80"
+  }
+}

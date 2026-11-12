@@ -1,0 +1,29 @@
+{
+  "id": "knife_hit",
+  "seconds": 0.25,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 1400,
+      "duration": 0.1,
+      "peak": 0.7,
+      "to": 300
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 160,
+      "duration": 0.08,
+      "peak": 0.5,
+      "to": 70
+    },
+    {
+      "type": "noise",
+      "filter": "highpass",
+      "from": 3000,
+      "duration": 0.03,
+      "peak": 0.2
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "id": "revolver",
+  "name": "Revolver",
+  "order": 7,
+  "type": "hitscan",
+  "damage": 52,
+  "headMultiplier": 2,
+  "limbMultiplier": 0.8,
+  "fireRate": 150,
+  "auto": false,
+  "magazine": 6,
+  "reloadTime": 2.4,
+  "drawTime": 0.4,
+  "range": {
+    "start": 20,
+    "end": 50,
+    "minDamageFactor": 0.6
+  },
+  "spread": {
+    "base": 0.9,
+    "moving": 1.6,
+    "air": 3.5,
+    "perShot": 1.2,
+    "max": 4,
+    "recovery": 5,
+    "ads": 0.3
+  },
+  "recoil": {
+    "pattern": [
+      [3.5, 0.3]
+    ],
+    "recovery": 6,
+    "ads": 0.8
+  },
+  "ads": {
+    "zoom": 1.3,
+    "time": 0.16,
+    "moveFactor": 0.85
+  },
+  "moveSpeedFactor": 1,
+  "gore": {
+    "dismember": true,
+    "gibChance": 0
+  },
+  "model": "revolver",
+  "sounds": {
+    "fire": "revolver"
+  },
+  "bot": {
+    "preferredRange": 14
+  }
+}

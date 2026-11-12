@@ -12,33 +12,34 @@ import {
   type Mesh,
 } from 'three';
 import {
-  GRENADE,
   KILLED_BY_FALL,
   KILLED_BY_GRENADE,
   MOVE,
   Match,
+  SHOT_BODY,
   SHOT_WORLD,
   TICK_DT,
-  WEAPONS,
   copyPlayerState,
   createPlayerState,
   currentSpread,
   horizontalSpeed,
   lineOfSight,
   type Combatant,
+  type GameContent,
   type MapData,
   type PlayerState,
+  type WeaponDef,
 } from '@blockstrike/shared';
 import { AudioSystem } from '../audio/AudioSystem.ts';
-import type { SoundName } from '../audio/sounds.ts';
 import { AUDIO, CHARACTERS, EFFECTS, RENDER, VIEW, VIEWMODEL } from '../config.ts';
 import { Input } from '../input/Input.ts';
 import { createBlockTexture } from '../render/blockTexture.ts';
-import { CharacterView, colorsFor } from '../render/CharacterView.ts';
+import { CharacterView, colorsFor, type WeaponLook } from '../render/CharacterView.ts';
 import { Effects } from '../render/Effects.ts';
 import { createMapMesh } from '../render/mapMesh.ts';
 import { createSky } from '../render/sky.ts';
 import { Viewmodel } from '../render/Viewmodel.ts';
+import { ModelLibrary } from '../render/weaponModels.ts';
 import { SENSITIVITY_SCALE, loadSettings, saveSettings, type Settings } from '../settings.ts';
 import { Hud, type LabelData, type ScoreRow, type ScreenPoint } from '../ui/Hud.ts';
 import { Menu } from '../ui/Menu.ts';
@@ -52,12 +53,6 @@ const LOCAL_NAME = 'Tu';
 
 function easeInOut(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
-}
-
-function weaponLabel(index: number): string {
-  if (index === KILLED_BY_FALL) return 'caduta';
-  if (index === KILLED_BY_GRENADE) return GRENADE.name;
-  return WEAPONS[index]?.name ?? '?';
 }
 
 /**
@@ -81,11 +76,13 @@ export class Game {
   private readonly camera: PerspectiveCamera;
   private readonly sky: Mesh;
   private readonly rig = new CameraRig();
-  private readonly hud = new Hud();
+  private readonly content: GameContent;
+  private readonly library: ModelLibrary;
+  private readonly hud: Hud;
   private readonly menu: Menu;
   private readonly viewmodel: Viewmodel;
   private readonly effects: Effects;
-  private readonly audio = new AudioSystem();
+  private readonly audio: AudioSystem;
   private readonly characters = new Map<number, CharacterView>();
   private readonly footsteps = new Map<number, number>();
   private settings: Settings;
@@ -100,9 +97,13 @@ export class Game {
   private readonly temp2 = new Vector3();
   private readonly projected = new Vector3();
 
-  constructor(container: HTMLElement, map: MapData) {
+  constructor(container: HTMLElement, map: MapData, content: GameContent) {
     this.settings = loadSettings();
-    this.match = new Match(map, { seed: (Math.random() * 0xffffffff) >>> 0 });
+    this.content = content;
+    this.library = new ModelLibrary(content);
+    this.hud = new Hud(content.weapons, content.grenade.name);
+    this.audio = new AudioSystem(content.sounds);
+    this.match = new Match(map, content, { seed: (Math.random() * 0xffffffff) >>> 0 });
     this.local = this.match.addCombatant(LOCAL_NAME);
     this.match.setBotCount(this.settings.botCount);
     this.match.botMode = this.settings.botMode;
@@ -118,16 +119,19 @@ export class Game {
     const aspect = window.innerWidth / window.innerHeight;
     this.camera = new PerspectiveCamera(75, aspect, VIEW.nearPlane, VIEW.farPlane);
     this.camera.rotation.order = 'YXZ';
-    this.viewmodel = new Viewmodel(aspect);
+    this.viewmodel = new Viewmodel(aspect, this.library, content.weapons, this.settings.skins);
 
     this.sky = createSky(map);
     this.buildScene();
-    this.effects = new Effects(this.scene, this.match.world, map);
+    this.effects = new Effects(this.scene, this.match.world, map, this.library);
 
     this.input = new Input(this.renderer.domElement);
     this.applySettings(this.settings);
 
-    this.menu = new Menu(this.settings);
+    const skinChoices = content.weapons
+      .map((def) => ({ weaponId: def.id, weaponName: def.name, skins: this.library.skinsFor(def.id) }))
+      .filter((choice) => choice.skins.length > 0);
+    this.menu = new Menu(this.settings, skinChoices);
     this.menu.onPlay = () => {
       void this.audio.start();
       void this.input.requestLock();
@@ -194,6 +198,30 @@ export class Game {
     if (this.match.combatants.filter((c) => c.bot).length !== settings.botCount) {
       this.match.setBotCount(settings.botCount);
     }
+    this.match.weapons.forEach((def, index) => this.viewmodel.setSkin(index, this.skinOf(def)));
+  }
+
+  /** Skin scelta nelle impostazioni per un'arma, se esiste ancora. */
+  private skinOf(def: WeaponDef): string | null {
+    const id = this.settings.skins[def.id];
+    return id && this.library.skin(id)?.weapon === def.id ? id : null;
+  }
+
+  /** Aspetto delle armi di un bot: per varietà, ogni bot ha una skin a caso (sempre la stessa). */
+  private botWeaponLook(botId: number): WeaponLook {
+    return (index) => {
+      const def = this.match.weapons[index]!;
+      const skins = this.library.skinsFor(def.id);
+      const pick = (botId * 7 + index * 3) % (skins.length + 1);
+      const skin = pick < skins.length ? skins[pick]!.id : null;
+      return { def: this.library.model(def.model), geometry: this.library.mergedGeometry(def.model, skin) };
+    };
+  }
+
+  private weaponLabel(index: number): string {
+    if (index === KILLED_BY_FALL) return 'caduta';
+    if (index === KILLED_BY_GRENADE) return this.content.grenade.name;
+    return this.match.weapons[index]?.name ?? '?';
   }
 
   private prevState(id: number): PlayerState {
@@ -248,7 +276,11 @@ export class Game {
       this.onLocalRespawn();
     }
     this.input.sample(local.input);
-    local.input.weaponSlot = this.input.consumeWeaponRequest(local.weapon.current, local.weapon.previous, WEAPONS.length);
+    local.input.weaponSlot = this.input.consumeWeaponRequest(
+      local.weapon.current,
+      local.weapon.previous,
+      this.match.weapons.length,
+    );
 
     for (const c of this.match.combatants) copyPlayerState(this.prevState(c.id), c.player);
     this.prevRecoilPitch = local.weapon.recoilPitch;
@@ -297,28 +329,35 @@ export class Game {
 
     for (let i = 0; i < events.shots.count; i++) {
       const shot = events.shots.get(i);
-      const def = WEAPONS[shot.weapon]!;
+      const def = this.match.weapons[shot.weapon]!;
+      const melee = def.kind === 'melee';
       const mine = shot.shooter === localId;
       let from: Vector3;
       if (mine) {
         this.viewmodel.onShot(shot.weapon);
         from = this.viewmodel.worldPoint(this.camera, 'muzzle', this.temp) ?? this.temp.set(shot.ox, shot.oy, shot.oz);
-        this.effects.muzzleLightAt(from.x, from.y, from.z);
-        this.audio.play(def.id as SoundName);
-        this.ejectCasing();
+        this.audio.play(def.sounds.fire);
+        if (!melee) {
+          this.effects.muzzleLightAt(from.x, from.y, from.z);
+          this.ejectCasing();
+        }
       } else {
         const view = this.characters.get(shot.shooter);
         from = view ? view.muzzleWorld(this.temp) : this.temp.set(shot.ox, shot.oy, shot.oz);
-        this.effects.worldFlash(from.x, from.y, from.z);
-        this.audio.play(def.id as SoundName, { x: from.x, y: from.y, z: from.z });
+        if (!melee) this.effects.worldFlash(from.x, from.y, from.z);
+        this.audio.play(def.sounds.fire, { x: from.x, y: from.y, z: from.z });
       }
       for (let k = 0; k < shot.pellets; k++) {
         const ex = shot.ends[k * 3]!;
         const ey = shot.ends[k * 3 + 1]!;
         const ez = shot.ends[k * 3 + 2]!;
-        this.effects.tracer(from.x, from.y, from.z, ex, ey, ez);
+        // Il coltello non lascia traccianti; i colpi a vuoto sì.
+        if (!melee) this.effects.tracer(from.x, from.y, from.z, ex, ey, ez);
         if (shot.results[k] === SHOT_WORLD) {
           this.effects.impact(ex, ey, ez, shot.normals[k * 3]!, shot.normals[k * 3 + 1]!, shot.normals[k * 3 + 2]!, shot.targets[k]!);
+        }
+        if (melee && shot.results[k] === SHOT_BODY && def.sounds.hit) {
+          this.audio.play(def.sounds.hit, { x: ex, y: ey, z: ez });
         }
       }
     }
@@ -345,7 +384,7 @@ export class Game {
       this.hud.killFeed(
         name(kill.killer),
         name(kill.victim),
-        weaponLabel(kill.weapon),
+        this.weaponLabel(kill.weapon),
         kill.headshot,
         kill.killer === localId || kill.victim === localId,
       );
@@ -355,7 +394,9 @@ export class Game {
     for (let i = 0; i < events.explosions.count; i++) {
       const blast = events.explosions.get(i);
       this.effects.explosion(blast.x, blast.y, blast.z, blast.radius);
-      this.audio.play('explosion', { x: blast.x, y: blast.y, z: blast.z });
+      const projectile =
+        blast.weapon === KILLED_BY_GRENADE ? this.content.grenade.projectile : this.match.weapons[blast.weapon]?.projectile;
+      if (projectile) this.audio.play(projectile.sounds.explode, { x: blast.x, y: blast.y, z: blast.z });
       const distance = this.camera.position.distanceTo(this.temp2.set(blast.x, blast.y, blast.z));
       if (distance < EFFECTS.shakeRange) this.rig.addShake(1 - distance / EFFECTS.shakeRange);
     }
@@ -369,20 +410,17 @@ export class Game {
         if (mine) this.onLocalRespawn();
         continue;
       }
-      const sound: SoundName | null =
-        action.type === 'reload'
-          ? 'reload'
-          : action.type === 'reloadEnd'
-            ? 'reloadEnd'
-            : action.type === 'switch'
-              ? 'switch'
-              : action.type === 'dryFire'
-                ? 'dryFire'
-                : action.type === 'throw'
-                  ? 'throw'
-                  : action.type === 'bounce'
-                    ? 'bounce'
-                    : null;
+      // I suoni delle azioni vengono dai dati dell'arma in mano (o della granata).
+      const c = this.match.getCombatant(action.combatant);
+      const def = c ? this.match.weapons[c.weapon.current] : undefined;
+      const grenade = this.content.grenade;
+      let sound: string | null = null;
+      if (action.type === 'reload') sound = def?.sounds.reload ?? null;
+      else if (action.type === 'reloadEnd') sound = def?.sounds.reloadEnd ?? null;
+      else if (action.type === 'switch') sound = def?.sounds.draw ?? null;
+      else if (action.type === 'dryFire') sound = 'dry_fire';
+      else if (action.type === 'throw') sound = grenade.sounds.throw;
+      else if (action.type === 'bounce') sound = grenade.projectile.sounds.bounce;
       if (!sound) continue;
       if (mine && action.type !== 'bounce') this.audio.play(sound, { volume: 0.6 });
       else this.audio.play(sound, { x: action.x, y: action.y + 1, z: action.z, volume: 0.6 });
@@ -416,7 +454,7 @@ export class Game {
     const p = local.player;
     const q = this.prevState(local.id);
     const w = local.weapon;
-    const def = WEAPONS[w.current]!;
+    const def = this.match.weapons[w.current]!;
     this.rig.update(dt, p, this.settings.dynamicFov);
 
     const x = q.x + (p.x - q.x) * alpha;
@@ -470,7 +508,7 @@ export class Game {
       alive.add(c.id);
       let view = this.characters.get(c.id);
       if (!view) {
-        view = new CharacterView(colorsFor(c.id));
+        view = new CharacterView(colorsFor(c.id), this.botWeaponLook(c.id));
         this.scene.add(view.root);
         this.characters.set(c.id, view);
       }
@@ -504,14 +542,14 @@ export class Game {
   private updateHud(dt: number, scoped: boolean): void {
     const local = this.local;
     const w = local.weapon;
-    const def = WEAPONS[w.current]!;
+    const def = this.match.weapons[w.current]!;
     this.hud.frame(dt, local.player, this.peakSpeed, this.settings, this.settings.showDebug ? this.debugText() : '');
     this.hud.vitals(local.health, local.alive, local.protection);
     const reloadProgress = w.reloadTimer > 0 ? 1 - w.reloadTimer / def.reloadTime : -1;
     this.hud.weapon(w.current, w.ammo[w.current]!, reloadProgress, w.grenades);
 
     // Mirino: la distanza delle linee corrisponde alla dispersione sullo schermo.
-    const spread = MathUtils.degToRad(currentSpread(local));
+    const spread = MathUtils.degToRad(currentSpread(local, def));
     const halfFov = MathUtils.degToRad(this.camera.fov) / 2;
     const gap = (Math.tan(spread) / Math.tan(halfFov)) * (window.innerHeight / 2) + 3;
     this.hud.crosshairGap(gap, local.alive && !scoped);
@@ -521,7 +559,7 @@ export class Game {
       this.hud.deathScreen(false);
     } else {
       const killer = local.killedBy === local.id ? '' : (this.match.getCombatant(local.killedBy)?.name ?? '');
-      this.hud.deathScreen(true, killer, weaponLabel(local.killedByWeapon), local.respawnTimer);
+      this.hud.deathScreen(true, killer, this.weaponLabel(local.killedByWeapon), local.respawnTimer);
     }
 
     let rows: ScoreRow[] | null = null;
@@ -574,7 +612,7 @@ export class Game {
       `vel    ${f(p.vx)} ${f(p.vy)} ${f(p.vz)}`,
       `suolo  ${p.grounded ? 'sì' : 'no'}   pendenza ${f(p.groundGradX)} ${f(p.groundGradZ)}`,
       `stato  ${p.sliding ? 'scivolata' : p.crouched ? 'accovacciato' : 'in piedi'}`,
-      `arma   dispersione ${currentSpread(this.local).toFixed(2)}°  rinculo ${f(MathUtils.radToDeg(this.local.weapon.recoilPitch))}°`,
+      `arma   ${this.match.weapons[this.local.weapon.current]!.id}  dispersione ${currentSpread(this.local, this.match.weapons[this.local.weapon.current]!).toFixed(2)}°  rinculo ${f(MathUtils.radToDeg(this.local.weapon.recoilPitch))}°`,
       `tick   ${this.match.tickCount}   proiettili ${projectiles}   chiamate di disegno ${this.renderer.info.render.calls}`,
       `velocità max di corsa ${(MOVE.runSpeed * p.speedScale).toFixed(2)} m/s`,
     ].join('\n');

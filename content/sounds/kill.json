@@ -1,0 +1,30 @@
+{
+  "id": "kill",
+  "seconds": 0.6,
+  "layers": [
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 160,
+      "duration": 0.12,
+      "peak": 0.6,
+      "to": 60
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 1320,
+      "duration": 0.45,
+      "peak": 0.25,
+      "start": 0.02
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 1980,
+      "duration": 0.45,
+      "peak": 0.2,
+      "start": 0.02
+    }
+  ]
+}

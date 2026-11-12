@@ -1,0 +1,40 @@
+{
+  "id": "shotgun",
+  "seconds": 0.9,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 4000,
+      "duration": 0.3,
+      "peak": 1,
+      "to": 350
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 90,
+      "duration": 0.18,
+      "peak": 0.9,
+      "to": 30
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 1800,
+      "duration": 0.07,
+      "peak": 0.35,
+      "start": 0.42,
+      "q": 2
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 1300,
+      "duration": 0.07,
+      "peak": 0.35,
+      "start": 0.56,
+      "q": 2
+    }
+  ]
+}

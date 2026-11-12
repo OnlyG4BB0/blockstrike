@@ -1,0 +1,51 @@
+{
+  "id": "shotgun",
+  "name": "Fucile a pompa",
+  "shortName": "Pompa",
+  "order": 4,
+  "type": "hitscan",
+  "damage": 13,
+  "headMultiplier": 1.5,
+  "limbMultiplier": 0.8,
+  "fireRate": 70,
+  "auto": false,
+  "magazine": 6,
+  "reloadTime": 2.2,
+  "drawTime": 0.5,
+  "pellets": 8,
+  "range": {
+    "start": 6,
+    "end": 20,
+    "minDamageFactor": 0.25
+  },
+  "spread": {
+    "base": 5,
+    "moving": 1,
+    "air": 1,
+    "ads": 0.8
+  },
+  "recoil": {
+    "pattern": [
+      [4, 0]
+    ],
+    "recovery": 6,
+    "ads": 0.8
+  },
+  "ads": {
+    "zoom": 1.15,
+    "time": 0.2,
+    "moveFactor": 0.8
+  },
+  "moveSpeedFactor": 0.95,
+  "gore": {
+    "dismember": true,
+    "gibChance": 0.35
+  },
+  "model": "shotgun",
+  "sounds": {
+    "fire": "shotgun"
+  },
+  "bot": {
+    "preferredRange": 6
+  }
+}

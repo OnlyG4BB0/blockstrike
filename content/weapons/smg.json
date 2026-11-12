@@ -1,0 +1,55 @@
+{
+  "id": "smg",
+  "name": "Mitraglietta",
+  "order": 2,
+  "type": "hitscan",
+  "damage": 17,
+  "headMultiplier": 1.7,
+  "limbMultiplier": 0.85,
+  "fireRate": 900,
+  "auto": true,
+  "magazine": 32,
+  "reloadTime": 1.7,
+  "drawTime": 0.35,
+  "range": {
+    "start": 12,
+    "end": 35,
+    "minDamageFactor": 0.55
+  },
+  "spread": {
+    "base": 1,
+    "moving": 1,
+    "air": 2,
+    "perShot": 0.2,
+    "max": 4.5,
+    "recovery": 10,
+    "ads": 0.5
+  },
+  "recoil": {
+    "pattern": [
+      [0.45, 0.1],
+      [0.4, -0.15],
+      [0.45, 0.2],
+      [0.4, -0.2]
+    ],
+    "recovery": 7,
+    "ads": 0.7
+  },
+  "ads": {
+    "zoom": 1.2,
+    "time": 0.14,
+    "moveFactor": 0.85
+  },
+  "moveSpeedFactor": 1.03,
+  "gore": {
+    "dismember": false,
+    "gibChance": 0
+  },
+  "model": "smg",
+  "sounds": {
+    "fire": "smg"
+  },
+  "bot": {
+    "preferredRange": 12
+  }
+}

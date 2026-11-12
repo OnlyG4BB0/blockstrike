@@ -1,0 +1,31 @@
+{
+  "id": "revolver",
+  "seconds": 0.6,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 5000,
+      "duration": 0.22,
+      "peak": 1,
+      "to": 500
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 130,
+      "duration": 0.12,
+      "peak": 0.8,
+      "to": 40
+    },
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 900,
+      "duration": 0.3,
+      "peak": 0.2,
+      "start": 0.1,
+      "to": 200
+    }
+  ]
+}

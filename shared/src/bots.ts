@@ -10,7 +10,6 @@ import { nearestNode } from './navigation.ts';
 import { playerEyeHeight, playerHeight } from './player.ts';
 import { createRandom, random, randomInt, randomRange, type RandomState } from './random.ts';
 import { lineOfSight } from './raycast.ts';
-import { WEAPONS } from './weapons.ts';
 
 /** fight = combattono; roam = girano senza sparare; idle = fermi. */
 export type BotMode = 'fight' | 'roam' | 'idle';
@@ -39,7 +38,8 @@ export interface BotState {
   preferredRange: number;
 }
 
-export function createBotState(seed: number, weapon: number): BotState {
+/** @param preferredRange distanza a cui il bot cerca di combattere (dai dati dell'arma). */
+export function createBotState(seed: number, preferredRange: number): BotState {
   return {
     random: createRandom(seed),
     node: -1,
@@ -59,7 +59,7 @@ export function createBotState(seed: number, weapon: number): BotState {
     bursting: false,
     semiTimer: 0,
     perceptionTimer: 0,
-    preferredRange: BOT.preferredRange[weapon] ?? 15,
+    preferredRange,
   };
 }
 
@@ -121,7 +121,7 @@ export function updateBot(c: Combatant, match: Match, dt: number): void {
   }
   const target = b.target >= 0 ? match.getCombatant(b.target) : undefined;
   if (target && target.alive && match.botMode === 'fight') {
-    engage(c, target, dt);
+    engage(c, target, match, dt);
   } else {
     b.target = -1;
     patrol(c, match, dt);
@@ -172,7 +172,7 @@ function perceive(c: Combatant, match: Match): void {
   b.semiTimer = 0;
 }
 
-function engage(c: Combatant, target: Combatant, dt: number): void {
+function engage(c: Combatant, target: Combatant, match: Match, dt: number): void {
   const b = c.bot!;
   const p = c.player;
   const input = c.input;
@@ -200,7 +200,7 @@ function engage(c: Combatant, target: Combatant, dt: number): void {
   b.reaction -= dt;
   const cone = Math.max(BOT.fireCone * DEG, Math.atan2(0.45, distance));
   const aligned = Math.abs(angleDiff(input.yaw, desiredYaw)) < cone && Math.abs(input.pitch - desiredPitch) < cone;
-  const def = WEAPONS[c.weapon.current]!;
+  const def = match.weapons[c.weapon.current]!;
   if (b.reaction <= 0 && aligned) {
     if (def.auto) {
       b.burstTimer -= dt;
@@ -248,8 +248,10 @@ function patrol(c: Combatant, match: Match, dt: number): void {
     }
   }
 
-  const def = WEAPONS[c.weapon.current]!;
-  if (c.weapon.ammo[c.weapon.current]! < def.magazine * 0.4 && c.weapon.reloadTimer <= 0) input.reload = true;
+  const def = match.weapons[c.weapon.current]!;
+  if (def.magazine > 0 && c.weapon.ammo[c.weapon.current]! < def.magazine * 0.4 && c.weapon.reloadTimer <= 0) {
+    input.reload = true;
+  }
 
   const graph = match.nav;
   if (graph.nodes.length === 0) {

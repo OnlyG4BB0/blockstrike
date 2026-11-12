@@ -1,0 +1,22 @@
+{
+  "id": "hurt",
+  "seconds": 0.3,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 600,
+      "duration": 0.16,
+      "peak": 0.6,
+      "to": 150
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 120,
+      "duration": 0.12,
+      "peak": 0.4,
+      "to": 60
+    }
+  ]
+}

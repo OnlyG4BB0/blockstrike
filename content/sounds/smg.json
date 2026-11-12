@@ -1,0 +1,30 @@
+{
+  "id": "smg",
+  "seconds": 0.2,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 8000,
+      "duration": 0.08,
+      "peak": 0.75,
+      "to": 1400
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 3200,
+      "duration": 0.04,
+      "peak": 0.4,
+      "q": 1.4
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 190,
+      "duration": 0.05,
+      "peak": 0.5,
+      "to": 70
+    }
+  ]
+}

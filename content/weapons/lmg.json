@@ -1,0 +1,56 @@
+{
+  "id": "lmg",
+  "name": "Mitragliatrice leggera",
+  "shortName": "Mitragliatrice",
+  "order": 3,
+  "type": "hitscan",
+  "damage": 26,
+  "headMultiplier": 1.8,
+  "limbMultiplier": 0.8,
+  "fireRate": 700,
+  "auto": true,
+  "magazine": 100,
+  "reloadTime": 4.2,
+  "drawTime": 0.8,
+  "range": {
+    "start": 30,
+    "end": 70,
+    "minDamageFactor": 0.65
+  },
+  "spread": {
+    "base": 1.4,
+    "moving": 3,
+    "air": 5,
+    "perShot": 0.12,
+    "max": 5,
+    "recovery": 6,
+    "ads": 0.4
+  },
+  "recoil": {
+    "pattern": [
+      [0.6, 0.2],
+      [0.55, -0.25],
+      [0.6, 0.3],
+      [0.55, -0.3]
+    ],
+    "recovery": 4.5,
+    "ads": 0.55
+  },
+  "ads": {
+    "zoom": 1.3,
+    "time": 0.3,
+    "moveFactor": 0.65
+  },
+  "moveSpeedFactor": 0.82,
+  "gore": {
+    "dismember": true,
+    "gibChance": 0
+  },
+  "model": "lmg",
+  "sounds": {
+    "fire": "lmg"
+  },
+  "bot": {
+    "preferredRange": 22
+  }
+}

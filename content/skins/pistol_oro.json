@@ -1,0 +1,10 @@
+{
+  "id": "pistol_oro",
+  "name": "Oro",
+  "weapon": "pistol",
+  "colors": {
+    "slide": "#d4af37",
+    "frame": "#b8902a",
+    "grip": "#2a1d0f"
+  }
+}

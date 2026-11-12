@@ -1,0 +1,22 @@
+{
+  "id": "reload_end",
+  "seconds": 0.25,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "highpass",
+      "from": 1800,
+      "duration": 0.06,
+      "peak": 0.35
+    },
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 900,
+      "duration": 0.025,
+      "peak": 0.35,
+      "start": 0.05,
+      "to": 540
+    }
+  ]
+}

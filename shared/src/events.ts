@@ -52,6 +52,8 @@ export interface KillEvent {
 
 export interface ExplosionEvent {
   owner: number;
+  /** Arma che ha lanciato il proiettile, oppure KILLED_BY_GRENADE. */
+  weapon: number;
   x: number;
   y: number;
   z: number;
@@ -116,7 +118,7 @@ export class EventBuffer {
     z: 0,
   }));
   readonly kills = new EventPool<KillEvent>(() => ({ killer: 0, victim: 0, weapon: 0, headshot: false }));
-  readonly explosions = new EventPool<ExplosionEvent>(() => ({ owner: 0, x: 0, y: 0, z: 0, radius: 0 }));
+  readonly explosions = new EventPool<ExplosionEvent>(() => ({ owner: 0, weapon: 0, x: 0, y: 0, z: 0, radius: 0 }));
   readonly actions = new EventPool<ActionEvent>(() => ({ combatant: 0, type: 'reload', x: 0, y: 0, z: 0 }));
 
   clear(): void {

@@ -4,12 +4,10 @@ import {
   BODY_STANDING,
   COMBAT,
   CollisionWorld,
-  GRENADE,
   KILLED_BY_GRENADE,
   Match,
   SHOT_BODY,
   TICK_RATE,
-  WEAPONS,
   buildNavGraph,
   createBodyHit,
   createPlayerState,
@@ -24,14 +22,20 @@ import {
   type MapBlock,
   type MapData,
 } from '../src/index.ts';
+import { gameContent, weaponIndex } from './content.ts';
 import { FLOOR, box, ramp } from './helpers.ts';
 
 const SECOND = TICK_RATE;
-const AR = 0;
-const SNIPER = 1;
-const SHOTGUN = 2;
-const PISTOL = 3;
-const ROCKET = 4;
+const CONTENT = gameContent();
+const WEAPONS = CONTENT.weapons;
+const GRENADE = CONTENT.grenade;
+const AR = weaponIndex('assault_rifle');
+const SNIPER = weaponIndex('sniper');
+const SHOTGUN = weaponIndex('shotgun');
+const PISTOL = weaponIndex('pistol');
+const ROCKET = weaponIndex('rocket_launcher');
+/** Tasto numerico che seleziona un'arma. */
+const slot = (index: number) => index + 1;
 
 function testMap(...blocks: MapBlock[]): MapData {
   return {
@@ -55,7 +59,7 @@ function loadArena(): MapData {
 
 /** Partita con un tiratore (giocatore) e un bersaglio (bot fermo), senza invulnerabilità. */
 function duel(map: MapData = testMap()): { match: Match; shooter: Combatant; target: Combatant } {
-  const match = new Match(map, { seed: 7 });
+  const match = new Match(map, CONTENT, { seed: 7 });
   match.botMode = 'idle';
   const shooter = match.addCombatant('Tiratore');
   const target = match.addCombatant('Bersaglio', { bot: true });
@@ -216,7 +220,7 @@ describe('armi istantanee', () => {
 
   it('il cecchino uccide con un colpo al busto, non a una gamba', () => {
     const { match, shooter, target } = duel();
-    shooter.input.weaponSlot = 2;
+    shooter.input.weaponSlot = slot(SNIPER);
     ticks(match, SECOND);
     shooter.input.weaponSlot = 0;
     shooter.input.ads = true;
@@ -230,7 +234,7 @@ describe('armi istantanee', () => {
   it('il fucile a pompa uccide da vicino e fa poco danno da lontano', () => {
     const near = duel();
     place(near.target, 0, 0, -3);
-    near.shooter.input.weaponSlot = 3;
+    near.shooter.input.weaponSlot = slot(SHOTGUN);
     ticks(near.match, SECOND);
     aimAt(near.shooter, ...chestOf(near.target));
     const close = singleShot(near.match, near.shooter);
@@ -239,7 +243,7 @@ describe('armi istantanee', () => {
 
     const far = duel();
     place(far.target, 0, 0, -25);
-    far.shooter.input.weaponSlot = 3;
+    far.shooter.input.weaponSlot = slot(SHOTGUN);
     ticks(far.match, SECOND);
     aimAt(far.shooter, ...chestOf(far.target));
     const distant = singleShot(far.match, far.shooter);
@@ -259,7 +263,7 @@ describe('armi istantanee', () => {
     expect(shots).toBe(10);
 
     shooter.input.fire = false;
-    shooter.input.weaponSlot = 4;
+    shooter.input.weaponSlot = slot(PISTOL);
     ticks(match, SECOND);
     shooter.input.weaponSlot = 0;
     shots = 0;
@@ -285,7 +289,7 @@ describe('armi istantanee', () => {
   it('cambiare arma richiede il tempo di estrazione', () => {
     const { match, shooter } = duel();
     place(match.combatants[1]!, 50, 0, 50);
-    shooter.input.weaponSlot = 5;
+    shooter.input.weaponSlot = slot(ROCKET);
     shooter.input.fire = true;
     let shots = 0;
     ticks(match, Math.floor(WEAPONS[ROCKET]!.drawTime * SECOND) - 1, () => (shots += match.events.shots.count));
@@ -297,11 +301,11 @@ describe('armi istantanee', () => {
     const { match, shooter } = duel();
     place(match.combatants[1]!, 50, 0, 50);
     match.tick();
-    const still = currentSpread(shooter);
+    const still = currentSpread(shooter, WEAPONS[AR]!);
     shooter.player.vx = 7.5;
-    const moving = currentSpread(shooter);
+    const moving = currentSpread(shooter, WEAPONS[AR]!);
     shooter.player.grounded = false;
-    const air = currentSpread(shooter);
+    const air = currentSpread(shooter, WEAPONS[AR]!);
     shooter.player.vx = 0;
     shooter.player.grounded = true;
     expect(moving).toBeGreaterThan(still);
@@ -309,14 +313,14 @@ describe('armi istantanee', () => {
 
     shooter.input.ads = true;
     ticks(match, SECOND);
-    expect(currentSpread(shooter)).toBeLessThan(still * 0.5);
+    expect(currentSpread(shooter, WEAPONS[AR]!)).toBeLessThan(still * 0.5);
     shooter.input.ads = false;
     ticks(match, SECOND);
 
     // Mezzo secondo di raffica: 5 colpi da 0,4° di dispersione accumulata.
     shooter.input.fire = true;
     ticks(match, 30);
-    expect(currentSpread(shooter)).toBeCloseTo(still + 5 * WEAPONS[AR]!.spread.perShot, 6);
+    expect(currentSpread(shooter, WEAPONS[AR]!)).toBeCloseTo(still + 5 * WEAPONS[AR]!.spread.perShot, 6);
   });
 
   it('il rinculo alza la mira sparando e poi torna a zero', () => {
@@ -356,7 +360,7 @@ describe('armi istantanee', () => {
 describe('razzi e granate', () => {
   it('un razzo diretto uccide', () => {
     const { match, shooter, target } = duel();
-    shooter.input.weaponSlot = 5;
+    shooter.input.weaponSlot = slot(ROCKET);
     ticks(match, SECOND);
     aimAt(shooter, ...chestOf(target));
     shooter.input.fire = true;
@@ -369,7 +373,7 @@ describe('razzi e granate', () => {
   it('salto con il razzo: sparare ai piedi spinge in alto e toglie meno di metà vita', () => {
     const { match, shooter } = duel();
     place(match.combatants[1]!, 50, 0, 50);
-    shooter.input.weaponSlot = 5;
+    shooter.input.weaponSlot = slot(ROCKET);
     ticks(match, SECOND);
     shooter.input.pitch = -Math.PI / 2 + 0.05;
     shooter.input.fire = true;
@@ -416,7 +420,7 @@ describe('razzi e granate', () => {
     // Muro alto tra il tiratore e il bersaglio; il razzo colpisce il muro.
     const { match, shooter, target } = duel(testMap(box([-5, 0, -6], [10, 6, 0.5])));
     place(target, 0, 0, -7.5);
-    shooter.input.weaponSlot = 5;
+    shooter.input.weaponSlot = slot(ROCKET);
     ticks(match, SECOND);
     aimAt(shooter, 0, 1.2, -6);
     shooter.input.fire = true;
@@ -437,7 +441,7 @@ describe('bot', () => {
   });
 
   it('un bot trova e uccide un giocatore fermo', () => {
-    const match = new Match(testMap(), { seed: 3 });
+    const match = new Match(testMap(), CONTENT, { seed: 3 });
     const human = match.addCombatant('Umano');
     const bot = match.addCombatant('Bot', { bot: true, weapon: AR });
     place(human, 0, 0, 0);
@@ -455,7 +459,7 @@ describe('bot', () => {
   });
 
   it('i bot girano per l\'arena senza bloccarsi', () => {
-    const match = new Match(loadArena(), { seed: 11 });
+    const match = new Match(loadArena(), CONTENT, { seed: 11 });
     match.botMode = 'roam';
     match.setBotCount(3);
     const travelled = match.combatants.map(() => 0);
@@ -471,7 +475,7 @@ describe('bot', () => {
 
   it('partita con bot che combattono: stessi semi, stesso identico risultato', () => {
     const simulate = () => {
-      const match = new Match(loadArena(), { seed: 99 });
+      const match = new Match(loadArena(), CONTENT, { seed: 99 });
       match.setBotCount(5);
       let shots = 0;
       let kills = 0;
@@ -494,7 +498,7 @@ describe('bot', () => {
   });
 
   it('i colpi dei bot registrano corpo e mondo', () => {
-    const match = new Match(loadArena(), { seed: 5 });
+    const match = new Match(loadArena(), CONTENT, { seed: 5 });
     match.setBotCount(4);
     let bodyHits = 0;
     for (let i = 0; i < SECOND * 30; i++) {
@@ -511,13 +515,15 @@ describe('bot', () => {
 describe('dati delle armi', () => {
   it('ogni arma ha valori sensati', () => {
     for (const def of WEAPONS) {
-      expect(def.magazine).toBeGreaterThan(0);
+      // Caricatore 0 solo per le armi corpo a corpo (munizioni infinite).
+      if (def.kind === 'melee') expect(def.magazine).toBe(0);
+      else expect(def.magazine).toBeGreaterThan(0);
       expect(def.fireRate).toBeGreaterThan(0);
       expect(def.recoil.pattern.length).toBeGreaterThan(0);
       expect(def.pellets).toBeGreaterThan(0);
       if (def.kind === 'projectile') expect(def.projectile).toBeDefined();
     }
-    expect(new Set(WEAPONS.map((w) => w.slot)).size).toBe(WEAPONS.length);
+    expect(new Set(WEAPONS.map((w) => w.id)).size).toBe(WEAPONS.length);
     expect(WEAPONS[PISTOL]!.auto).toBe(false);
     expect(WEAPONS[SHOTGUN]!.pellets).toBeGreaterThan(1);
   });

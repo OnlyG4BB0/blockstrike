@@ -1,0 +1,15 @@
+{
+  "id": "dry_fire",
+  "seconds": 0.1,
+  "layers": [
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 2400,
+      "duration": 0.025,
+      "peak": 0.3,
+      "start": 0,
+      "to": 1440
+    }
+  ]
+}

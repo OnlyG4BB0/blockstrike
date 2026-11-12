@@ -1,0 +1,9 @@
+{
+  "id": "shotgun_ciliegio",
+  "name": "Ciliegio",
+  "weapon": "shotgun",
+  "colors": {
+    "pump": "#9b1d1d",
+    "stock": "#9b1d1d"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "pistol",
+  "name": "Pistola",
+  "order": 6,
+  "type": "hitscan",
+  "damage": 28,
+  "headMultiplier": 2,
+  "limbMultiplier": 0.8,
+  "fireRate": 360,
+  "auto": false,
+  "magazine": 12,
+  "reloadTime": 1.3,
+  "drawTime": 0.3,
+  "range": {
+    "start": 15,
+    "end": 45,
+    "minDamageFactor": 0.55
+  },
+  "spread": {
+    "base": 0.8,
+    "moving": 1.2,
+    "air": 3,
+    "perShot": 0.6,
+    "max": 3.5,
+    "recovery": 6,
+    "ads": 0.35
+  },
+  "recoil": {
+    "pattern": [
+      [1.6, 0.1],
+      [1.5, -0.15]
+    ],
+    "recovery": 7,
+    "ads": 0.7
+  },
+  "ads": {
+    "zoom": 1.25,
+    "time": 0.15,
+    "moveFactor": 0.85
+  },
+  "moveSpeedFactor": 1,
+  "gore": {
+    "dismember": false,
+    "gibChance": 0
+  },
+  "model": "pistol",
+  "sounds": {
+    "fire": "pistol"
+  },
+  "bot": {
+    "preferredRange": 12
+  }
+}

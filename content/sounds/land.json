@@ -1,0 +1,22 @@
+{
+  "id": "land",
+  "seconds": 0.2,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 500,
+      "duration": 0.1,
+      "peak": 0.6,
+      "to": 120
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 90,
+      "duration": 0.08,
+      "peak": 0.3,
+      "to": 50
+    }
+  ]
+}

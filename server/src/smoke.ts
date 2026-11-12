@@ -5,6 +5,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import {
   CollisionWorld,
+  ContentError,
   Match,
   TICK_RATE,
   createInput,
@@ -14,9 +15,22 @@ import {
   simulateTick,
   spawnPlayer,
 } from '@blockstrike/shared';
+import { loadContentFromDisk } from './content.ts';
 
 const mapsDir = new URL('../../content/maps/', import.meta.url);
 let failures = 0;
+
+let content;
+try {
+  content = loadContentFromDisk();
+  console.log(
+    `Contenuti: ${content.weapons.length} armi (${content.weapons.map((w) => w.id).join(', ')}), ` +
+      `${content.models.size} modelli, ${content.skins.length} skin, ${content.sounds.size} suoni`,
+  );
+} catch (error) {
+  console.error(error instanceof ContentError ? error.message : error);
+  process.exit(1);
+}
 
 for (const file of readdirSync(mapsDir).filter((name) => name.endsWith('.json'))) {
   try {
@@ -38,7 +52,7 @@ for (const file of readdirSync(mapsDir).filter((name) => name.endsWith('.json'))
     );
 
     // Partita tra bot.
-    const match = new Match(map, { seed: 1 });
+    const match = new Match(map, content, { seed: 1 });
     match.setBotCount(6);
     const seconds = 60;
     let shots = 0;

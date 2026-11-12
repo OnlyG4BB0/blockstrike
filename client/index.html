@@ -70,7 +70,7 @@
       <div id="menu">
         <div class="menu-panel">
           <h1 class="title">BLOCK<span>STRIKE</span></h1>
-          <p class="subtitle">Fase 2 · sparatoria contro i bot</p>
+          <p class="subtitle">Fase 3 · armi dai file JSON</p>
           <button id="play" class="play" type="button">Gioca</button>
           <p id="lock-error" class="lock-error" hidden>
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
@@ -111,6 +111,11 @@
               <label class="check"><input id="set-dynamic-fov" type="checkbox" /><span>Allarga la visuale in velocità</span></label>
               <label class="check"><input id="set-show-fps" type="checkbox" /><span>Mostra FPS</span></label>
               <label class="check"><input id="set-show-debug" type="checkbox" /><span>Dati di debug</span></label>
+
+              <div id="skins-section">
+                <h2 class="subsection">Skin delle armi</h2>
+                <div id="skin-list"></div>
+              </div>
             </section>
 
             <section>
@@ -128,7 +133,7 @@
                 <dd>mira</dd>
                 <dt>R</dt>
                 <dd>ricarica</dd>
-                <dt>1 – 5 · rotella</dt>
+                <dt>1 – 9 · rotella</dt>
                 <dd>cambia arma (Q: quella di prima)</dd>
                 <dt>G</dt>
                 <dd>lancia una granata</dd>
@@ -139,7 +144,8 @@
               </dl>
               <p class="tip">
                 Il lanciarazzi spinge anche te: spara ai tuoi piedi mentre salti per volare più in alto.
-                Il cecchino è preciso solo mirando.
+                Il cecchino è preciso solo mirando. Il coltello alle spalle uccide con un colpo, e con il
+                coltello in mano si corre più veloci.
               </p>
             </section>
           </div>

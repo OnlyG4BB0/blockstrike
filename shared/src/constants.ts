@@ -122,10 +122,6 @@ export const COMBAT = {
 /** Comportamento dei bot. Gli angoli sono in gradi, i tempi in secondi. */
 export const BOT = {
   names: ['Rocco', 'Gina', 'Tino', 'Lia', 'Ugo', 'Nina', 'Pino', 'Vera'],
-  /** Armi assegnate a turno ai bot (indici in WEAPONS). */
-  loadouts: [0, 2, 3, 0, 2, 3, 0, 3],
-  /** Distanza preferita in combattimento per arma (m), negli stessi indici di WEAPONS. */
-  preferredRange: [18, 30, 6, 12, 20],
   sightRange: 70,
   /** Metà dell'angolo di visuale: fuori da questo cono un nemico lontano non viene notato. */
   fieldOfView: 100,

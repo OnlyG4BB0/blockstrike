@@ -1,0 +1,33 @@
+{
+  "id": "reload",
+  "seconds": 0.5,
+  "layers": [
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 1700,
+      "duration": 0.025,
+      "peak": 0.3,
+      "start": 0,
+      "to": 1020
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 2600,
+      "duration": 0.05,
+      "peak": 0.25,
+      "start": 0.02,
+      "q": 3
+    },
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 1200,
+      "duration": 0.025,
+      "peak": 0.3,
+      "start": 0.2,
+      "to": 720
+    }
+  ]
+}

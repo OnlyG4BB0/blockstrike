@@ -1,0 +1,11 @@
+{
+  "id": "smg_neon",
+  "name": "Neon",
+  "weapon": "smg",
+  "colors": {
+    "handguard": "#ff2fa8",
+    "receiver": "#1b1b2e",
+    "magazine": "#2ff3ff",
+    "stock": "#ff2fa8"
+  }
+}

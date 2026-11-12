@@ -23,20 +23,20 @@ import {
 import { createRandom, random, type RandomState } from './random.ts';
 import { createRayHit, lineOfSight, raycastWorld } from './raycast.ts';
 import {
-  GRENADE,
   KILLED_BY_FALL,
   KILLED_BY_GRENADE,
-  WEAPONS,
   damageFalloff,
   recoilPatternIndex,
   regionMultiplier,
+  type CombatContent,
   type ProjectileDef,
+  type ThrowableDef,
   type WeaponDef,
 } from './weapons.ts';
 import { CollisionWorld } from './world.ts';
 
 export interface WeaponState {
-  /** Indice dell'arma in mano in WEAPONS. */
+  /** Indice dell'arma in mano in Match.weapons. */
   current: number;
   previous: number;
   /** Colpi nel caricatore, per ogni arma. */
@@ -107,11 +107,11 @@ export interface Projectile {
   resting: boolean;
 }
 
-export function createWeaponState(seed: number, current = 0): WeaponState {
+export function createWeaponState(seed: number, content: CombatContent, current = 0): WeaponState {
   return {
     current,
     previous: current,
-    ammo: WEAPONS.map((def) => def.magazine),
+    ammo: content.weapons.map((def) => def.magazine),
     fireCooldown: 0,
     reloadTimer: 0,
     drawTimer: 0,
@@ -124,14 +124,14 @@ export function createWeaponState(seed: number, current = 0): WeaponState {
     triggerHeld: false,
     reloadHeld: false,
     grenadeHeld: false,
-    grenades: GRENADE.count,
+    grenades: content.grenade.count,
     grenadeCooldown: 0,
     random: createRandom(seed),
   };
 }
 
-function refillWeaponState(w: WeaponState): void {
-  for (let i = 0; i < WEAPONS.length; i++) w.ammo[i] = WEAPONS[i]!.magazine;
+function refillWeaponState(w: WeaponState, content: CombatContent): void {
+  for (let i = 0; i < content.weapons.length; i++) w.ammo[i] = content.weapons[i]!.magazine;
   w.fireCooldown = 0;
   w.reloadTimer = 0;
   w.drawTimer = 0;
@@ -141,15 +141,14 @@ function refillWeaponState(w: WeaponState): void {
   w.shotIndex = 0;
   w.sinceShot = 1;
   w.adsAmount = 0;
-  w.grenades = GRENADE.count;
+  w.grenades = content.grenade.count;
   w.grenadeCooldown = 0;
 }
 
 /** Dispersione attuale dell'arma in mano (gradi): serve anche al client per il mirino. */
-export function currentSpread(c: Combatant): number {
+export function currentSpread(c: Combatant, def: WeaponDef): number {
   const p = c.player;
   const w = c.weapon;
-  const def = WEAPONS[w.current]!;
   const moving = clamp(horizontalSpeed(p) / MOVE.runSpeed, 0, 1);
   const spread = def.spread.base + def.spread.moving * moving + (p.grounded ? 0 : def.spread.air) + w.bloom;
   return spread * (1 + (def.spread.ads - 1) * w.adsAmount);
@@ -234,10 +233,13 @@ export interface MatchOptions {
   seed?: number;
 }
 
-export class Match {
+export class Match implements CombatContent {
   readonly map: MapData;
   readonly world: CollisionWorld;
   readonly nav: NavGraph;
+  /** Armi disponibili, nell'ordine dei tasti numerici. */
+  readonly weapons: readonly WeaponDef[];
+  readonly grenade: ThrowableDef;
   readonly combatants: Combatant[] = [];
   readonly projectiles: Projectile[] = [];
   readonly events = new EventBuffer();
@@ -254,8 +256,11 @@ export class Match {
   private readonly pendingRegion: HitRegion[] = [];
   private readonly pendingPoint: number[] = [];
 
-  constructor(map: MapData, options: MatchOptions = {}) {
+  constructor(map: MapData, content: CombatContent, options: MatchOptions = {}) {
+    if (content.weapons.length === 0) throw new Error('Una partita ha bisogno di almeno un\'arma.');
     this.map = map;
+    this.weapons = content.weapons;
+    this.grenade = content.grenade;
     this.world = CollisionWorld.fromBlocks(map.blocks);
     this.nav = buildNavGraph(this.world, map.waypoints);
     this.random = createRandom(options.seed ?? 1);
@@ -265,7 +270,7 @@ export class Match {
         serial: 0,
         owner: -1,
         weapon: 0,
-        def: GRENADE.projectile,
+        def: content.grenade.projectile,
         x: 0,
         y: 0,
         z: 0,
@@ -284,15 +289,16 @@ export class Match {
   /** Aggiunge un combattente e lo fa nascere subito. */
   addCombatant(name: string, options: { bot?: boolean; weapon?: number } = {}): Combatant {
     const id = this.nextId++;
-    const weapon = options.weapon ?? 0;
+    const weapon = Math.min(Math.max(0, options.weapon ?? 0), this.weapons.length - 1);
     const seed = (Math.imul(id + 1, 0x9e3779b1) ^ this.random.seed) >>> 0;
+    const preferredRange = this.weapons[weapon]!.bot?.preferredRange ?? 15;
     const c: Combatant = {
       id,
       name,
       player: createPlayerState(),
-      weapon: createWeaponState(seed, weapon),
+      weapon: createWeaponState(seed, this, weapon),
       input: createInput(),
-      bot: options.bot ? createBotState(seed ^ 0x5bd1e995, weapon) : null,
+      bot: options.bot ? createBotState(seed ^ 0x5bd1e995, preferredRange) : null,
       health: COMBAT.maxHealth,
       alive: false,
       respawnTimer: 0,
@@ -326,9 +332,11 @@ export class Match {
       this.removeCombatant(bots[bots.length - 1]!.id);
       bots = bots.slice(0, -1);
     }
+    // I bot usano a turno le armi che lo prevedono nei loro dati ("bot" nel JSON).
+    const usable = this.weapons.flatMap((def, index) => (def.bot ? [index] : []));
     for (let i = bots.length; i < count; i++) {
       const name = BOT.names[i % BOT.names.length]!;
-      const weapon = BOT.loadouts[i % BOT.loadouts.length]!;
+      const weapon = usable.length > 0 ? usable[i % usable.length]! : 0;
       this.addCombatant(`Bot ${name}`, { bot: true, weapon });
     }
   }
@@ -363,7 +371,7 @@ export class Match {
     const p = c.player;
     c.protection = Math.max(0, c.protection - dt);
     this.updateWeapon(c, dt);
-    const def = WEAPONS[w.current]!;
+    const def = this.weapons[w.current]!;
     p.speedScale = def.moveSpeedFactor * (1 + (def.ads.moveFactor - 1) * w.adsAmount);
     simulateTick(p, c.input, this.world, dt);
     this.handleFire(c);
@@ -379,8 +387,8 @@ export class Match {
     const w = c.weapon;
     const input = c.input;
     const slot = Math.trunc(input.weaponSlot);
-    if (slot >= 1 && slot <= WEAPONS.length && slot - 1 !== w.current) this.switchWeapon(c, slot - 1);
-    const def = WEAPONS[w.current]!;
+    if (slot >= 1 && slot <= this.weapons.length && slot - 1 !== w.current) this.switchWeapon(c, slot - 1);
+    const def = this.weapons[w.current]!;
 
     if (w.drawTimer > 0) w.drawTimer = Math.max(0, w.drawTimer - dt);
 
@@ -396,7 +404,7 @@ export class Match {
       }
     }
 
-    const canAim = input.ads && w.reloadTimer <= 0 && w.drawTimer <= 0;
+    const canAim = input.ads && w.reloadTimer <= 0 && w.drawTimer <= 0 && def.kind !== 'melee';
     const adsStep = dt / Math.max(def.ads.time, 1e-3);
     w.adsAmount = clamp(w.adsAmount + (canAim ? adsStep : -adsStep), 0, 1);
 
@@ -413,7 +421,7 @@ export class Match {
     const w = c.weapon;
     w.previous = w.current;
     w.current = index;
-    w.drawTimer = WEAPONS[index]!.drawTime;
+    w.drawTimer = this.weapons[index]!.drawTime;
     w.reloadTimer = 0;
     w.adsAmount = 0;
     w.bloom = 0;
@@ -424,8 +432,8 @@ export class Match {
 
   private startReload(c: Combatant): void {
     const w = c.weapon;
-    const def = WEAPONS[w.current]!;
-    if (w.reloadTimer > 0 || w.ammo[w.current]! >= def.magazine) return;
+    const def = this.weapons[w.current]!;
+    if (def.magazine === 0 || w.reloadTimer > 0 || w.ammo[w.current]! >= def.magazine) return;
     w.reloadTimer = def.reloadTime;
     this.action(c, 'reload');
   }
@@ -433,7 +441,7 @@ export class Match {
   private handleFire(c: Combatant): void {
     const w = c.weapon;
     const input = c.input;
-    const def = WEAPONS[w.current]!;
+    const def = this.weapons[w.current]!;
     const pressed = input.fire && !w.triggerHeld;
     w.triggerHeld = input.fire;
     const blocked = w.drawTimer > 0 || w.reloadTimer > 0;
@@ -443,13 +451,15 @@ export class Match {
       return;
     }
     if (w.fireCooldown > 0) return;
-    if (w.ammo[w.current]! <= 0) {
+    // Caricatore 0 = munizioni infinite (armi corpo a corpo).
+    const infinite = def.magazine === 0;
+    if (!infinite && w.ammo[w.current]! <= 0) {
       if (pressed) this.action(c, 'dryFire');
       this.startReload(c);
       return;
     }
 
-    w.ammo[w.current]!--;
+    if (!infinite) w.ammo[w.current]!--;
     w.fireCooldown += 60 / def.fireRate;
     c.protection = 0;
 
@@ -457,9 +467,10 @@ export class Match {
     const p = c.player;
     const yaw = p.yaw + w.recoilYaw;
     const pitch = clamp(p.pitch + w.recoilPitch, -PLAYER.pitchLimit, PLAYER.pitchLimit);
-    const spread = currentSpread(c) * DEG_TO_RAD;
+    const spread = currentSpread(c, def) * DEG_TO_RAD;
     if (def.kind === 'hitscan') this.fireHitscan(c, def, yaw, pitch, spread);
-    else this.fireProjectile(c, def, yaw, pitch, spread);
+    else if (def.kind === 'projectile') this.fireProjectile(c, def, yaw, pitch, spread);
+    else this.fireMelee(c, def, yaw, pitch);
 
     w.bloom = Math.min(def.spread.max, w.bloom + def.spread.perShot);
     const kick = def.recoil.pattern[recoilPatternIndex(def.recoil.pattern.length, w.shotIndex)]!;
@@ -468,7 +479,84 @@ export class Match {
     w.recoilYaw -= kick[1] * recoilScale;
     w.shotIndex++;
     w.sinceShot = 0;
-    if (w.ammo[w.current] === 0) this.startReload(c);
+    if (!infinite && w.ammo[w.current] === 0) this.startReload(c);
+  }
+
+  /**
+   * Colpo corpo a corpo: cinque raggi corti (centro e quattro a ventaglio, entro `radius`), vince il
+   * bersaglio più vicino. Colpire alle spalle moltiplica il danno.
+   */
+  private fireMelee(c: Combatant, def: WeaponDef, yaw: number, pitch: number): void {
+    const melee = def.melee!;
+    const p = c.player;
+    const ox = p.x;
+    const oy = p.y + playerEyeHeight(p);
+    const oz = p.z;
+    const shot = this.events.shots.add();
+    shot.shooter = c.id;
+    shot.weapon = c.weapon.current;
+    shot.ox = ox;
+    shot.oy = oy;
+    shot.oz = oz;
+    shot.pellets = 1;
+
+    const fan = Math.atan2(melee.radius, melee.reach);
+    let bestT = Infinity;
+    let victim = -1;
+    let region: HitRegion = 'torso';
+    let worldT = Infinity;
+    for (let ray = 0; ray < 5; ray++) {
+      // Il raggio centrale ha la precedenza: quelli a ventaglio servono solo se manca il bersaglio.
+      if (ray === 1 && victim >= 0) break;
+      const dYaw = ray === 1 ? fan : ray === 2 ? -fan : 0;
+      const dPitch = ray === 3 ? fan : ray === 4 ? -fan : 0;
+      aimDirection(yaw + dYaw, pitch + dPitch, 0, c.weapon.random);
+      raycastWorld(this.world, ox, oy, oz, aim.x, aim.y, aim.z, melee.reach, rayHit);
+      if (ray === 0 && rayHit.hit) {
+        worldT = rayHit.t;
+        shot.normals[0] = rayHit.nx;
+        shot.normals[1] = rayHit.ny;
+        shot.normals[2] = rayHit.nz;
+        shot.targets[0] = rayHit.solid;
+      }
+      for (let j = 0; j < this.combatants.length; j++) {
+        const target = this.combatants[j]!;
+        if (target === c || !target.alive) continue;
+        if (!raycastBody(target.player, ox, oy, oz, aim.x, aim.y, aim.z, Math.min(rayHit.t, bestT), bodyHit).hit) continue;
+        bestT = bodyHit.t;
+        victim = j;
+        region = bodyHit.region;
+        shot.ends[0] = ox + aim.x * bestT;
+        shot.ends[1] = oy + aim.y * bestT;
+        shot.ends[2] = oz + aim.z * bestT;
+      }
+    }
+
+    if (victim < 0) {
+      aimDirection(yaw, pitch, 0, c.weapon.random);
+      const t = Math.min(worldT, melee.reach);
+      shot.ends[0] = ox + aim.x * t;
+      shot.ends[1] = oy + aim.y * t;
+      shot.ends[2] = oz + aim.z * t;
+      shot.results[0] = worldT <= melee.reach ? SHOT_WORLD : SHOT_MISS;
+      if (shot.results[0] === SHOT_MISS) shot.targets[0] = -1;
+      return;
+    }
+
+    const target = this.combatants[victim]!;
+    shot.results[0] = SHOT_BODY;
+    shot.targets[0] = target.id;
+    // Alle spalle: il bersaglio guarda nella stessa direzione in cui si colpisce.
+    const t = target.player;
+    let dx = t.x - p.x;
+    let dz = t.z - p.z;
+    const length = Math.hypot(dx, dz) || 1;
+    dx /= length;
+    dz /= length;
+    const facing = -Math.sin(t.yaw) * dx - Math.cos(t.yaw) * dz;
+    const backstab = facing > 0.5;
+    const damage = def.damage * regionMultiplier(def, region) * (backstab ? melee.backstabMultiplier : 1);
+    this.applyDamage(target, c.id, damage, region, shot.ends[0]!, shot.ends[1]!, shot.ends[2]!, c.weapon.current, region === 'head');
   }
 
   private fireHitscan(c: Combatant, def: WeaponDef, yaw: number, pitch: number, spread: number): void {
@@ -575,10 +663,11 @@ export class Match {
     w.grenadeHeld = c.input.grenade;
     if (!pressed || w.grenades <= 0 || w.grenadeCooldown > 0 || w.drawTimer > 0) return;
     w.grenades--;
-    w.grenadeCooldown = GRENADE.cooldown;
+    w.grenadeCooldown = this.grenade.cooldown;
     c.protection = 0;
     aimDirection(c.player.yaw, c.player.pitch, 0, w.random);
-    this.launch(c, GRENADE.projectile, KILLED_BY_GRENADE, GRENADE.projectile.speed, GRENADE.throwUp, GRENADE.inheritVelocity);
+    const g = this.grenade;
+    this.launch(c, g.projectile, KILLED_BY_GRENADE, g.projectile.speed, g.throwUp, g.inheritVelocity);
     this.action(c, 'throw');
   }
 
@@ -732,6 +821,7 @@ export class Match {
     const def = pr.def;
     const event = this.events.explosions.add();
     event.owner = pr.owner;
+    event.weapon = pr.weapon;
     event.x = x;
     event.y = y;
     event.z = z;
@@ -844,7 +934,7 @@ export class Match {
     c.protection = COMBAT.spawnProtection;
     c.lastAttacker = -1;
     c.lastDamageTime = -Infinity;
-    refillWeaponState(c.weapon);
+    refillWeaponState(c.weapon, this);
     c.input.yaw = c.player.yaw;
     c.input.pitch = 0;
     if (c.bot) resetBotState(c.bot);

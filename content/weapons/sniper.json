@@ -1,0 +1,42 @@
+{
+  "id": "sniper",
+  "name": "Cecchino",
+  "order": 5,
+  "type": "hitscan",
+  "damage": 100,
+  "headMultiplier": 2,
+  "limbMultiplier": 0.7,
+  "fireRate": 40,
+  "auto": false,
+  "magazine": 5,
+  "reloadTime": 2.6,
+  "drawTime": 0.6,
+  "spread": {
+    "base": 6,
+    "moving": 6,
+    "air": 10,
+    "ads": 0.02
+  },
+  "recoil": {
+    "pattern": [
+      [3.2, 0.3]
+    ],
+    "recovery": 7,
+    "ads": 1
+  },
+  "ads": {
+    "zoom": 4,
+    "time": 0.25,
+    "moveFactor": 0.55,
+    "scope": true
+  },
+  "moveSpeedFactor": 0.9,
+  "gore": {
+    "dismember": true,
+    "gibChance": 0
+  },
+  "model": "sniper",
+  "sounds": {
+    "fire": "sniper"
+  }
+}

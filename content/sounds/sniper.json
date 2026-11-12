@@ -1,0 +1,49 @@
+{
+  "id": "sniper",
+  "seconds": 1,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 6000,
+      "duration": 0.4,
+      "peak": 1,
+      "to": 500
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 110,
+      "duration": 0.2,
+      "peak": 0.9,
+      "to": 32
+    },
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 1200,
+      "duration": 0.6,
+      "peak": 0.25,
+      "start": 0.14,
+      "to": 250
+    },
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 1400,
+      "duration": 0.025,
+      "peak": 0.25,
+      "start": 0.55,
+      "to": 840
+    },
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 1000,
+      "duration": 0.025,
+      "peak": 0.25,
+      "start": 0.75,
+      "to": 600
+    }
+  ]
+}

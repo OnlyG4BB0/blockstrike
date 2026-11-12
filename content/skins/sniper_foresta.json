@@ -1,0 +1,11 @@
+{
+  "id": "sniper_foresta",
+  "name": "Foresta",
+  "weapon": "sniper",
+  "colors": {
+    "stock": "#3d5a2a",
+    "grip": "#3d5a2a",
+    "receiver": "#5b4a2e",
+    "scope": "#2f3d22"
+  }
+}

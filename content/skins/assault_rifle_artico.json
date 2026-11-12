@@ -1,0 +1,12 @@
+{
+  "id": "assault_rifle_artico",
+  "name": "Artico",
+  "weapon": "assault_rifle",
+  "colors": {
+    "receiver": "#d8dde3",
+    "handguard": "#ffffff",
+    "stock": "#b8c2cc",
+    "magazine": "#d8dde3",
+    "grip": "#9aa5b1"
+  }
+}

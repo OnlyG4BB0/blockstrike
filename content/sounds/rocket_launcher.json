@@ -1,0 +1,32 @@
+{
+  "id": "rocket_launcher",
+  "seconds": 0.7,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 2500,
+      "duration": 0.12,
+      "peak": 0.8,
+      "to": 300
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 400,
+      "duration": 0.6,
+      "peak": 0.45,
+      "attack": 0.08,
+      "to": 1800,
+      "q": 1
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 80,
+      "duration": 0.12,
+      "peak": 0.6,
+      "to": 40
+    }
+  ]
+}

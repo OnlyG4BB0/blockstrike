@@ -58,6 +58,13 @@ export const VIEWMODEL = {
   flashTime: 0.05,
   /** Oltre questa mira, con il mirino ottico l'arma sparisce e compare il cannocchiale. */
   scopeThreshold: 0.85,
+  /** Durata del fendente del coltello (s). */
+  slashTime: 0.3,
+  /** Corsa delle parti animate, in metri del modello. */
+  slideTravel: 0.035,
+  pumpTravel: 0.1,
+  boltTravel: 0.1,
+  magazineDrop: 0.3,
 } as const;
 
 /** Effetti: traccianti, segni sui muri, particelle, bossoli, esplosioni. */

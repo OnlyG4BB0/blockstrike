@@ -1,0 +1,23 @@
+{
+  "id": "pistol",
+  "seconds": 0.25,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 3200,
+      "duration": 0.09,
+      "peak": 0.8,
+      "to": 1200,
+      "q": 0.7
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 200,
+      "duration": 0.05,
+      "peak": 0.6,
+      "to": 70
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "revolver_avorio",
+  "name": "Avorio",
+  "weapon": "revolver",
+  "colors": {
+    "grip": "#efe6d2",
+    "cylinder": "#c9b37a"
+  }
+}

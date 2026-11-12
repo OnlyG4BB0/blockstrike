@@ -1,0 +1,16 @@
+{
+  "id": "throw",
+  "seconds": 0.25,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 700,
+      "duration": 0.18,
+      "peak": 0.35,
+      "attack": 0.03,
+      "to": 1500,
+      "q": 1
+    }
+  ]
+}

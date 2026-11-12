@@ -1,0 +1,31 @@
+{
+  "id": "explosion",
+  "seconds": 1.8,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 2200,
+      "duration": 1.4,
+      "peak": 1,
+      "attack": 0.005,
+      "to": 120
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 70,
+      "duration": 0.8,
+      "peak": 1,
+      "to": 24
+    },
+    {
+      "type": "noise",
+      "filter": "highpass",
+      "from": 2500,
+      "duration": 0.5,
+      "peak": 0.35,
+      "start": 0.05
+    }
+  ]
+}

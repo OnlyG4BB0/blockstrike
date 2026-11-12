@@ -715,6 +715,10 @@ body {
   grid-template-columns: 110px 1fr;
 }
 
+.columns h2.subsection {
+  margin-top: 18px;
+}
+
 .select-row select {
   padding: 5px 8px;
   border: 1px solid var(--ui-line);

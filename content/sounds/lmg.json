@@ -1,0 +1,30 @@
+{
+  "id": "lmg",
+  "seconds": 0.35,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 5500,
+      "duration": 0.17,
+      "peak": 1,
+      "to": 600
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 1700,
+      "duration": 0.07,
+      "peak": 0.5,
+      "q": 1
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 120,
+      "duration": 0.1,
+      "peak": 0.8,
+      "to": 38
+    }
+  ]
+}

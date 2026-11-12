@@ -1,0 +1,11 @@
+{
+  "id": "assault_rifle_tigre",
+  "name": "Tigre",
+  "weapon": "assault_rifle",
+  "colors": {
+    "handguard": "#e07b20",
+    "stock": "#1c1c1c",
+    "magazine": "#e07b20",
+    "receiver": "#26201a"
+  }
+}

@@ -1,8 +1,10 @@
-import { Color, Group, Mesh, MeshLambertMaterial, Vector3 } from 'three';
-import { BODY_STANDING, type Combatant } from '@blockstrike/shared';
+import { Color, Group, Mesh, MeshLambertMaterial, Vector3, type BufferGeometry } from 'three';
+import { BODY_STANDING, type Combatant, type WeaponModelDef } from '@blockstrike/shared';
 import { CHARACTERS } from '../config.ts';
 import { BoxModelBuilder } from './boxModel.ts';
-import { getWeaponModels } from './weaponModels.ts';
+
+/** Aspetto dell'arma in mano: modello (mani, bocca) e geometria già colorata con la skin. */
+export type WeaponLook = (weaponIndex: number) => { def: WeaponModelDef; geometry: BufferGeometry };
 
 export interface CharacterColors {
   shirt: string;
@@ -56,6 +58,7 @@ export class CharacterView {
   private readonly arms: Mesh;
   private readonly colors: CharacterColors;
   private readonly material: MeshLambertMaterial;
+  private readonly weaponLook: WeaponLook;
   private weaponIndex = -1;
   private walkPhase = 0;
   private crouch = 0;
@@ -63,7 +66,8 @@ export class CharacterView {
   private deadTime = -1;
   private readonly temp = new Vector3();
 
-  constructor(colors: CharacterColors) {
+  constructor(colors: CharacterColors, weaponLook: WeaponLook) {
+    this.weaponLook = weaponLook;
     this.material = new MeshLambertMaterial({ vertexColors: true, emissive: new Color(0, 0, 0) });
     const mesh = (builder: BoxModelBuilder): Mesh => {
       const m = new Mesh(builder.build(), this.material);
@@ -121,7 +125,7 @@ export class CharacterView {
     this.arms = new Mesh(undefined, this.material);
     this.arms.castShadow = true;
     this.aim.add(this.arms);
-    this.weaponMesh = new Mesh(getWeaponModels()[0]!.geometry, this.material);
+    this.weaponMesh = new Mesh(undefined, this.material);
     this.weaponMesh.castShadow = true;
     this.weaponMesh.position.set(WEAPON_POSITION[0], WEAPON_POSITION[1], WEAPON_POSITION[2]);
     this.aim.add(this.weaponMesh);
@@ -136,17 +140,17 @@ export class CharacterView {
   setWeapon(index: number): void {
     if (index === this.weaponIndex) return;
     this.weaponIndex = index;
-    const model = getWeaponModels()[index]!;
-    this.weaponMesh.geometry = model.geometry;
+    const look = this.weaponLook(index);
+    this.weaponMesh.geometry = look.geometry;
     const [wx, wy, wz] = WEAPON_POSITION;
-    const r = model.rightHand;
-    const l = model.leftHand;
+    const [rx, ry, rz] = look.def.hands.right;
+    const [lx, ly, lz] = look.def.hands.left;
     const thickness = size(ARM.min, ARM.max, 0);
     const geometry = new BoxModelBuilder()
-      .between(SHOULDER_X, SHOULDER_JOINT_Y, 0, wx + r.x + 0.02, wy + r.y, wz + r.z, thickness, this.colors.shirt)
-      .box(wx + r.x, wy + r.y, wz + r.z, 0.13, 0.13, 0.12, this.colors.skin)
-      .between(-SHOULDER_X, SHOULDER_JOINT_Y, 0, wx + l.x - 0.02, wy + l.y - 0.02, wz + l.z, thickness, this.colors.shirt)
-      .box(wx + l.x, wy + l.y - 0.02, wz + l.z, 0.12, 0.12, 0.12, this.colors.skin)
+      .between(SHOULDER_X, SHOULDER_JOINT_Y, 0, wx + rx + 0.02, wy + ry, wz + rz, thickness, this.colors.shirt)
+      .box(wx + rx, wy + ry, wz + rz, 0.13, 0.13, 0.12, this.colors.skin)
+      .between(-SHOULDER_X, SHOULDER_JOINT_Y, 0, wx + lx - 0.02, wy + ly - 0.02, wz + lz, thickness, this.colors.shirt)
+      .box(wx + lx, wy + ly - 0.02, wz + lz, 0.12, 0.12, 0.12, this.colors.skin)
       .build();
     this.arms.geometry.dispose();
     this.arms.geometry = geometry;
@@ -208,9 +212,9 @@ export class CharacterView {
 
   /** Posizione nel mondo della bocca dell'arma. */
   muzzleWorld(out: Vector3): Vector3 {
-    const model = getWeaponModels()[Math.max(0, this.weaponIndex)]!;
+    const [x, y, z] = this.weaponLook(Math.max(0, this.weaponIndex)).def.muzzle;
     this.weaponMesh.updateWorldMatrix(true, false);
-    return out.copy(model.muzzle).applyMatrix4(this.weaponMesh.matrixWorld);
+    return out.set(x, y, z).applyMatrix4(this.weaponMesh.matrixWorld);
   }
 
   /** Punto sopra la testa, per nome e barra della vita. */

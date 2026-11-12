@@ -1,0 +1,23 @@
+{
+  "id": "bounce",
+  "seconds": 0.1,
+  "layers": [
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 700,
+      "duration": 0.025,
+      "peak": 0.35,
+      "start": 0,
+      "to": 420
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 1500,
+      "duration": 0.03,
+      "peak": 0.25,
+      "q": 2
+    }
+  ]
+}

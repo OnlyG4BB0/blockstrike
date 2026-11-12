@@ -1,0 +1,16 @@
+{
+  "id": "knife_swing",
+  "seconds": 0.25,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 900,
+      "duration": 0.16,
+      "peak": 0.45,
+      "attack": 0.04,
+      "to": 2600,
+      "q": 1.5
+    }
+  ]
+}

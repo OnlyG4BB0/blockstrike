@@ -1,4 +1,4 @@
-import { COMBAT, GRENADE, MOVE, WEAPONS, horizontalSpeed, type PlayerState } from '@blockstrike/shared';
+import { COMBAT, MOVE, horizontalSpeed, type PlayerState, type WeaponDef } from '@blockstrike/shared';
 import { HUD } from '../config.ts';
 import type { Settings } from '../settings.ts';
 import { byId } from './dom.ts';
@@ -87,12 +87,20 @@ export class Hud {
   private readonly labels = new Map<number, { root: HTMLDivElement; fill: HTMLDivElement; name: string }>();
   private readonly point: ScreenPoint = { x: 0, y: 0, visible: false };
   private readonly shown = new Map<string, string>();
+  private readonly weapons: readonly WeaponDef[];
+  private readonly grenadeName: string;
 
-  constructor() {
+  constructor(weapons: readonly WeaponDef[], grenadeName: string) {
+    this.weapons = weapons;
+    this.grenadeName = grenadeName;
     byId('speed-mark').style.left = `${(100 / HUD.speedBarMaxFactor).toFixed(2)}%`;
-    this.slots.innerHTML = WEAPONS.map(
-      (def, i) => `<span class="slot" data-slot="${i}"><b>${def.slot}</b>${escapeHtml(def.name)}</span>`,
-    ).join('');
+    // Le armi dei tasti 1-9; le altre si raggiungono con la rotella.
+    this.slots.innerHTML = weapons
+      .map(
+        (def, i) =>
+          `<span class="slot" data-slot="${i}"><b>${i < 9 ? i + 1 : '·'}</b>${escapeHtml(def.shortName)}</span>`,
+      )
+      .join('');
     for (let i = 0; i < 24; i++) {
       const element = document.createElement('div');
       element.className = 'damage-number';
@@ -158,12 +166,18 @@ export class Hud {
   }
 
   weapon(current: number, ammo: number, reloadProgress: number, grenades: number): void {
-    const def = WEAPONS[current]!;
-    this.set('ammo', String(ammo), (text) => {
+    const def = this.weapons[current]!;
+    // Caricatore 0: munizioni infinite (coltello).
+    const infinite = def.magazine === 0;
+    this.set('ammo', infinite ? '∞' : String(ammo), (text) => {
       this.ammoMag.textContent = text;
-      this.ammoMag.className = ammo === 0 ? 'empty' : ammo <= def.magazine * 0.25 ? 'low' : '';
+      this.ammoMag.className = infinite ? '' : ammo === 0 ? 'empty' : ammo <= def.magazine * 0.25 ? 'low' : '';
     });
-    this.set('ammoMax', String(def.magazine), (text) => (this.ammoMax.textContent = text));
+    this.set('ammoMax', infinite ? '' : String(def.magazine), (text) => {
+      this.ammoMax.textContent = text;
+      this.ammoMax.hidden = text === '';
+      (this.ammoMax.previousElementSibling as HTMLElement).hidden = text === '';
+    });
     this.set('weaponName', def.name, (text) => (this.weaponName.textContent = text));
     this.set('reloading', String(reloadProgress >= 0), (v) => (this.reloadBar.hidden = v !== 'true'));
     if (reloadProgress >= 0) this.reloadFill.style.width = `${(reloadProgress * 100).toFixed(1)}%`;
@@ -172,7 +186,7 @@ export class Hud {
         (element as HTMLElement).classList.toggle('active', (element as HTMLElement).dataset.slot === value);
       }
     });
-    this.set('grenades', String(grenades), (text) => (this.grenades.textContent = `G · ${GRENADE.name} ×${text}`));
+    this.set('grenades', String(grenades), (text) => (this.grenades.textContent = `G · ${this.grenadeName} ×${text}`));
   }
 
   /** Mirino: lo spazio tra le linee segue la dispersione. */

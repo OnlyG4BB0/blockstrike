@@ -1,0 +1,30 @@
+{
+  "id": "assault_rifle",
+  "seconds": 0.3,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 7000,
+      "duration": 0.14,
+      "peak": 0.9,
+      "to": 900
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 2400,
+      "duration": 0.06,
+      "peak": 0.5,
+      "q": 1.2
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 150,
+      "duration": 0.08,
+      "peak": 0.7,
+      "to": 45
+    }
+  ]
+}

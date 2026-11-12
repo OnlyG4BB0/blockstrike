@@ -1,0 +1,14 @@
+{
+  "id": "hit",
+  "seconds": 0.12,
+  "layers": [
+    {
+      "type": "tone",
+      "wave": "triangle",
+      "from": 1700,
+      "duration": 0.05,
+      "peak": 0.35,
+      "to": 1300
+    }
+  ]
+}

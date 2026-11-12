@@ -19,7 +19,7 @@ import {
 } from 'three';
 import { createRayHit, raycastWorld, type CollisionWorld, type MapData, type Projectile } from '@blockstrike/shared';
 import { EFFECTS } from '../config.ts';
-import { createGrenadeGeometry, createRocketGeometry } from './weaponModels.ts';
+import type { ModelLibrary } from './weaponModels.ts';
 
 interface Tracer {
   active: boolean;
@@ -137,8 +137,7 @@ export class Effects {
   private muzzleLightLife = 0;
   private blastLightLife = 0;
   private readonly projectileMeshes = new Map<number, Mesh>();
-  private readonly rocketGeometry = createRocketGeometry();
-  private readonly grenadeGeometry = createGrenadeGeometry();
+  private readonly library: ModelLibrary;
   private readonly projectileMaterial = new MeshLambertMaterial({ vertexColors: true });
 
   private readonly matrix = new Matrix4();
@@ -150,9 +149,10 @@ export class Effects {
   private readonly color = new Color();
   private readonly rayHit = createRayHit();
 
-  constructor(scene: Scene, world: CollisionWorld, map: MapData) {
+  constructor(scene: Scene, world: CollisionWorld, map: MapData, library: ModelLibrary) {
     this.scene = scene;
     this.world = world;
+    this.library = library;
     this.blockColors = map.blocks.map((block) => new Color(block.color));
 
     this.tracerMesh = new InstancedMesh(
@@ -579,10 +579,10 @@ export class Effects {
         continue;
       }
       const rocket = pr.def.kind === 'rocket';
-      if (!mesh || mesh.userData.rocket !== rocket) {
+      if (!mesh || mesh.userData.model !== pr.def.model) {
         if (mesh) this.scene.remove(mesh);
-        mesh = new Mesh(rocket ? this.rocketGeometry : this.grenadeGeometry, this.projectileMaterial);
-        mesh.userData.rocket = rocket;
+        mesh = new Mesh(this.library.mergedGeometry(pr.def.model), this.projectileMaterial);
+        mesh.userData.model = pr.def.model;
         mesh.castShadow = true;
         this.scene.add(mesh);
         this.projectileMeshes.set(i, mesh);

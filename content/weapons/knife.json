@@ -1,0 +1,26 @@
+{
+  "id": "knife",
+  "name": "Coltello",
+  "order": 9,
+  "type": "melee",
+  "damage": 55,
+  "headMultiplier": 1.4,
+  "fireRate": 110,
+  "auto": true,
+  "drawTime": 0.25,
+  "melee": {
+    "reach": 2.2,
+    "radius": 0.35,
+    "backstabMultiplier": 2
+  },
+  "moveSpeedFactor": 1.12,
+  "gore": {
+    "dismember": true,
+    "gibChance": 0
+  },
+  "model": "knife",
+  "sounds": {
+    "fire": "knife_swing",
+    "hit": "knife_hit"
+  }
+}

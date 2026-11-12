@@ -2,6 +2,7 @@
  * Formato delle mappe (file JSON in /content/maps) e relativa validazione.
  * Una mappa non valida produce un errore chiaro al caricamento, mai un crash in partita.
  */
+import { Validator } from './validation.ts';
 
 export type Vec3Tuple = [number, number, number];
 
@@ -52,60 +53,6 @@ export class MapValidationError extends Error {
   }
 }
 
-type JsonObject = Record<string, unknown>;
-
-class Validator {
-  private readonly source: string;
-
-  constructor(source: string) {
-    this.source = source;
-  }
-
-  fail(path: string, message: string): never {
-    throw new MapValidationError(`${this.source}: "${path}" ${message}`);
-  }
-
-  object(value: unknown, path: string): JsonObject {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      this.fail(path, 'deve essere un oggetto');
-    }
-    return value as JsonObject;
-  }
-
-  array(value: unknown, path: string, minLength: number): unknown[] {
-    if (!Array.isArray(value)) this.fail(path, 'deve essere una lista');
-    if (value.length < minLength) this.fail(path, `deve contenere almeno ${minLength} elementi`);
-    return value;
-  }
-
-  number(value: unknown, path: string, options: { positive?: boolean } = {}): number {
-    if (typeof value !== 'number' || !Number.isFinite(value)) this.fail(path, 'deve essere un numero');
-    if (options.positive && value <= 0) this.fail(path, 'deve essere maggiore di zero');
-    return value;
-  }
-
-  string(value: unknown, path: string): string {
-    if (typeof value !== 'string' || value.length === 0) this.fail(path, 'deve essere un testo non vuoto');
-    return value;
-  }
-
-  color(value: unknown, path: string): string {
-    const text = this.string(value, path);
-    if (!/^#[0-9a-fA-F]{6}$/.test(text)) this.fail(path, `deve essere un colore #rrggbb (trovato "${text}")`);
-    return text;
-  }
-
-  vec3(value: unknown, path: string, options: { positive?: boolean } = {}): Vec3Tuple {
-    const list = this.array(value, path, 3);
-    if (list.length !== 3) this.fail(path, 'deve contenere esattamente 3 numeri');
-    return [
-      this.number(list[0], `${path}[0]`, options),
-      this.number(list[1], `${path}[1]`, options),
-      this.number(list[2], `${path}[2]`, options),
-    ];
-  }
-}
-
 const RAMP_DIRECTIONS: readonly RampDirection[] = ['+x', '-x', '+z', '-z'];
 
 /**
@@ -113,7 +60,7 @@ const RAMP_DIRECTIONS: readonly RampDirection[] = ['+x', '-x', '+z', '-z'];
  * @param source nome del file, usato nei messaggi di errore.
  */
 export function parseMap(raw: unknown, source = 'mappa'): MapData {
-  const v = new Validator(source);
+  const v = new Validator(source, (message) => new MapValidationError(message));
   const root = v.object(raw, '(radice)');
 
   if (root.version !== 1) v.fail('version', 'deve essere 1');

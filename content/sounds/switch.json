@@ -1,0 +1,24 @@
+{
+  "id": "switch",
+  "seconds": 0.2,
+  "layers": [
+    {
+      "type": "tone",
+      "wave": "square",
+      "from": 1100,
+      "duration": 0.025,
+      "peak": 0.25,
+      "start": 0,
+      "to": 660
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 2000,
+      "duration": 0.05,
+      "peak": 0.2,
+      "start": 0.04,
+      "q": 2
+    }
+  ]
+}

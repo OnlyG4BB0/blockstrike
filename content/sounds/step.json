@@ -1,0 +1,22 @@
+{
+  "id": "step",
+  "seconds": 0.12,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 900,
+      "duration": 0.06,
+      "peak": 0.45,
+      "to": 250
+    },
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "from": 3000,
+      "duration": 0.02,
+      "peak": 0.12,
+      "q": 2
+    }
+  ]
+}
