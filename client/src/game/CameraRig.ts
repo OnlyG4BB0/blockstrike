@@ -13,8 +13,12 @@ export class CameraRig {
   private stepOffset = 0;
   private bounce = 0;
   private bounceVelocity = 0;
+  private shake = 0;
   roll = 0;
   fovBoost = 0;
+  /** Scossa della visuale (esplosioni, colpi subiti), in radianti. */
+  shakePitch = 0;
+  shakeYaw = 0;
 
   reset(state: Readonly<PlayerState>): void {
     this.eyeHeight = playerEyeHeight(state);
@@ -28,6 +32,11 @@ export class CameraRig {
   /** La simulazione ha spostato i piedi di colpo (gradino, gambe raccolte): la visuale non deve scattare. */
   onStep(delta: number): void {
     this.stepOffset -= delta;
+  }
+
+  /** Scossa da 0 a 1 (si somma a quelle in corso). */
+  addShake(amount: number): void {
+    this.shake = Math.min(1, this.shake + amount);
   }
 
   onLand(impactSpeed: number): void {
@@ -58,6 +67,10 @@ export class CameraRig {
     const excess = Math.max(0, Math.min(1, (speed - MOVE.runSpeed) / VIEW.fovBoostSpeedRange));
     const targetBoost = dynamicFov ? excess * VIEW.fovBoostMax : 0;
     this.fovBoost += (targetBoost - this.fovBoost) * (1 - Math.exp(-VIEW.fovSmoothing * step));
+
+    this.shake *= Math.exp(-VIEW.shakeDecay * step);
+    this.shakePitch = (Math.random() - 0.5) * this.shake * VIEW.shakeAmount;
+    this.shakeYaw = (Math.random() - 0.5) * this.shake * VIEW.shakeAmount;
   }
 
   /** Altezza della telecamera sopra i piedi. */

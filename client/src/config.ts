@@ -28,6 +28,80 @@ export const VIEW = {
   fovBoostSpeedRange: 14,
   fovSmoothing: 6,
   maxFov: 135,
+  /** Scossa della visuale: ampiezza massima (radianti) e smorzamento (1/s). */
+  shakeAmount: 0.05,
+  shakeDecay: 7,
+  /** Da morti la telecamera scende a questa altezza e si inclina. */
+  deathEyeHeight: 0.45,
+  deathRoll: 0.35,
+} as const;
+
+/** Arma in prima persona. */
+export const VIEWMODEL = {
+  /** Campo visivo verticale fisso della scena dell'arma (gradi). */
+  fov: 62,
+  /** Scala dei modelli in prima persona (i modelli sono in metri reali). */
+  scale: 0.5,
+  /** Posizione dell'arma al fianco, nello spazio della telecamera. */
+  hipPosition: [0.15, -0.16, -0.38] as const,
+  kickImpulse: 1.2,
+  kickStiffness: 260,
+  kickDamping: 28,
+  /** Ritardo dell'arma rispetto ai movimenti della visuale. */
+  swayAmount: 0.6,
+  maxSway: 0.04,
+  swaySmoothing: 10,
+  /** Oscillazione camminando (m). */
+  bobX: 0.012,
+  bobY: 0.014,
+  /** Durata della fiammata (s). */
+  flashTime: 0.05,
+  /** Oltre questa mira, con il mirino ottico l'arma sparisce e compare il cannocchiale. */
+  scopeThreshold: 0.85,
+} as const;
+
+/** Effetti: traccianti, segni sui muri, particelle, bossoli, esplosioni. */
+export const EFFECTS = {
+  tracerSpeed: 320,
+  tracerLength: 2.4,
+  maxTracers: 96,
+  maxDecals: 220,
+  bulletHoleSize: 0.13,
+  scorchSize: 1.8,
+  maxParticles: 700,
+  maxCasings: 48,
+  casingLife: 4,
+  maxFireballs: 6,
+  fireballTime: 0.4,
+  muzzleLightIntensity: 10,
+  muzzleLightTime: 0.05,
+  blastLightIntensity: 45,
+  blastLightTime: 0.3,
+  /** Entro questa distanza un'esplosione scuote la visuale. */
+  shakeRange: 16,
+} as const;
+
+/** Bot: modelli e scritte. */
+export const CHARACTERS = {
+  shirts: ['#c0392b', '#2e86c1', '#27ae60', '#8e44ad', '#d35400', '#16a085', '#c2185b', '#7f8c8d'],
+  pants: ['#2c3e50', '#3b3b3b', '#4a3b2a', '#22313f'],
+  skins: ['#e0b48a', '#c68c5a', '#f1c9a5', '#8d5a3b'],
+  hair: ['#2b1d14', '#e2b04a', '#6b3e26', '#1b1b1b', '#b5502e'],
+  /** Distanza oltre la quale nome e vita non si mostrano. */
+  labelRange: 60,
+  deathFallTime: 0.35,
+  deathSinkDelay: 1.6,
+  deathSinkTime: 0.9,
+} as const;
+
+/** Suoni. */
+export const AUDIO = {
+  /** Distanza a cui un suono posizionale si sente a volume pieno. */
+  refDistance: 3,
+  maxDistance: 120,
+  rolloff: 1.1,
+  /** Passi: distanza percorsa tra un passo e l'altro. */
+  stepDistance: 2.3,
 } as const;
 
 export const RENDER = {

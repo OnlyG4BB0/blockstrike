@@ -35,6 +35,8 @@ export interface MapData {
   killY: number;
   spawns: SpawnPoint[];
   blocks: MapBlock[];
+  /** Punti di navigazione dei bot (all'altezza dei piedi). Facoltativi. */
+  waypoints: Vec3Tuple[];
   sky: { top: string; horizon: string; bottom: string };
   fog: { color: string; near: number; far: number };
   /** Luce del sole. `direction` è la direzione in cui viaggia la luce. */
@@ -145,6 +147,11 @@ export function parseMap(raw: unknown, source = 'mappa'): MapData {
     return parsed;
   });
 
+  const waypoints =
+    root.waypoints === undefined
+      ? []
+      : v.array(root.waypoints, 'waypoints', 0).map((item, i) => v.vec3(item, `waypoints[${i}]`));
+
   const sky = v.object(root.sky, 'sky');
   const fog = v.object(root.fog, 'fog');
   const sun = v.object(root.sun, 'sun');
@@ -163,6 +170,7 @@ export function parseMap(raw: unknown, source = 'mappa'): MapData {
     killY,
     spawns,
     blocks,
+    waypoints,
     sky: {
       top: v.color(sky.top, 'sky.top'),
       horizon: v.color(sky.horizon, 'sky.horizon'),

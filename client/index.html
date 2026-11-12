@@ -9,22 +9,68 @@
   <body>
     <div id="app">
       <div id="hud">
-        <div id="crosshair" aria-hidden="true"></div>
+        <div id="scope" hidden>
+          <div class="scope-lens"></div>
+        </div>
+        <div id="vignette"></div>
+        <div id="labels"></div>
+        <div id="damage-numbers"></div>
+
+        <div id="crosshair" aria-hidden="true">
+          <span class="ch ch-top"></span>
+          <span class="ch ch-bottom"></span>
+          <span class="ch ch-left"></span>
+          <span class="ch ch-right"></span>
+          <span class="ch-dot"></span>
+        </div>
+        <div id="hitmarker" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+
         <div id="fps"></div>
-        <div id="chips"></div>
+        <pre id="debug"></pre>
+        <div id="hint">Esc · menu &nbsp; Tab · punteggi &nbsp; K · ricomincia</div>
+        <div id="killfeed"></div>
+        <div id="protection" hidden>PROTETTO</div>
+
+        <div id="health">
+          <div id="health-value">100</div>
+          <div class="health-bar"><div id="health-fill"></div></div>
+        </div>
+
         <div id="speedometer">
+          <div id="chips"></div>
           <div class="speed-readout"><span id="speed-value">0.0</span><span class="speed-unit">m/s</span></div>
           <div class="speed-bar"><div id="speed-fill"></div><div class="speed-mark" id="speed-mark"></div></div>
           <div id="speed-peak">record 0.0</div>
         </div>
-        <pre id="debug"></pre>
-        <div id="hint">Esc · menu &nbsp; K · ricomincia</div>
+
+        <div id="weapon-panel">
+          <div class="ammo"><span id="ammo-mag">30</span><span class="ammo-sep">/</span><span id="ammo-max">30</span></div>
+          <div id="weapon-name"></div>
+          <div class="reload-bar" id="reload-bar" hidden><div id="reload-fill"></div></div>
+          <div id="weapon-slots"></div>
+          <div id="grenades"></div>
+        </div>
+
+        <div id="death" hidden>
+          <div class="death-title">ELIMINATO</div>
+          <div id="death-by"></div>
+          <div id="death-timer"></div>
+        </div>
+
+        <div id="scoreboard" hidden>
+          <table>
+            <thead>
+              <tr><th>Giocatore</th><th>Uccisioni</th><th>Morti</th></tr>
+            </thead>
+            <tbody id="score-rows"></tbody>
+          </table>
+        </div>
       </div>
 
       <div id="menu">
         <div class="menu-panel">
           <h1 class="title">BLOCK<span>STRIKE</span></h1>
-          <p class="subtitle">Fase 1 · prototipo di movimento</p>
+          <p class="subtitle">Fase 2 · sparatoria contro i bot</p>
           <button id="play" class="play" type="button">Gioca</button>
           <p id="lock-error" class="lock-error" hidden>
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
@@ -43,6 +89,25 @@
                 <input id="set-fov" type="range" min="70" max="120" step="1" />
                 <output id="out-fov"></output>
               </label>
+              <label class="row">
+                <span>Volume</span>
+                <input id="set-volume" type="range" min="0" max="100" step="1" />
+                <output id="out-volume"></output>
+              </label>
+              <label class="row">
+                <span>Bot</span>
+                <input id="set-bot-count" type="range" min="0" max="7" step="1" />
+                <output id="out-bot-count"></output>
+              </label>
+              <label class="row select-row">
+                <span>Bot</span>
+                <select id="set-bot-mode">
+                  <option value="fight">combattono</option>
+                  <option value="roam">girano senza sparare</option>
+                  <option value="idle">fermi</option>
+                </select>
+              </label>
+              <label class="check"><input id="set-damage-numbers" type="checkbox" /><span>Numeri di danno</span></label>
               <label class="check"><input id="set-dynamic-fov" type="checkbox" /><span>Allarga la visuale in velocità</span></label>
               <label class="check"><input id="set-show-fps" type="checkbox" /><span>Mostra FPS</span></label>
               <label class="check"><input id="set-show-debug" type="checkbox" /><span>Dati di debug</span></label>
@@ -57,14 +122,24 @@
                 <dd>salta (tieni premuto per saltare di continuo)</dd>
                 <dt>Shift · C</dt>
                 <dd>accovacciati; in corsa scivoli</dd>
+                <dt>Clic sinistro</dt>
+                <dd>spara</dd>
+                <dt>Clic destro</dt>
+                <dd>mira</dd>
+                <dt>R</dt>
+                <dd>ricarica</dd>
+                <dt>1 – 5 · rotella</dt>
+                <dd>cambia arma (Q: quella di prima)</dd>
+                <dt>G</dt>
+                <dd>lancia una granata</dd>
+                <dt>Tab</dt>
+                <dd>punteggi</dd>
                 <dt>K</dt>
-                <dd>torna al punto di partenza</dd>
-                <dt>Esc</dt>
-                <dd>menu</dd>
+                <dd>torna a un punto di partenza</dd>
               </dl>
               <p class="tip">
-                Per andare veloce: salta appena tocchi terra e, in aria, tieni A o D girando il mouse dalla stessa
-                parte. Atterra accovacciato per scivolare, e scivola giù dalle rampe.
+                Il lanciarazzi spinge anche te: spara ai tuoi piedi mentre salti per volare più in alto.
+                Il cecchino è preciso solo mirando.
               </p>
             </section>
           </div>

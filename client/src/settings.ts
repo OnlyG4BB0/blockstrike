@@ -1,4 +1,5 @@
 /** Impostazioni del giocatore, salvate nel browser quando possibile. */
+import type { BotMode } from '@blockstrike/shared';
 
 export interface Settings {
   /** Sensibilità del mouse (1 = 0,0008 radianti per pixel). */
@@ -8,10 +9,16 @@ export interface Settings {
   dynamicFov: boolean;
   showFps: boolean;
   showDebug: boolean;
+  /** Volume generale, da 0 a 1. */
+  volume: number;
+  damageNumbers: boolean;
+  botCount: number;
+  botMode: BotMode;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
 export const SENSITIVITY_SCALE = 0.0008;
+export const MAX_BOTS = 7;
 
 const DEFAULTS: Settings = {
   sensitivity: 2.5,
@@ -19,9 +26,14 @@ const DEFAULTS: Settings = {
   dynamicFov: true,
   showFps: true,
   showDebug: false,
+  volume: 0.6,
+  damageNumbers: true,
+  botCount: 4,
+  botMode: 'fight',
 };
 
 const STORAGE_KEY = 'blockstrike.settings.v1';
+const BOT_MODES: readonly BotMode[] = ['fight', 'roam', 'idle'];
 
 function numberIn(value: unknown, min: number, max: number, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
@@ -48,6 +60,10 @@ export function loadSettings(): Settings {
     dynamicFov: booleanOr(stored.dynamicFov, DEFAULTS.dynamicFov),
     showFps: booleanOr(stored.showFps, DEFAULTS.showFps),
     showDebug: booleanOr(stored.showDebug, DEFAULTS.showDebug),
+    volume: numberIn(stored.volume, 0, 1, DEFAULTS.volume),
+    damageNumbers: booleanOr(stored.damageNumbers, DEFAULTS.damageNumbers),
+    botCount: Math.round(numberIn(stored.botCount, 0, MAX_BOTS, DEFAULTS.botCount)),
+    botMode: BOT_MODES.includes(stored.botMode as BotMode) ? (stored.botMode as BotMode) : DEFAULTS.botMode,
   };
 }
 

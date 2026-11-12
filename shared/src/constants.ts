@@ -98,6 +98,77 @@ export const MOVE = {
   maxSpeed: 60,
 } as const;
 
+/** Regole del combattimento. I valori delle singole armi stanno in weapons.ts. */
+export const COMBAT = {
+  maxHealth: 100,
+  /** Secondi tra la morte e la rinascita. */
+  respawnTime: 3,
+  /** Invulnerabilità dopo la rinascita; finisce prima se si spara. */
+  spawnProtection: 1.5,
+  /** Gittata massima dei colpi istantanei (m). */
+  hitscanRange: 300,
+  /** Dopo questo tempo senza sparare la dispersione accumulata inizia a calare. */
+  bloomRecoveryDelay: 0.12,
+  /** Dopo questo tempo senza sparare lo schema di rinculo riparte dal primo colpo. */
+  recoilResetTime: 0.35,
+  /** Numero massimo di razzi e granate in volo. */
+  maxProjectiles: 64,
+  /** Componente verso l'alto aggiunta alla spinta delle esplosioni: rende possibili i salti con i razzi. */
+  explosionUpwardBias: 0.35,
+  /** Distanza dagli occhi a cui nascono razzi e granate. */
+  projectileSpawnDistance: 0.5,
+} as const;
+
+/** Comportamento dei bot. Gli angoli sono in gradi, i tempi in secondi. */
+export const BOT = {
+  names: ['Rocco', 'Gina', 'Tino', 'Lia', 'Ugo', 'Nina', 'Pino', 'Vera'],
+  /** Armi assegnate a turno ai bot (indici in WEAPONS). */
+  loadouts: [0, 2, 3, 0, 2, 3, 0, 3],
+  /** Distanza preferita in combattimento per arma (m), negli stessi indici di WEAPONS. */
+  preferredRange: [18, 30, 6, 12, 20],
+  sightRange: 70,
+  /** Metà dell'angolo di visuale: fuori da questo cono un nemico lontano non viene notato. */
+  fieldOfView: 100,
+  /** Entro questa distanza un nemico viene notato anche alle spalle. */
+  hearingRange: 8,
+  perceptionInterval: 0.1,
+  reactionMin: 0.35,
+  reactionMax: 0.7,
+  /** Errore di mira iniziale massimo quando si vede un nuovo nemico. */
+  initialAimError: 7,
+  /** Velocità con cui l'errore di mira si riduce (1/s). */
+  aimSettleRate: 1.6,
+  /** Tremolio continuo della mira. */
+  aimJitter: 0.5,
+  /** Velocità massima di rotazione (radianti al secondo). */
+  turnRate: 7,
+  /** Si spara solo se la mira è entro questo angolo dal bersaglio. */
+  fireCone: 5,
+  /** Probabilità di mirare alla testa invece che al busto. */
+  headAimChance: 0.25,
+  burstMin: 0.25,
+  burstMax: 0.6,
+  pauseMin: 0.2,
+  pauseMax: 0.5,
+  /** Pausa tra due colpi delle armi semiautomatiche. */
+  semiDelayMin: 0.15,
+  semiDelayMax: 0.4,
+  strafeMin: 0.4,
+  strafeMax: 1.2,
+  jumpChancePerSecond: 0.35,
+  /** Tempo per cui un bot colpito si gira verso chi lo ha colpito. */
+  investigateTime: 1.5,
+  /** Distanza a cui un punto di navigazione si considera raggiunto. */
+  waypointReach: 1.3,
+  /** Ogni quanto si controlla se il bot è bloccato, e di quanto deve essersi spostato. */
+  stuckCheckInterval: 1,
+  stuckMinProgress: 0.6,
+  /** Dopo questo tempo bloccato si sceglie un altro percorso. */
+  giveUpTime: 3,
+  /** Lunghezza massima di un collegamento tra punti di navigazione. */
+  navLinkMaxLength: 24,
+} as const;
+
 /** Parametri del sistema di collisioni. */
 export const COLLISION = {
   /** Tolleranza per i contatti: due superfici a meno di questa distanza si toccano senza compenetrarsi. */

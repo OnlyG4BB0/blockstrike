@@ -24,6 +24,14 @@ export interface PlayerInput {
   right: number;
   jump: boolean;
   crouch: boolean;
+  /** Grilletto premuto. */
+  fire: boolean;
+  /** Mira (tasto destro) premuta. */
+  ads: boolean;
+  reload: boolean;
+  grenade: boolean;
+  /** Arma richiesta (1 = prima posizione); 0 = nessun cambio. */
+  weaponSlot: number;
 }
 
 export interface PlayerState {
@@ -49,6 +57,8 @@ export interface PlayerState {
   slideBoostCooldown: number;
   prevJump: boolean;
   prevCrouch: boolean;
+  /** Moltiplica le velocità massime di corsa (arma impugnata, mira). Lo imposta il sistema di combattimento. */
+  speedScale: number;
 
   // Eventi dell'ultimo tick: servono al client per gli effetti, non influenzano la simulazione.
   /** Spostamento verticale istantaneo (gradini, gambe raccolte in aria): il client lo ammorbidisce. */
@@ -60,7 +70,19 @@ export interface PlayerState {
 }
 
 export function createInput(): PlayerInput {
-  return { yaw: 0, pitch: 0, forward: 0, right: 0, jump: false, crouch: false };
+  return {
+    yaw: 0,
+    pitch: 0,
+    forward: 0,
+    right: 0,
+    jump: false,
+    crouch: false,
+    fire: false,
+    ads: false,
+    reload: false,
+    grenade: false,
+    weaponSlot: 0,
+  };
 }
 
 export function createPlayerState(): PlayerState {
@@ -83,6 +105,7 @@ export function createPlayerState(): PlayerState {
     slideBoostCooldown: 0,
     prevJump: false,
     prevCrouch: false,
+    speedScale: 1,
     stepDelta: 0,
     landingSpeed: 0,
     jumped: false,
@@ -212,11 +235,12 @@ function groundMove(
       p.vx -= gx * a * dt;
       p.vz -= gz * a * dt;
     }
-    airAccelerate(p, wishX, wishZ, MOVE.runSpeed * wishAmount, MOVE.slideSteerAccel, MOVE.slideSteerCap, dt);
+    const runSpeed = MOVE.runSpeed * p.speedScale;
+    airAccelerate(p, wishX, wishZ, runSpeed * wishAmount, MOVE.slideSteerAccel, MOVE.slideSteerCap, dt);
     if (horizontalSpeed(p) < MOVE.slideEndSpeed) p.sliding = false;
   } else {
     applyFriction(p, MOVE.groundFriction, dt);
-    const maxSpeed = p.crouched ? MOVE.crouchSpeed : MOVE.runSpeed;
+    const maxSpeed = (p.crouched ? MOVE.crouchSpeed : MOVE.runSpeed) * p.speedScale;
     accelerate(p, wishX, wishZ, maxSpeed * wishAmount, MOVE.groundAccel, dt);
   }
   limitHorizontalSpeed(p);
@@ -253,10 +277,11 @@ function airMove(
   crouchHeld: boolean,
   dt: number,
 ): void {
-  if (horizontalSpeed(p) < MOVE.runSpeed) {
-    accelerate(p, wishX, wishZ, MOVE.runSpeed * wishAmount, MOVE.airDriveAccel, dt);
+  const runSpeed = MOVE.runSpeed * p.speedScale;
+  if (horizontalSpeed(p) < runSpeed) {
+    accelerate(p, wishX, wishZ, runSpeed * wishAmount, MOVE.airDriveAccel, dt);
   }
-  airAccelerate(p, wishX, wishZ, MOVE.runSpeed * wishAmount, MOVE.airAccel, MOVE.airSpeedCap, dt);
+  airAccelerate(p, wishX, wishZ, runSpeed * wishAmount, MOVE.airAccel, MOVE.airSpeedCap, dt);
   limitHorizontalSpeed(p);
   p.vy = Math.max(p.vy - MOVE.gravity * dt, -MOVE.maxFallSpeed);
 
