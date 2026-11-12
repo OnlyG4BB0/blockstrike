@@ -1,0 +1,84 @@
+{
+  "type": "character",
+  "id": "ghiaccio",
+  "name": "Ghiaccio",
+  "order": 5,
+  "colors": {
+    "head": "#f1c9a5",
+    "torso": "#e8f1f7",
+    "armLeft": "#e8f1f7",
+    "armRight": "#e8f1f7",
+    "legLeft": "#b9c9d6",
+    "legRight": "#b9c9d6",
+    "hair": "#d9d2c3",
+    "hands": "#7fa8c9",
+    "feet": "#5d7487",
+    "belt": "#7fa8c9"
+  },
+  "accessories": [
+    {
+      "name": "Sciarpa",
+      "part": "torso",
+      "boxes": [
+        {
+          "pos": [
+            0,
+            0.57,
+            0
+          ],
+          "size": [
+            0.42,
+            0.08,
+            0.32
+          ],
+          "color": "#2f6fb3"
+        },
+        {
+          "pos": [
+            0.1,
+            0.42,
+            -0.16
+          ],
+          "size": [
+            0.1,
+            0.2,
+            0.04
+          ],
+          "color": "#2f6fb3"
+        }
+      ]
+    },
+    {
+      "name": "Berretto",
+      "part": "head",
+      "boxes": [
+        {
+          "pos": [
+            0,
+            0.37,
+            0.01
+          ],
+          "size": [
+            0.37,
+            0.08,
+            0.37
+          ],
+          "color": "#e8f1f7"
+        },
+        {
+          "pos": [
+            0,
+            0.345,
+            -0.24
+          ],
+          "size": [
+            0.32,
+            0.03,
+            0.15
+          ],
+          "color": "#b9c9d6"
+        }
+      ]
+    }
+  ]
+}

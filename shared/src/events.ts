@@ -3,7 +3,7 @@
  * Il client li usa per effetti, suoni e HUD; nella Fase 6 il server li invierà ai giocatori.
  * Gli oggetti vengono riciclati a ogni tick: niente allocazioni durante il gioco.
  */
-import type { HitRegion } from './hitboxes.ts';
+import type { HitRegion } from './pose.ts';
 
 /** Pallini massimi per colpo. */
 export const MAX_PELLETS = 16;

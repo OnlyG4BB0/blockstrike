@@ -3,6 +3,7 @@
  * (vedi content.ts): aggiungere un'arma non richiede modifiche al codice.
  * Angoli in gradi, tempi in secondi, distanze in metri.
  */
+import type { WeaponModelDef } from './content.ts';
 
 export interface ProjectileDef {
   kind: 'rocket' | 'grenade';
@@ -127,10 +128,33 @@ export interface ThrowableDef {
   sounds: { throw: string };
 }
 
+/** Classe del personaggio (/content/classes): statistiche e armi con cui si nasce. */
+export interface ClassDef {
+  id: string;
+  name: string;
+  description: string;
+  /** Posizione nell'elenco delle classi. */
+  order: number;
+  health: number;
+  /** Moltiplicatore della velocità di corsa. */
+  speed: number;
+  /** Altezza del salto da fermi (m). */
+  jumpHeight: number;
+  /** Armi (id in /content/weapons): tasto 1, tasto 2 e, se c'è, tasto 3. */
+  primary: string;
+  secondary: string;
+  melee: string | null;
+  grenades: number;
+}
+
 /** Dati di gioco che servono alla simulazione. */
 export interface CombatContent {
   weapons: readonly WeaponDef[];
   grenade: ThrowableDef;
+  /** Classi: senza, ogni combattente ha tutte le armi. */
+  classes?: readonly ClassDef[];
+  /** Modelli delle armi: servono per le impugnature (posa delle braccia). */
+  models?: ReadonlyMap<string, WeaponModelDef>;
 }
 
 /** Indici speciali per l'arma che ha causato un'uccisione. */

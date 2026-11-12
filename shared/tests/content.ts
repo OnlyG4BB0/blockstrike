@@ -19,6 +19,7 @@ export function readSources(): ContentSources {
     models: readFolder('weapon-models'),
     skins: readFolder('skins'),
     sounds: readFolder('sounds'),
+    classes: readFolder('classes'),
   };
 }
 

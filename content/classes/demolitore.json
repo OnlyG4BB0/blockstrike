@@ -1,0 +1,13 @@
+{
+  "id": "demolitore",
+  "name": "Demolitore",
+  "description": "Razzi, fucile a pompa e quattro granate. Lento a terra, vola con i salti a razzo.",
+  "order": 3,
+  "health": 120,
+  "speed": 0.92,
+  "jumpHeight": 1.15,
+  "primary": "rocket_launcher",
+  "secondary": "shotgun",
+  "melee": "knife",
+  "grenades": 4
+}

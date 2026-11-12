@@ -1,0 +1,52 @@
+{
+  "type": "character",
+  "id": "recluta",
+  "name": "Recluta",
+  "order": 1,
+  "colors": {
+    "head": "#e0b48a",
+    "torso": "#4f7a3a",
+    "armLeft": "#4f7a3a",
+    "armRight": "#4f7a3a",
+    "legLeft": "#5b5141",
+    "legRight": "#5b5141",
+    "hair": "#3b2a1e",
+    "hands": "#e0b48a",
+    "feet": "#2a2420",
+    "belt": "#2a2420"
+  },
+  "accessories": [
+    {
+      "name": "Berretto",
+      "part": "head",
+      "boxes": [
+        {
+          "pos": [
+            0,
+            0.37,
+            0.01
+          ],
+          "size": [
+            0.37,
+            0.08,
+            0.37
+          ],
+          "color": "#4f7a3a"
+        },
+        {
+          "pos": [
+            0,
+            0.345,
+            -0.24
+          ],
+          "size": [
+            0.32,
+            0.03,
+            0.15
+          ],
+          "color": "#3d5e2c"
+        }
+      ]
+    }
+  ]
+}

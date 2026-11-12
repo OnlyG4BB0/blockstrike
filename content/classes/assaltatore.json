@@ -1,0 +1,13 @@
+{
+  "id": "assaltatore",
+  "name": "Assaltatore",
+  "description": "Equilibrato: fucile d'assalto per ogni distanza e pistola di riserva.",
+  "order": 1,
+  "health": 100,
+  "speed": 1,
+  "jumpHeight": 1.2,
+  "primary": "assault_rifle",
+  "secondary": "pistol",
+  "melee": "knife",
+  "grenades": 2
+}

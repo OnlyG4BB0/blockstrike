@@ -1,0 +1,13 @@
+{
+  "id": "esploratore",
+  "name": "Esploratore",
+  "description": "Il più veloce e il salto più alto. Mitraglietta e pistola, ma pochi punti vita.",
+  "order": 4,
+  "health": 75,
+  "speed": 1.15,
+  "jumpHeight": 1.7,
+  "primary": "smg",
+  "secondary": "pistol",
+  "melee": "knife",
+  "grenades": 1
+}

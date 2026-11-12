@@ -1,0 +1,40 @@
+{
+  "type": "character",
+  "id": "notturno",
+  "name": "Notturno",
+  "order": 3,
+  "colors": {
+    "head": "#f1c9a5",
+    "torso": "#262b36",
+    "armLeft": "#262b36",
+    "armRight": "#262b36",
+    "legLeft": "#1b1f27",
+    "legRight": "#1b1f27",
+    "hair": "#0f0f12",
+    "eyes": "#0f0f12",
+    "hands": "#15171c",
+    "feet": "#101215",
+    "belt": "#3a4150"
+  },
+  "accessories": [
+    {
+      "name": "Visore",
+      "part": "head",
+      "boxes": [
+        {
+          "pos": [
+            0,
+            0.2,
+            -0.18
+          ],
+          "size": [
+            0.36,
+            0.08,
+            0.04
+          ],
+          "color": "#38e1ff"
+        }
+      ]
+    }
+  ]
+}

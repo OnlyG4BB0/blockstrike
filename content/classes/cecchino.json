@@ -1,0 +1,13 @@
+{
+  "id": "cecchino",
+  "name": "Cecchino",
+  "description": "Uccide da lontano con un colpo; da vicino si affida al revolver. Poca vita.",
+  "order": 2,
+  "health": 85,
+  "speed": 0.96,
+  "jumpHeight": 1.3,
+  "primary": "sniper",
+  "secondary": "revolver",
+  "melee": "knife",
+  "grenades": 1
+}

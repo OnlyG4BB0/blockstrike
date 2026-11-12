@@ -1,0 +1,65 @@
+{
+  "type": "character",
+  "id": "gala",
+  "name": "Gran gala",
+  "order": 8,
+  "colors": {
+    "head": "#f1c9a5",
+    "torso": "#1c1c22",
+    "armLeft": "#1c1c22",
+    "armRight": "#1c1c22",
+    "legLeft": "#1c1c22",
+    "legRight": "#1c1c22",
+    "hair": "#c9c2b4",
+    "hands": "#f4f1ea",
+    "feet": "#0d0d10",
+    "belt": "#b0222c"
+  },
+  "accessories": [
+    {
+      "name": "Cilindro",
+      "part": "head",
+      "boxes": [
+        {
+          "pos": [
+            0,
+            0.35,
+            0
+          ],
+          "size": [
+            0.46,
+            0.03,
+            0.46
+          ],
+          "color": "#141418"
+        },
+        {
+          "pos": [
+            0,
+            0.48,
+            0
+          ],
+          "size": [
+            0.3,
+            0.24,
+            0.3
+          ],
+          "color": "#141418"
+        },
+        {
+          "pos": [
+            0,
+            0.39,
+            0
+          ],
+          "size": [
+            0.31,
+            0.05,
+            0.31
+          ],
+          "color": "#b0222c"
+        }
+      ]
+    }
+  ]
+}

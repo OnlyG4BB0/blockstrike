@@ -1,0 +1,13 @@
+{
+  "id": "pesante",
+  "name": "Pesante",
+  "description": "Tanta vita e la mitragliatrice leggera. Lento, salta poco: tiene le posizioni.",
+  "order": 5,
+  "health": 150,
+  "speed": 0.82,
+  "jumpHeight": 1.05,
+  "primary": "lmg",
+  "secondary": "shotgun",
+  "melee": "knife",
+  "grenades": 2
+}

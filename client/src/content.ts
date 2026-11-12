@@ -12,6 +12,7 @@ const weapons = import.meta.glob('../../content/weapons/*.json', { eager: true, 
 const equipment = import.meta.glob('../../content/equipment/*.json', { eager: true, import: 'default' });
 const models = import.meta.glob('../../content/weapon-models/*.json', { eager: true, import: 'default' });
 const skins = import.meta.glob('../../content/skins/*.json', { eager: true, import: 'default' });
+const classes = import.meta.glob('../../content/classes/*.json', { eager: true, import: 'default' });
 const sounds = import.meta.glob('../../content/sounds/*.json', { eager: true, import: 'default' });
 
 function files(modules: Record<string, unknown>): ContentFile[] {
@@ -28,6 +29,7 @@ export function loadGameContent(): GameContent {
       equipment: files(equipment),
       models: files(models),
       skins: files(skins),
+      classes: files(classes),
       sounds: files(sounds),
     },
     { requiredSounds: REQUIRED_SOUNDS },

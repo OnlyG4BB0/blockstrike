@@ -59,6 +59,8 @@ export interface PlayerState {
   prevCrouch: boolean;
   /** Moltiplica le velocità massime di corsa (arma impugnata, mira). Lo imposta il sistema di combattimento. */
   speedScale: number;
+  /** Velocità iniziale del salto (la classe decide quanto in alto si salta). */
+  jumpVelocity: number;
 
   // Eventi dell'ultimo tick: servono al client per gli effetti, non influenzano la simulazione.
   /** Spostamento verticale istantaneo (gradini, gambe raccolte in aria): il client lo ammorbidisce. */
@@ -106,6 +108,7 @@ export function createPlayerState(): PlayerState {
     prevJump: false,
     prevCrouch: false,
     speedScale: 1,
+    jumpVelocity: MOVE.jumpVelocity,
     stepDelta: 0,
     landingSpeed: 0,
     jumped: false,
@@ -126,6 +129,15 @@ export function spawnPlayer(p: PlayerState, spawn: SpawnPoint): void {
   p.y = spawn.pos[1];
   p.z = spawn.pos[2];
   p.yaw = spawn.yaw * DEG_TO_RAD;
+}
+
+/**
+ * Velocità iniziale per raggiungere l'altezza `height` (m) con un salto da fermi. Tiene conto del
+ * passo fisso: con la formula continua sqrt(2gh) a 60 Hz si arriverebbe circa 6 cm più in basso.
+ */
+export function jumpVelocityFor(height: number, dt: number = TICK_DT): number {
+  const half = (MOVE.gravity * dt) / 2;
+  return half + Math.sqrt(half * half + 2 * MOVE.gravity * height);
 }
 
 export function playerHeight(p: Readonly<PlayerState>): number {
@@ -193,7 +205,7 @@ export function simulateTick(
   const wantsJump = p.jumpBuffer > 0 || (MOVE.autoHop && jumpHeld);
   if (wantsJump && (p.grounded || p.coyoteTime > 0)) {
     const carried = p.grounded ? Math.max(0, groundVerticalSpeed(p)) * MOVE.rampJumpFactor : Math.max(0, p.vy);
-    p.vy = MOVE.jumpVelocity + carried;
+    p.vy = p.jumpVelocity + carried;
     p.grounded = false;
     p.sliding = false;
     p.coyoteTime = 0;

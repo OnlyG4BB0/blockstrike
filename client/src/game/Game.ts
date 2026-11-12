@@ -12,18 +12,26 @@ import {
   type Mesh,
 } from 'three';
 import {
+  BodyPose,
   KILLED_BY_FALL,
   KILLED_BY_GRENADE,
   MOVE,
   Match,
+  NO_CLASS_CHANGE,
   SHOT_BODY,
   SHOT_WORLD,
   TICK_DT,
+  copyAnimState,
   copyPlayerState,
+  createAnimState,
   createPlayerState,
   currentSpread,
   horizontalSpeed,
+  lerpAnimState,
   lineOfSight,
+  poseBody,
+  type AnimState,
+  type CharacterSkinDef,
   type Combatant,
   type GameContent,
   type MapData,
@@ -34,7 +42,8 @@ import { AudioSystem } from '../audio/AudioSystem.ts';
 import { AUDIO, CHARACTERS, EFFECTS, RENDER, VIEW, VIEWMODEL } from '../config.ts';
 import { Input } from '../input/Input.ts';
 import { createBlockTexture } from '../render/blockTexture.ts';
-import { CharacterView, colorsFor, type WeaponLook } from '../render/CharacterView.ts';
+import { CharacterPreview } from '../render/CharacterPreview.ts';
+import { CharacterRenderer, type CharacterLook } from '../render/CharacterRenderer.ts';
 import { Effects } from '../render/Effects.ts';
 import { createMapMesh } from '../render/mapMesh.ts';
 import { createSky } from '../render/sky.ts';
@@ -50,6 +59,28 @@ const MAX_TICKS_PER_FRAME = 8;
 /** Un fotogramma più lungo di così viene accorciato. */
 const MAX_FRAME_TIME = 0.25;
 const LOCAL_NAME = 'Tu';
+
+/** Aspetto di riserva se in content/skins non ci sono skin dei personaggi. */
+const DEFAULT_SKIN: CharacterSkinDef = {
+  type: 'character',
+  id: 'predefinita',
+  name: 'Predefinita',
+  order: 0,
+  colors: {
+    head: '#e0b48a',
+    torso: '#4f7a3a',
+    armLeft: '#4f7a3a',
+    armRight: '#4f7a3a',
+    legLeft: '#5b5141',
+    legRight: '#5b5141',
+    hair: '#3b2a1e',
+    eyes: '#1b1b1b',
+    hands: '#e0b48a',
+    feet: '#2a2420',
+    belt: '#2a2420',
+  },
+  accessories: [],
+};
 
 function easeInOut(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
@@ -83,7 +114,16 @@ export class Game {
   private readonly viewmodel: Viewmodel;
   private readonly effects: Effects;
   private readonly audio: AudioSystem;
-  private readonly characters = new Map<number, CharacterView>();
+  private readonly characters = new CharacterRenderer(CHARACTERS.maxVisible);
+  private readonly preview: CharacterPreview;
+  /** Stato dell'animazione al tick precedente, per disegnare tra due tick. */
+  private readonly prevAnim = new Map<number, AnimState>();
+  /** Ultima posa disegnata di ogni personaggio (bocca dell'arma, nome sopra la testa). */
+  private readonly drawnPoses = new Map<number, BodyPose>();
+  private readonly hurt = new Map<number, number>();
+  private readonly deadTime = new Map<number, number>();
+  private readonly looks = new Map<number, CharacterLook>();
+  private readonly drawAnim = createAnimState();
   private readonly footsteps = new Map<number, number>();
   private settings: Settings;
   private accumulator = 0;
@@ -104,7 +144,7 @@ export class Game {
     this.hud = new Hud(content.weapons, content.grenade.name);
     this.audio = new AudioSystem(content.sounds);
     this.match = new Match(map, content, { seed: (Math.random() * 0xffffffff) >>> 0 });
-    this.local = this.match.addCombatant(LOCAL_NAME);
+    this.local = this.match.addCombatant(LOCAL_NAME, { classIndex: this.classIndexOf(this.settings.classId) });
     this.match.setBotCount(this.settings.botCount);
     this.match.botMode = this.settings.botMode;
 
@@ -123,18 +163,43 @@ export class Game {
 
     this.sky = createSky(map);
     this.buildScene();
+    this.scene.add(this.characters.object);
     this.effects = new Effects(this.scene, this.match.world, map, this.library);
 
     this.input = new Input(this.renderer.domElement);
-    this.applySettings(this.settings);
 
     const skinChoices = content.weapons
       .map((def) => ({ weaponId: def.id, weaponName: def.name, skins: this.library.skinsFor(def.id) }))
       .filter((choice) => choice.skins.length > 0);
-    this.menu = new Menu(this.settings, skinChoices);
+    const weaponName = (id: string | null) => (id ? (content.weapons.find((w) => w.id === id)?.name ?? id) : null);
+    const classChoices = content.classes.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      health: c.health,
+      speed: c.speed,
+      jumpHeight: c.jumpHeight,
+      weapons: [c.primary, c.secondary, c.melee].map(weaponName).filter((name): name is string => name !== null),
+      grenades: c.grenades,
+    }));
+    const characterSkinChoices = content.characterSkins.map((s) => ({
+      id: s.id,
+      name: s.name,
+      swatch: [s.colors.head, s.colors.torso, s.colors.legLeft, s.colors.hair],
+      accessories: s.accessories.map((a) => a.name),
+    }));
+    this.menu = new Menu(this.settings, skinChoices, classChoices, characterSkinChoices);
+    this.preview = new CharacterPreview(this.menu.previewCanvas, this.match.grips);
+    this.applySettings(this.settings);
     this.menu.onPlay = () => {
       void this.audio.start();
       void this.input.requestLock();
+      // In allenamento la nuova classe vale subito: si rinasce con quella.
+      if (this.local.pendingClass !== NO_CLASS_CHANGE) {
+        this.match.forceRespawn(this.local);
+        this.onLocalRespawn();
+      }
+      this.menu.setClassNote('');
     };
     this.menu.onChange = (settings) => {
       this.applySettings(settings);
@@ -199,6 +264,25 @@ export class Game {
       this.match.setBotCount(settings.botCount);
     }
     this.match.weapons.forEach((def, index) => this.viewmodel.setSkin(index, this.skinOf(def)));
+    this.characters.showHitboxes = settings.showDebug;
+
+    // Classe: vale dalla prossima rinascita (in allenamento, appena si torna a giocare).
+    const classIndex = this.classIndexOf(settings.classId);
+    if (classIndex !== this.local.classIndex) {
+      this.match.setClass(this.local, classIndex);
+      this.menu.setClassNote('La nuova classe vale appena torni a giocare.');
+    } else {
+      this.local.pendingClass = NO_CLASS_CHANGE;
+      this.menu.setClassNote('');
+    }
+    this.looks.delete(this.local.id);
+    const primary = classIndex >= 0 ? this.match.weapons.findIndex((w) => w.id === this.content.classes[classIndex]!.primary) : 0;
+    this.preview.setLook(this.lookFor(this.local), primary);
+  }
+
+  private classIndexOf(id: string): number {
+    const index = this.content.classes.findIndex((c) => c.id === id);
+    return index >= 0 ? index : this.content.classes.length > 0 ? 0 : -1;
   }
 
   /** Skin scelta nelle impostazioni per un'arma, se esiste ancora. */
@@ -207,15 +291,37 @@ export class Game {
     return id && this.library.skin(id)?.weapon === def.id ? id : null;
   }
 
-  /** Aspetto delle armi di un bot: per varietà, ogni bot ha una skin a caso (sempre la stessa). */
-  private botWeaponLook(botId: number): WeaponLook {
-    return (index) => {
-      const def = this.match.weapons[index]!;
-      const skins = this.library.skinsFor(def.id);
-      const pick = (botId * 7 + index * 3) % (skins.length + 1);
-      const skin = pick < skins.length ? skins[pick]!.id : null;
-      return { def: this.library.model(def.model), geometry: this.library.mergedGeometry(def.model, skin) };
+  /**
+   * Aspetto di un personaggio. Il giocatore usa skin e armi scelte nel menu; ogni bot ha una skin
+   * del personaggio e skin delle armi a caso (sempre le stesse).
+   */
+  private lookFor(c: Combatant): CharacterLook {
+    let look = this.looks.get(c.id);
+    if (look) return look;
+    const skins = this.content.characterSkins;
+    const mine = c === this.local;
+    const skin: CharacterSkinDef =
+      (mine ? skins.find((s) => s.id === this.settings.characterSkin) : skins[(c.id * 5 + 3) % skins.length]) ??
+      skins[0] ??
+      DEFAULT_SKIN;
+    look = {
+      skin,
+      weaponGeometry: (index) => {
+        const def = this.match.weapons[index];
+        if (!def) return null;
+        let weaponSkin: string | null;
+        if (mine) {
+          weaponSkin = this.skinOf(def);
+        } else {
+          const choices = this.library.skinsFor(def.id);
+          const pick = (c.id * 7 + index * 3) % (choices.length + 1);
+          weaponSkin = pick < choices.length ? choices[pick]!.id : null;
+        }
+        return this.library.mergedGeometry(def.model, weaponSkin);
+      },
     };
+    this.looks.set(c.id, look);
+    return look;
   }
 
   private weaponLabel(index: number): string {
@@ -229,6 +335,15 @@ export class Game {
     if (!state) {
       state = createPlayerState();
       this.previous.set(id, state);
+    }
+    return state;
+  }
+
+  private prevAnimOf(id: number): AnimState {
+    let state = this.prevAnim.get(id);
+    if (!state) {
+      state = createAnimState();
+      this.prevAnim.set(id, state);
     }
     return state;
   }
@@ -276,13 +391,18 @@ export class Game {
       this.onLocalRespawn();
     }
     this.input.sample(local.input);
+    // I tasti scelgono tra le armi della classe.
+    const loadout = local.loadout;
     local.input.weaponSlot = this.input.consumeWeaponRequest(
-      local.weapon.current,
-      local.weapon.previous,
-      this.match.weapons.length,
+      Math.max(0, loadout.indexOf(local.weapon.current)),
+      Math.max(0, loadout.indexOf(local.weapon.previous)),
+      loadout.length,
     );
 
-    for (const c of this.match.combatants) copyPlayerState(this.prevState(c.id), c.player);
+    for (const c of this.match.combatants) {
+      copyPlayerState(this.prevState(c.id), c.player);
+      copyAnimState(this.prevAnimOf(c.id), c.anim);
+    }
     this.prevRecoilPitch = local.weapon.recoilPitch;
     this.prevRecoilYaw = local.weapon.recoilYaw;
     this.prevAds = local.weapon.adsAmount;
@@ -342,8 +462,7 @@ export class Game {
           this.ejectCasing();
         }
       } else {
-        const view = this.characters.get(shot.shooter);
-        from = view ? view.muzzleWorld(this.temp) : this.temp.set(shot.ox, shot.oy, shot.oz);
+        from = this.muzzleOf(shot.shooter, shot.weapon) ?? this.temp.set(shot.ox, shot.oy, shot.oz);
         if (!melee) this.effects.worldFlash(from.x, from.y, from.z);
         this.audio.play(def.sounds.fire, { x: from.x, y: from.y, z: from.z });
       }
@@ -365,7 +484,7 @@ export class Game {
     for (let i = 0; i < events.hits.count; i++) {
       const hit = events.hits.get(i);
       this.effects.bodyHit(hit.x, hit.y, hit.z, hit.damage);
-      this.characters.get(hit.target)?.onHurt();
+      this.hurt.set(hit.target, 1);
       if (hit.attacker === localId && hit.target !== localId) {
         this.hud.hitMarker(hit.headshot, hit.killed);
         if (this.settings.damageNumbers) this.hud.damageNumber(hit.x, hit.y, hit.z, hit.damage, hit.headshot, hit.killed);
@@ -406,7 +525,11 @@ export class Game {
       const mine = action.combatant === localId;
       if (action.type === 'respawn') {
         const c = this.match.getCombatant(action.combatant);
-        if (c) copyPlayerState(this.prevState(c.id), c.player);
+        if (c) {
+          copyPlayerState(this.prevState(c.id), c.player);
+          copyAnimState(this.prevAnimOf(c.id), c.anim);
+          this.deadTime.delete(c.id);
+        }
         if (mine) this.onLocalRespawn();
         continue;
       }
@@ -499,36 +622,56 @@ export class Game {
 
     this.audio.updateListener(this.camera);
     this.updateHud(dt, scoped);
+    if (this.menu.visible) this.menu.setPreviewCaption(this.preview.render(dt));
   }
 
+  /**
+   * Personaggi degli altri combattenti: la posa nasce dallo stato dell'animazione interpolato tra
+   * gli ultimi due tick, con la stessa funzione che dà le hitbox alla simulazione.
+   */
   private updateCharacters(dt: number, alpha: number): void {
-    const alive = new Set<number>();
+    this.characters.begin();
     for (const c of this.match.combatants) {
       if (c === this.local) continue;
-      alive.add(c.id);
-      let view = this.characters.get(c.id);
-      if (!view) {
-        view = new CharacterView(colorsFor(c.id), this.botWeaponLook(c.id));
-        this.scene.add(view.root);
-        this.characters.set(c.id, view);
+      let pose = this.drawnPoses.get(c.id);
+      if (!pose) {
+        pose = new BodyPose();
+        this.drawnPoses.set(c.id, pose);
       }
-      const q = this.prevState(c.id);
-      const p = c.player;
-      view.update(
-        dt,
-        c,
-        q.x + (p.x - q.x) * alpha,
-        q.y + (p.y - q.y) * alpha,
-        q.z + (p.z - q.z) * alpha,
-        horizontalSpeed(p),
-      );
+      let fall = 0;
+      let sink = 0;
+      if (c.alive) {
+        lerpAnimState(this.drawAnim, this.prevAnimOf(c.id), c.anim, alpha);
+        poseBody(pose, this.drawAnim, this.match.grips);
+      } else {
+        // Da morti l'animazione resta ferma all'ultimo tick; il corpo cade e poi affonda.
+        const time = (this.deadTime.get(c.id) ?? 0) + dt;
+        this.deadTime.set(c.id, time);
+        poseBody(pose, c.anim, this.match.grips);
+        const t = Math.min(1, time / CHARACTERS.deathFallTime);
+        fall = t * t;
+        sink = Math.min(1, Math.max(0, time - CHARACTERS.deathSinkDelay) / CHARACTERS.deathSinkTime) * CHARACTERS.deathSinkDepth;
+        if (sink >= CHARACTERS.deathSinkDepth) continue;
+      }
+      const hurt = Math.max(0, (this.hurt.get(c.id) ?? 0) - dt * CHARACTERS.hurtDecay);
+      this.hurt.set(c.id, hurt);
+      this.characters.add(pose, this.lookFor(c), c.anim.weapon, { hurt, fall, sink });
     }
-    for (const [id, view] of this.characters) {
-      if (alive.has(id)) continue;
-      view.dispose();
-      this.characters.delete(id);
-      this.previous.delete(id);
+    this.characters.end();
+    // Combattenti usciti dalla partita.
+    for (const id of this.drawnPoses.keys()) {
+      if (this.match.getCombatant(id)) continue;
+      for (const map of [this.drawnPoses, this.prevAnim, this.hurt, this.deadTime, this.looks, this.previous]) map.delete(id);
     }
+  }
+
+  /** Bocca dell'arma di un altro combattente, dall'ultima posa disegnata. */
+  private muzzleOf(id: number, weapon: number): Vector3 | null {
+    const pose = this.drawnPoses.get(id);
+    const def = this.match.weapons[weapon];
+    if (!pose || !pose.armed || !def) return null;
+    const [x, y, z] = this.library.model(def.model).muzzle;
+    return CharacterRenderer.weaponPoint(pose, x, y, z, this.temp);
   }
 
   private readonly project = (x: number, y: number, z: number, out: ScreenPoint): ScreenPoint => {
@@ -544,7 +687,8 @@ export class Game {
     const w = local.weapon;
     const def = this.match.weapons[w.current]!;
     this.hud.frame(dt, local.player, this.peakSpeed, this.settings, this.settings.showDebug ? this.debugText() : '');
-    this.hud.vitals(local.health, local.alive, local.protection);
+    this.hud.vitals(local.health, local.maxHealth, local.alive, local.protection);
+    this.hud.setLoadout(local.loadout);
     const reloadProgress = w.reloadTimer > 0 ? 1 - w.reloadTimer / def.reloadTime : -1;
     this.hud.weapon(w.current, w.ammo[w.current]!, reloadProgress, w.grenades);
 
@@ -576,15 +720,15 @@ export class Game {
     // Nome e vita sopra i bot vivi, vicini e visibili (niente scritte attraverso i muri).
     this.labels.length = 0;
     const camera = this.camera.position;
-    for (const [id, view] of this.characters) {
+    for (const [id, pose] of this.drawnPoses) {
       const c = this.match.getCombatant(id);
       if (!c || !c.alive) continue;
-      const point = view.labelPoint(this.temp);
+      const point = CharacterRenderer.labelPoint(pose, this.temp);
       const distance = camera.distanceTo(point);
       const visible =
         distance < CHARACTERS.labelRange &&
         lineOfSight(this.match.world, camera.x, camera.y, camera.z, point.x, point.y - 0.3, point.z);
-      this.labels.push({ id, name: c.name, health: c.health, x: point.x, y: point.y, z: point.z, visible });
+      this.labels.push({ id, name: c.name, health: c.health, maxHealth: c.maxHealth, x: point.x, y: point.y, z: point.z, visible });
     }
     this.hud.updateOverlays(dt, this.labels, this.project);
   }

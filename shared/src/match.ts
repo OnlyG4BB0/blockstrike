@@ -5,7 +5,20 @@
 import { createBotState, resetBotState, updateBot, type BotMode, type BotState } from './bots.ts';
 import { BOT, COMBAT, MOVE, PLAYER, TICK_DT } from './constants.ts';
 import { EventBuffer, MAX_PELLETS, SHOT_BODY, SHOT_MISS, SHOT_WORLD, type ActionType } from './events.ts';
-import { createBodyHit, raycastBody, type HitRegion } from './hitboxes.ts';
+import {
+  BodyPose,
+  buildGrips,
+  createAnimState,
+  createBodyHit,
+  poseBody,
+  raycastPose,
+  resetAnimState,
+  syncAnimPosition,
+  updateAnimState,
+  type AnimState,
+  type HitRegion,
+  type WeaponGrip,
+} from './pose.ts';
 import type { MapData } from './map.ts';
 import { DEG_TO_RAD, clamp } from './math.ts';
 import { buildNavGraph, type NavGraph } from './navigation.ts';
@@ -13,6 +26,7 @@ import {
   createInput,
   createPlayerState,
   horizontalSpeed,
+  jumpVelocityFor,
   playerEyeHeight,
   playerHeight,
   simulateTick,
@@ -28,6 +42,7 @@ import {
   damageFalloff,
   recoilPatternIndex,
   regionMultiplier,
+  type ClassDef,
   type CombatContent,
   type ProjectileDef,
   type ThrowableDef,
@@ -83,7 +98,23 @@ export interface Combatant {
   lastDamageTime: number;
   killedBy: number;
   killedByWeapon: number;
+  /** Classe (indice in Match.classes); -1 = nessuna classe: tutte le armi, statistiche di base. */
+  classIndex: number;
+  /** Classe scelta per la prossima rinascita; NO_CLASS_CHANGE se non cambia. */
+  pendingClass: number;
+  /** Armi dei tasti 1, 2, 3... (indici in Match.weapons). */
+  readonly loadout: number[];
+  maxHealth: number;
+  /** Moltiplicatore della velocità di corsa e velocità del salto, dalla classe. */
+  speedFactor: number;
+  jumpVelocity: number;
+  /** Stato dell'animazione (avanza con la simulazione) e posa del corpo con le hitbox. */
+  readonly anim: AnimState;
+  readonly pose: BodyPose;
 }
+
+/** Nessun cambio di classe in attesa. */
+export const NO_CLASS_CHANGE = -2;
 
 export interface Projectile {
   active: boolean;
@@ -240,6 +271,9 @@ export class Match implements CombatContent {
   /** Armi disponibili, nell'ordine dei tasti numerici. */
   readonly weapons: readonly WeaponDef[];
   readonly grenade: ThrowableDef;
+  readonly classes: readonly ClassDef[];
+  /** Dove vanno le mani su ogni arma: serve alla posa delle braccia. */
+  readonly grips: readonly WeaponGrip[];
   readonly combatants: Combatant[] = [];
   readonly projectiles: Projectile[] = [];
   readonly events = new EventBuffer();
@@ -261,6 +295,8 @@ export class Match implements CombatContent {
     this.map = map;
     this.weapons = content.weapons;
     this.grenade = content.grenade;
+    this.classes = content.classes ?? [];
+    this.grips = buildGrips(content.weapons, content.models);
     this.world = CollisionWorld.fromBlocks(map.blocks);
     this.nav = buildNavGraph(this.world, map.waypoints);
     this.random = createRandom(options.seed ?? 1);
@@ -286,10 +322,17 @@ export class Match implements CombatContent {
     }
   }
 
-  /** Aggiunge un combattente e lo fa nascere subito. */
-  addCombatant(name: string, options: { bot?: boolean; weapon?: number } = {}): Combatant {
+  /**
+   * Aggiunge un combattente e lo fa nascere subito. Con `classIndex` usa le armi e le statistiche
+   * della classe; senza, ha tutte le armi (e parte con `weapon` in mano).
+   */
+  addCombatant(name: string, options: { bot?: boolean; weapon?: number; classIndex?: number } = {}): Combatant {
     const id = this.nextId++;
-    const weapon = Math.min(Math.max(0, options.weapon ?? 0), this.weapons.length - 1);
+    const classIndex = this.validClass(options.classIndex ?? -1);
+    const weapon =
+      classIndex >= 0
+        ? this.loadoutOf(classIndex)[0]!
+        : Math.min(Math.max(0, options.weapon ?? 0), this.weapons.length - 1);
     const seed = (Math.imul(id + 1, 0x9e3779b1) ^ this.random.seed) >>> 0;
     const preferredRange = this.weapons[weapon]!.bot?.preferredRange ?? 15;
     const c: Combatant = {
@@ -309,10 +352,64 @@ export class Match implements CombatContent {
       lastDamageTime: -Infinity,
       killedBy: -1,
       killedByWeapon: 0,
+      classIndex: -1,
+      pendingClass: classIndex,
+      loadout: [],
+      maxHealth: COMBAT.maxHealth,
+      speedFactor: 1,
+      jumpVelocity: MOVE.jumpVelocity,
+      anim: createAnimState(),
+      pose: new BodyPose(),
     };
+    this.applyClass(c, classIndex);
     this.combatants.push(c);
     this.respawn(c);
     return c;
+  }
+
+  /** Sceglie la classe per la prossima rinascita (-1 = nessuna classe). */
+  setClass(c: Combatant, classIndex: number): void {
+    c.pendingClass = this.validClass(classIndex);
+  }
+
+  /** Arma del tasto `slot` (1 = primo), oppure -1. */
+  weaponInSlot(c: Combatant, slot: number): number {
+    return slot >= 1 && slot <= c.loadout.length ? c.loadout[slot - 1]! : -1;
+  }
+
+  private validClass(index: number): number {
+    return Number.isInteger(index) && index >= 0 && index < this.classes.length ? index : -1;
+  }
+
+  /** Armi di una classe nell'ordine dei tasti; senza classe tutte le armi. */
+  private loadoutOf(classIndex: number): number[] {
+    const def = this.classes[classIndex];
+    if (!def) return this.weapons.map((_, index) => index);
+    const result: number[] = [];
+    for (const id of [def.primary, def.secondary, def.melee]) {
+      const index = id === null ? -1 : this.weapons.findIndex((w) => w.id === id);
+      if (index >= 0 && !result.includes(index)) result.push(index);
+    }
+    if (result.length === 0) result.push(0);
+    return result;
+  }
+
+  private applyClass(c: Combatant, classIndex: number): void {
+    const def = this.classes[classIndex];
+    c.classIndex = def ? classIndex : -1;
+    c.pendingClass = NO_CLASS_CHANGE;
+    c.loadout.length = 0;
+    c.loadout.push(...this.loadoutOf(c.classIndex));
+    c.maxHealth = def ? def.health : COMBAT.maxHealth;
+    c.speedFactor = def ? def.speed : 1;
+    c.jumpVelocity = def ? jumpVelocityFor(def.jumpHeight) : MOVE.jumpVelocity;
+    if (c.bot) c.bot.preferredRange = this.weapons[this.startingWeapon(c)]!.bot?.preferredRange ?? c.bot.preferredRange;
+  }
+
+  /** Arma con cui si rinasce: la prima della classe; per i bot la prima che sanno usare ("bot" nel JSON). */
+  private startingWeapon(c: Combatant): number {
+    if (c.bot) for (const index of c.loadout) if (this.weapons[index]!.bot) return index;
+    return c.loadout[0]!;
   }
 
   removeCombatant(id: number): void {
@@ -332,10 +429,15 @@ export class Match implements CombatContent {
       this.removeCombatant(bots[bots.length - 1]!.id);
       bots = bots.slice(0, -1);
     }
-    // I bot usano a turno le armi che lo prevedono nei loro dati ("bot" nel JSON).
+    // Con le classi i bot le usano a turno; senza, usano a turno le armi che lo prevedono nei loro
+    // dati ("bot" nel JSON).
     const usable = this.weapons.flatMap((def, index) => (def.bot ? [index] : []));
     for (let i = bots.length; i < count; i++) {
       const name = BOT.names[i % BOT.names.length]!;
+      if (this.classes.length > 0) {
+        this.addCombatant(`Bot ${name}`, { bot: true, classIndex: i % this.classes.length });
+        continue;
+      }
       const weapon = usable.length > 0 ? usable[i % usable.length]! : 0;
       this.addCombatant(`Bot ${name}`, { bot: true, weapon });
     }
@@ -350,6 +452,12 @@ export class Match implements CombatContent {
     this.events.clear();
     this.time += dt;
     this.tickCount++;
+    // Le hitbox partono dalla posizione attuale (anche se qualcuno è stato spostato da fuori).
+    for (const c of this.combatants) {
+      if (!c.alive) continue;
+      syncAnimPosition(c.anim, c.player);
+      poseBody(c.pose, c.anim, this.grips);
+    }
     for (const c of this.combatants) {
       if (!c.alive) {
         c.respawnTimer -= dt;
@@ -372,10 +480,13 @@ export class Match implements CombatContent {
     c.protection = Math.max(0, c.protection - dt);
     this.updateWeapon(c, dt);
     const def = this.weapons[w.current]!;
-    p.speedScale = def.moveSpeedFactor * (1 + (def.ads.moveFactor - 1) * w.adsAmount);
+    p.speedScale = c.speedFactor * def.moveSpeedFactor * (1 + (def.ads.moveFactor - 1) * w.adsAmount);
+    p.jumpVelocity = c.jumpVelocity;
     simulateTick(p, c.input, this.world, dt);
     this.handleFire(c);
     this.handleGrenade(c, dt);
+    updateAnimState(c.anim, p, w, this.weapons[w.current]!, dt);
+    poseBody(c.pose, c.anim, this.grips);
     if (p.y < this.map.killY) {
       // Caduta: il punto va a chi ha colpito per ultimo, se è successo da poco.
       const recent = c.lastAttacker >= 0 && this.time - c.lastDamageTime < 3;
@@ -386,8 +497,8 @@ export class Match implements CombatContent {
   private updateWeapon(c: Combatant, dt: number): void {
     const w = c.weapon;
     const input = c.input;
-    const slot = Math.trunc(input.weaponSlot);
-    if (slot >= 1 && slot <= this.weapons.length && slot - 1 !== w.current) this.switchWeapon(c, slot - 1);
+    const requested = this.weaponInSlot(c, Math.trunc(input.weaponSlot));
+    if (requested >= 0 && requested !== w.current) this.switchWeapon(c, requested);
     const def = this.weapons[w.current]!;
 
     if (w.drawTimer > 0) w.drawTimer = Math.max(0, w.drawTimer - dt);
@@ -522,7 +633,7 @@ export class Match implements CombatContent {
       for (let j = 0; j < this.combatants.length; j++) {
         const target = this.combatants[j]!;
         if (target === c || !target.alive) continue;
-        if (!raycastBody(target.player, ox, oy, oz, aim.x, aim.y, aim.z, Math.min(rayHit.t, bestT), bodyHit).hit) continue;
+        if (!raycastPose(target.pose, ox, oy, oz, aim.x, aim.y, aim.z, Math.min(rayHit.t, bestT), bodyHit).hit) continue;
         bestT = bodyHit.t;
         victim = j;
         region = bodyHit.region;
@@ -591,7 +702,7 @@ export class Match implements CombatContent {
       for (let j = 0; j < count; j++) {
         const target = this.combatants[j]!;
         if (target === c || !target.alive) continue;
-        if (!raycastBody(target.player, ox, oy, oz, dx, dy, dz, range, bodyHit).hit) continue;
+        if (!raycastPose(target.pose, ox, oy, oz, dx, dy, dz, range, bodyHit).hit) continue;
         range = bodyHit.t;
         victim = j;
         region = bodyHit.region;
@@ -888,6 +999,7 @@ export class Match implements CombatContent {
     if (!target.alive || amount <= 0 || target.protection > 0) return;
     const dealt = Math.min(amount, target.health);
     target.health -= amount;
+    target.anim.flinch = 1;
     if (attackerId !== target.id) {
       target.lastAttacker = attackerId;
       target.lastDamageTime = this.time;
@@ -926,18 +1038,31 @@ export class Match implements CombatContent {
   }
 
   private respawn(c: Combatant): void {
+    if (c.pendingClass !== NO_CLASS_CHANGE) this.applyClass(c, c.pendingClass);
     const spawn = this.map.spawns[this.chooseSpawn(c)]!;
     spawnPlayer(c.player, spawn);
-    c.health = COMBAT.maxHealth;
+    c.health = c.maxHealth;
     c.alive = true;
     c.respawnTimer = 0;
     c.protection = COMBAT.spawnProtection;
     c.lastAttacker = -1;
     c.lastDamageTime = -Infinity;
     refillWeaponState(c.weapon, this);
+    const w = c.weapon;
+    if (c.classIndex >= 0) {
+      // Con una classe si rinasce con l'arma principale e le granate della classe.
+      w.current = this.startingWeapon(c);
+      w.previous = c.loadout.find((index) => index !== w.current) ?? w.current;
+      w.grenades = this.classes[c.classIndex]!.grenades;
+    } else if (!c.loadout.includes(w.current)) {
+      w.current = c.loadout[0]!;
+    }
     c.input.yaw = c.player.yaw;
     c.input.pitch = 0;
+    c.input.weaponSlot = 0;
     if (c.bot) resetBotState(c.bot);
+    resetAnimState(c.anim, c.player, w.current);
+    poseBody(c.pose, c.anim, this.grips);
     this.action(c, 'respawn');
   }
 

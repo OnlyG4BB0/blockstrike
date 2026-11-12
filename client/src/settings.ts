@@ -16,11 +16,16 @@ export interface Settings {
   botMode: BotMode;
   /** Skin scelta per ogni arma (id arma → id skin). */
   skins: Record<string, string>;
+  /** Classe del personaggio (id in content/classes); vuoto = la prima. */
+  classId: string;
+  /** Skin del personaggio (id in content/skins); vuoto = la prima. */
+  characterSkin: string;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
 export const SENSITIVITY_SCALE = 0.0008;
-export const MAX_BOTS = 7;
+/** Bot massimi: con il giocatore fanno 12 combattenti, come una stanza piena. */
+export const MAX_BOTS = 11;
 
 const DEFAULTS: Settings = {
   sensitivity: 2.5,
@@ -33,6 +38,8 @@ const DEFAULTS: Settings = {
   botCount: 4,
   botMode: 'fight',
   skins: {},
+  classId: '',
+  characterSkin: '',
 };
 
 const STORAGE_KEY = 'blockstrike.settings.v1';
@@ -75,6 +82,8 @@ export function loadSettings(): Settings {
     botCount: Math.round(numberIn(stored.botCount, 0, MAX_BOTS, DEFAULTS.botCount)),
     botMode: BOT_MODES.includes(stored.botMode as BotMode) ? (stored.botMode as BotMode) : DEFAULTS.botMode,
     skins: stringRecord(stored.skins),
+    classId: typeof stored.classId === 'string' ? stored.classId : DEFAULTS.classId,
+    characterSkin: typeof stored.characterSkin === 'string' ? stored.characterSkin : DEFAULTS.characterSkin,
   };
 }
 

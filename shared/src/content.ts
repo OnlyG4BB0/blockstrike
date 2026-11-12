@@ -1,6 +1,7 @@
 /**
  * Contenuti di gioco letti da JSON: armi (/content/weapons), equipaggiamento (/content/equipment),
- * modelli delle armi (/content/weapon-models), skin (/content/skins) e suoni (/content/sounds).
+ * classi (/content/classes), modelli delle armi (/content/weapon-models), skin di armi e personaggi
+ * (/content/skins) e suoni (/content/sounds).
  *
  * Il caricamento controlla ogni file e i riferimenti tra file (modelli, suoni, parti colorate dalle
  * skin) e raccoglie tutti i problemi: se qualcosa non va, si ferma all'avvio con un elenco chiaro.
@@ -9,7 +10,8 @@
 import { MAX_PELLETS } from './events.ts';
 import type { Vec3Tuple } from './map.ts';
 import { Validator, type JsonObject } from './validation.ts';
-import type { MeleeDef, ProjectileDef, ThrowableDef, WeaponDef, CombatContent } from './weapons.ts';
+import { PART_NAMES, type PartName } from './pose.ts';
+import type { ClassDef, MeleeDef, ProjectileDef, ThrowableDef, WeaponDef, CombatContent } from './weapons.ts';
 
 /** Parti del modello con un'animazione propria. */
 export type PartRole = 'magazine' | 'slide' | 'pump' | 'bolt' | 'cylinder';
@@ -40,13 +42,58 @@ export interface WeaponModelDef {
   hands: { right: Vec3Tuple; left: Vec3Tuple };
 }
 
+/** Skin di un'arma: nuovi colori per le parti del modello, per nome. */
 export interface SkinDef {
+  type: 'weapon';
   id: string;
   name: string;
   weapon: string;
   /** Nuovo colore per ogni nome di parte del modello. */
   colors: Readonly<Record<string, string>>;
 }
+
+/** Dettagli del personaggio con un colore proprio, oltre alle sei parti. */
+export const CHARACTER_DETAILS = ['hair', 'eyes', 'hands', 'feet', 'belt'] as const;
+export type CharacterDetail = (typeof CHARACTER_DETAILS)[number];
+
+/** Box di un accessorio, nello spazio della parte a cui è attaccato (origine nel giunto). */
+export interface AccessoryBox {
+  pos: Vec3Tuple;
+  size: Vec3Tuple;
+  /** Rotazione in gradi (ordine XYZ). */
+  rotation: Vec3Tuple;
+  color: string;
+}
+
+/** Accessorio fatto di box (cappello, zaino...), attaccato a una parte del corpo. */
+export interface AccessoryDef {
+  name: string;
+  part: PartName;
+  boxes: readonly AccessoryBox[];
+}
+
+/** Skin di un personaggio: colore di ogni parte, dettagli e accessori. */
+export interface CharacterSkinDef {
+  type: 'character';
+  id: string;
+  name: string;
+  /** Posizione nell'elenco delle skin (la prima è quella predefinita). */
+  order: number;
+  colors: Readonly<Record<PartName | CharacterDetail, string>>;
+  accessories: readonly AccessoryDef[];
+}
+
+/** Box massimi negli accessori di una skin (tutti i personaggi si disegnano insieme). */
+export const MAX_ACCESSORY_BOXES = 16;
+
+/** Colori dei dettagli quando la skin non li indica. */
+const DETAIL_DEFAULTS: Readonly<Record<CharacterDetail, string>> = {
+  hair: '#3b2a1e',
+  eyes: '#1b1b1b',
+  hands: '#e0b48a',
+  feet: '#2a2420',
+  belt: '#2a2420',
+};
 
 export interface SoundLayer {
   type: 'noise' | 'tone';
@@ -82,11 +129,16 @@ export interface ContentSources {
   models: readonly ContentFile[];
   skins: readonly ContentFile[];
   sounds: readonly ContentFile[];
+  /** Classi dei personaggi (facoltative: senza classi ognuno ha tutte le armi). */
+  classes?: readonly ContentFile[];
 }
 
 export interface GameContent extends CombatContent {
   models: ReadonlyMap<string, WeaponModelDef>;
+  /** Skin delle armi. */
   skins: readonly SkinDef[];
+  characterSkins: readonly CharacterSkinDef[];
+  classes: readonly ClassDef[];
   sounds: ReadonlyMap<string, SoundDef>;
 }
 
@@ -276,14 +328,82 @@ export function parseWeaponModel(raw: unknown, source: string): WeaponModelDef {
   };
 }
 
-export function parseSkin(raw: unknown, source: string): SkinDef {
+/**
+ * Una skin: di un'arma (`"type": "weapon"`, oppure nessun tipo ma il campo `weapon`) o di un
+ * personaggio (`"type": "character"`).
+ */
+export function parseSkin(raw: unknown, source: string): SkinDef | CharacterSkinDef {
   const v = new Validator(source);
   const o = v.object(raw, '(radice)');
+  const type =
+    o.type === undefined && o.weapon !== undefined ? 'weapon' : v.oneOf(o.type, 'type', ['weapon', 'character'] as const);
+  if (type === 'character') return parseCharacterSkin(v, o);
   const colorsRaw = v.object(o.colors, 'colors');
   const colors: Record<string, string> = {};
   for (const [part, color] of Object.entries(colorsRaw)) colors[part] = v.color(color, `colors.${part}`);
   if (Object.keys(colors).length === 0) v.fail('colors', 'deve cambiare almeno una parte');
-  return { id: v.id(o.id, 'id'), name: v.string(o.name, 'name'), weapon: v.id(o.weapon, 'weapon'), colors };
+  return { type: 'weapon', id: v.id(o.id, 'id'), name: v.string(o.name, 'name'), weapon: v.id(o.weapon, 'weapon'), colors };
+}
+
+function parseCharacterSkin(v: Validator, o: JsonObject): CharacterSkinDef {
+  const colorsRaw = v.object(o.colors, 'colors');
+  const known: readonly string[] = [...PART_NAMES, ...CHARACTER_DETAILS];
+  for (const key of Object.keys(colorsRaw)) {
+    if (!known.includes(key)) v.fail(`colors.${key}`, `non è una parte del personaggio (parti: ${known.join(', ')})`);
+  }
+  const colors = {} as Record<PartName | CharacterDetail, string>;
+  for (const part of PART_NAMES) colors[part] = v.color(colorsRaw[part], `colors.${part}`);
+  for (const detail of CHARACTER_DETAILS) {
+    colors[detail] = colorsRaw[detail] === undefined ? DETAIL_DEFAULTS[detail] : v.color(colorsRaw[detail], `colors.${detail}`);
+  }
+  const accessories = o.accessories === undefined ? [] : v.array(o.accessories, 'accessories');
+  let boxes = 0;
+  const result: CharacterSkinDef = {
+    type: 'character',
+    id: v.id(o.id, 'id'),
+    name: v.string(o.name, 'name'),
+    order: v.optionalNumber(o.order, 'order', 0),
+    colors,
+    accessories: accessories.map((item, i): AccessoryDef => {
+      const path = `accessories[${i}]`;
+      const accessory = v.object(item, path);
+      return {
+        name: v.string(accessory.name, `${path}.name`),
+        part: v.oneOf(accessory.part, `${path}.part`, PART_NAMES),
+        boxes: v.array(accessory.boxes, `${path}.boxes`, 1).map((boxRaw, j): AccessoryBox => {
+          const boxPath = `${path}.boxes[${j}]`;
+          const box = v.object(boxRaw, boxPath);
+          boxes++;
+          return {
+            pos: v.vec3(box.pos, `${boxPath}.pos`),
+            size: v.vec3(box.size, `${boxPath}.size`, { positive: true }),
+            rotation: box.rotation === undefined ? [0, 0, 0] : v.vec3(box.rotation, `${boxPath}.rotation`),
+            color: v.color(box.color, `${boxPath}.color`),
+          };
+        }),
+      };
+    }),
+  };
+  if (boxes > MAX_ACCESSORY_BOXES) v.fail('accessories', `al massimo ${MAX_ACCESSORY_BOXES} box in tutto (ce ne sono ${boxes})`);
+  return result;
+}
+
+export function parseClass(raw: unknown, source: string): ClassDef {
+  const v = new Validator(source);
+  const o = v.object(raw, '(radice)');
+  return {
+    id: v.id(o.id, 'id'),
+    name: v.string(o.name, 'name'),
+    description: v.optionalString(o.description, 'description', ''),
+    order: v.optionalNumber(o.order, 'order', 0),
+    health: v.number(o.health, 'health', { min: 1, max: 1000 }),
+    speed: v.number(o.speed, 'speed', { min: 0.5, max: 1.6 }),
+    jumpHeight: v.number(o.jumpHeight, 'jumpHeight', { min: 0.5, max: 3 }),
+    primary: v.id(o.primary, 'primary'),
+    secondary: v.id(o.secondary, 'secondary'),
+    melee: o.melee === undefined || o.melee === null ? null : v.id(o.melee, 'melee'),
+    grenades: v.optionalNumber(o.grenades, 'grenades', -1, { min: 0, max: 9, integer: true }),
+  };
 }
 
 export function parseSound(raw: unknown, source: string): SoundDef {
@@ -361,8 +481,11 @@ export function loadContent(sources: ContentSources, options: LoadOptions = {}):
   const weapons = parseAll(sources.weapons, parseWeapon);
   const throwables = parseAll(sources.equipment, parseThrowable);
   const models = new Map(parseAll(sources.models, parseWeaponModel).map((m) => [m.id, m]));
-  const skins = parseAll(sources.skins, parseSkin);
+  const allSkins = parseAll(sources.skins, parseSkin);
+  const skins = allSkins.filter((s): s is SkinDef => s.type === 'weapon');
+  const characterSkins = allSkins.filter((s): s is CharacterSkinDef => s.type === 'character');
   const sounds = new Map(parseAll(sources.sounds, parseSound).map((s) => [s.id, s]));
+  const classes = parseAll(sources.classes ?? [], parseClass);
 
   const needModel = (owner: object, model: string, field: string) => {
     if (models.has(model) || broken.has(model)) return;
@@ -418,6 +541,18 @@ export function loadContent(sources: ContentSources, options: LoadOptions = {}):
     }
   }
 
+  for (const playerClass of classes) {
+    for (const field of ['primary', 'secondary', 'melee'] as const) {
+      const id = playerClass[field];
+      if (id === null || weaponsById.has(id) || broken.has(id)) continue;
+      problems.push(`${pathOf.get(playerClass)}: "${field}" indica l'arma "${id}", che non esiste in content/weapons`);
+    }
+    const melee = playerClass.melee ? weaponsById.get(playerClass.melee) : undefined;
+    if (melee && melee.kind !== 'melee') {
+      problems.push(`${pathOf.get(playerClass)}: "melee" indica "${melee.id}", che non è un'arma corpo a corpo`);
+    }
+  }
+
   for (const sound of options.requiredSounds ?? []) {
     if (!sounds.has(sound)) problems.push(`content/sounds: manca il suono "${sound}", usato dal gioco`);
   }
@@ -425,5 +560,9 @@ export function loadContent(sources: ContentSources, options: LoadOptions = {}):
 
   if (problems.length > 0) throw new ContentError(problems);
   weapons.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
-  return { weapons, grenade: grenade!, models, skins, sounds };
+  classes.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  characterSkins.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  // Granate per vita: la classe può indicarle, altrimenti vale il file della granata.
+  const resolved = classes.map((c) => (c.grenades >= 0 ? c : { ...c, grenades: grenade!.count }));
+  return { weapons, grenade: grenade!, models, skins, characterSkins, classes: resolved, sounds };
 }

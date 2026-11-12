@@ -88,17 +88,23 @@ export const EFFECTS = {
   shakeRange: 16,
 } as const;
 
-/** Bot: modelli e scritte. */
+/** Personaggi: disegno e scritte. */
 export const CHARACTERS = {
-  shirts: ['#c0392b', '#2e86c1', '#27ae60', '#8e44ad', '#d35400', '#16a085', '#c2185b', '#7f8c8d'],
-  pants: ['#2c3e50', '#3b3b3b', '#4a3b2a', '#22313f'],
-  skins: ['#e0b48a', '#c68c5a', '#f1c9a5', '#8d5a3b'],
-  hair: ['#2b1d14', '#e2b04a', '#6b3e26', '#1b1b1b', '#b5502e'],
+  /** Personaggi disegnabili insieme (giocatori, bot e anteprime). */
+  maxVisible: 16,
+  /** Quanto il colpo subito tinge di rosso il personaggio. */
+  hurtTint: 0.55,
+  /** Colore delle hitbox mostrate con i dati di debug. */
+  hitboxColor: '#ffe14d',
+  hurtDecay: 6,
+  /** Altezza di nome e barra della vita sopra il centro della testa. */
+  labelHeight: 0.45,
   /** Distanza oltre la quale nome e vita non si mostrano. */
   labelRange: 60,
   deathFallTime: 0.35,
   deathSinkDelay: 1.6,
   deathSinkTime: 0.9,
+  deathSinkDepth: 0.6,
 } as const;
 
 /** Suoni. */
@@ -126,4 +132,21 @@ export const HUD = {
   fastFactor: 1.15,
   blazingFactor: 1.8,
   fpsInterval: 0.5,
+} as const;
+
+/** Anteprima del personaggio nella schermata di scelta. */
+export const PREVIEW = {
+  fov: 30,
+  cameraHeight: 1.2,
+  cameraDistance: 4.4,
+  targetHeight: 0.95,
+  /** Secondi per ogni animazione mostrata. */
+  stepTime: 2.2,
+  /** Rotazione (radianti al secondo). */
+  turnSpeed: 0.6,
+  /** Velocità del passo nella corsa (radianti al secondo). */
+  runCycle: 9,
+  shotInterval: 0.22,
+  /** Altezza del salto mostrato. */
+  jumpLift: 0.5,
 } as const;

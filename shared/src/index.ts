@@ -8,6 +8,7 @@ export * from './match.ts';
 export * from './math.ts';
 export * from './navigation.ts';
 export * from './player.ts';
+export * from './pose.ts';
 export * from './random.ts';
 export * from './raycast.ts';
 export * from './validation.ts';

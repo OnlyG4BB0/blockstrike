@@ -156,12 +156,15 @@ describe('hitbox', () => {
     expect(raycastBody(p, 0.6, 1.2, 5, 0, 0, -1, 100, hit).hit).toBe(false);
   });
 
-  it('ruota con lo sguardo: di fianco il braccio copre il busto', () => {
+  it('ruota con lo sguardo: di fianco si colpisce il braccio, ma se il colpo entra nel busto conta il busto', () => {
     const side = createPlayerState();
-    // Guarda verso +x: il braccio destro sta dalla parte di +z. Visto da +z il giocatore
-    // mostra il fianco, e a quota busto si colpisce prima il braccio.
+    // Guarda verso +x: il braccio destro sta dalla parte di +z.
     side.yaw = -Math.PI / 2;
-    expect(raycastBody(side, 0, 1.2, 5, 0, 0, -1, 100, hit).region).toBe('arm');
+    // Un raggio che passa solo nel braccio destro.
+    expect(raycastBody(side, -5, 1.2, 0.34, 1, 0, 0, 100, hit).region).toBe('arm');
+    // Visto da +z, a quota busto, il raggio attraversa il braccio e poi entra nel busto (Fase 4:
+    // le braccia non fanno da scudo al busto).
+    expect(raycastBody(side, 0, 1.2, 5, 0, 0, -1, 100, hit).region).toBe('torso');
   });
 
   it('da accovacciati la testa è più in basso', () => {

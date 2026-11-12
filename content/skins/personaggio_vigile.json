@@ -1,0 +1,78 @@
+{
+  "type": "character",
+  "id": "vigile",
+  "name": "Vigile del fuoco",
+  "order": 4,
+  "colors": {
+    "head": "#e0b48a",
+    "torso": "#d23b2a",
+    "armLeft": "#d23b2a",
+    "armRight": "#d23b2a",
+    "legLeft": "#2d2d33",
+    "legRight": "#2d2d33",
+    "hair": "#5a3a22",
+    "hands": "#f2c230",
+    "feet": "#1b1b1b",
+    "belt": "#f2c230"
+  },
+  "accessories": [
+    {
+      "name": "Elmetto",
+      "part": "head",
+      "boxes": [
+        {
+          "pos": [
+            0,
+            0.36,
+            0
+          ],
+          "size": [
+            0.4,
+            0.1,
+            0.4
+          ],
+          "color": "#f2c230"
+        },
+        {
+          "pos": [
+            0,
+            0.28,
+            0.01
+          ],
+          "size": [
+            0.42,
+            0.08,
+            0.42
+          ],
+          "color": "#f2c230"
+        },
+        {
+          "pos": [
+            0.205,
+            0.16,
+            0
+          ],
+          "size": [
+            0.03,
+            0.14,
+            0.05
+          ],
+          "color": "#1b1b1b"
+        },
+        {
+          "pos": [
+            -0.205,
+            0.16,
+            0
+          ],
+          "size": [
+            0.03,
+            0.14,
+            0.05
+          ],
+          "color": "#1b1b1b"
+        }
+      ]
+    }
+  ]
+}

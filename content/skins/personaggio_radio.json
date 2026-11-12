@@ -1,0 +1,97 @@
+{
+  "type": "character",
+  "id": "radio",
+  "name": "Radiofonista",
+  "order": 7,
+  "colors": {
+    "head": "#c68c5a",
+    "torso": "#5d6b3a",
+    "armLeft": "#5d6b3a",
+    "armRight": "#5d6b3a",
+    "legLeft": "#4a4232",
+    "legRight": "#4a4232",
+    "hair": "#2a1d14",
+    "hands": "#c68c5a",
+    "feet": "#2a2420",
+    "belt": "#3a3326"
+  },
+  "accessories": [
+    {
+      "name": "Zaino",
+      "part": "torso",
+      "boxes": [
+        {
+          "pos": [
+            0,
+            0.32,
+            0.23
+          ],
+          "size": [
+            0.36,
+            0.38,
+            0.18
+          ],
+          "color": "#4a5530"
+        },
+        {
+          "pos": [
+            0,
+            0.47,
+            0.25
+          ],
+          "size": [
+            0.38,
+            0.1,
+            0.2
+          ],
+          "color": "#3a4326"
+        },
+        {
+          "pos": [
+            0,
+            0.2,
+            0.33
+          ],
+          "size": [
+            0.22,
+            0.12,
+            0.04
+          ],
+          "color": "#3a4326"
+        }
+      ]
+    },
+    {
+      "name": "Antenna",
+      "part": "torso",
+      "boxes": [
+        {
+          "pos": [
+            0.12,
+            0.62,
+            0.3
+          ],
+          "size": [
+            0.02,
+            0.5,
+            0.02
+          ],
+          "color": "#2a2a2a"
+        },
+        {
+          "pos": [
+            0.12,
+            0.88,
+            0.3
+          ],
+          "size": [
+            0.05,
+            0.05,
+            0.05
+          ],
+          "color": "#ff4d4d"
+        }
+      ]
+    }
+  ]
+}

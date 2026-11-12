@@ -70,11 +70,27 @@
       <div id="menu">
         <div class="menu-panel">
           <h1 class="title">BLOCK<span>STRIKE</span></h1>
-          <p class="subtitle">Fase 3 · armi dai file JSON</p>
+          <p class="subtitle">Fase 4 · personaggi, classi e animazioni</p>
           <button id="play" class="play" type="button">Gioca</button>
           <p id="lock-error" class="lock-error" hidden>
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
           </p>
+
+          <section id="loadout" class="loadout" aria-label="Classe e aspetto">
+            <div class="loadout-classes">
+              <h2>Classe</h2>
+              <div id="class-list" class="class-list"></div>
+              <p id="class-note" class="class-note" hidden></p>
+            </div>
+            <div class="loadout-preview">
+              <canvas id="preview" aria-label="Anteprima del personaggio"></canvas>
+              <div id="preview-caption" class="preview-caption"></div>
+            </div>
+            <div class="loadout-skins">
+              <h2>Aspetto</h2>
+              <div id="character-skin-list" class="skin-grid"></div>
+            </div>
+          </section>
 
           <div class="columns">
             <section>
@@ -96,7 +112,7 @@
               </label>
               <label class="row">
                 <span>Bot</span>
-                <input id="set-bot-count" type="range" min="0" max="7" step="1" />
+                <input id="set-bot-count" type="range" min="0" max="11" step="1" />
                 <output id="out-bot-count"></output>
               </label>
               <label class="row select-row">
@@ -133,8 +149,8 @@
                 <dd>mira</dd>
                 <dt>R</dt>
                 <dd>ricarica</dd>
-                <dt>1 – 9 · rotella</dt>
-                <dd>cambia arma (Q: quella di prima)</dd>
+                <dt>1 – 3 · rotella</dt>
+                <dd>armi della classe (Q: quella di prima)</dd>
                 <dt>G</dt>
                 <dd>lancia una granata</dd>
                 <dt>Tab</dt>
@@ -143,6 +159,7 @@
                 <dd>torna a un punto di partenza</dd>
               </dl>
               <p class="tip">
+                Ogni classe ha vita, velocità, salto e armi propri: l'esploratore vola, il pesante incassa.
                 Il lanciarazzi spinge anche te: spara ai tuoi piedi mentre salti per volare più in alto.
                 Il cecchino è preciso solo mirando. Il coltello alle spalle uccide con un colpo, e con il
                 coltello in mano si corre più veloci.

@@ -29,7 +29,7 @@ export const PLAYER = {
 export const MOVE = {
   /** Accelerazione di gravità (m/s²). Più alta del reale per salti rapidi e precisi. */
   gravity: 22,
-  /** Velocità verticale iniziale del salto (circa 1,25 m di altezza). */
+  /** Velocità verticale iniziale del salto (circa 1,25 m di altezza). Le classi la ricalcolano. */
   jumpVelocity: 7.4,
   /** Velocità massima di caduta. */
   maxFallSpeed: 55,
@@ -98,8 +98,100 @@ export const MOVE = {
   maxSpeed: 60,
 } as const;
 
+/**
+ * Proporzioni del personaggio a blocchi e ampiezze delle animazioni. Il modello disegnato e le
+ * hitbox nascono dagli stessi numeri (vedi pose.ts). Metri e radianti.
+ *
+ * Da fermi in piedi e da accovacciati le parti coincidono con le hitbox delle fasi precedenti:
+ * testa 0,34 m sopra il collo, busto 0,6 m (0,46 accovacciati), gambe 0,86 m (0,4 accovacciati).
+ */
+export const BODY = {
+  /** Il collo sta sempre sotto il punto degli occhi: la testa contiene sempre la visuale. */
+  neckBelowEye: 0.14,
+  headHalf: 0.17,
+  torsoLength: 0.6,
+  crouchTorsoLength: 0.46,
+  torsoHalfWidth: 0.25,
+  torsoHalfDepth: 0.14,
+  /** Distanza delle spalle dal centro. */
+  shoulderX: 0.34,
+  /** Giunto delle braccia che reggono l'arma, sotto la cima del busto. */
+  shoulderBelowTop: 0.06,
+  armHalfWidth: 0.09,
+  armHalfDepth: 0.1,
+  /** Lunghezza di un braccio libero (mano sinistra staccata dall'arma). */
+  freeArmLength: 0.58,
+  hipHalfWidth: 0.12,
+  legHalfWidth: 0.11,
+  legHalfDepth: 0.12,
+  legLength: 0.86,
+  crouchLegLength: 0.4,
+  /** Da accovacciati le gambe piegate sporgono in avanti. */
+  crouchLegHalfDepth: 0.21,
+  crouchKneeForward: 0.09,
+  /** Origine della mira (braccia e arma ruotano attorno a qui), sotto il collo. */
+  aimBelowNeck: 0.08,
+  /** Posizione dell'arma nello spazio della mira (x a destra, y in alto, z indietro). */
+  weaponOffset: [0.1, -0.05, -0.2],
+  /** Mano sinistra durante la ricarica, nello spazio dell'arma (verso il caricatore). */
+  reloadHand: [-0.02, -0.16, -0.08],
+
+  /** Frazione dell'inclinazione della mira seguita dal busto (il resto lo fanno testa e braccia). */
+  torsoPitchFollow: 0.25,
+  runLean: 0.14,
+  slideLean: 0.6,
+  strafeLean: 0.1,
+  flinchLean: 0.22,
+  flinchHead: 0.25,
+  runLegSwing: 0.75,
+  runArmSwing: 0.6,
+  jumpLegForward: 0.55,
+  jumpLegBack: 0.3,
+  fallLegForward: 0.2,
+  fallLegSpread: 0.14,
+  slideLegSpread: 0.08,
+  fireKickPitch: 0.1,
+  fireKickBack: 0.06,
+  meleeSwingPitch: 1.1,
+  meleeThrust: 0.25,
+  /** Arma abbassata appena estratta, in corsa e in ricarica. */
+  drawLower: 0.9,
+  carryLower: 0.45,
+  reloadLower: 0.25,
+  reloadRoll: 0.5,
+  /** In corsa con l'arma abbassata la mano destra va avanti e indietro (m). */
+  carryPump: 0.05,
+  runBob: 0.025,
+  breath: 0.008,
+} as const;
+
+/** Velocità con cui cambiano i pesi delle animazioni (1/s) e altri tempi delle animazioni. */
+export const ANIM = {
+  crouchRate: 16,
+  slideRate: 12,
+  airRate: 10,
+  fallRate: 8,
+  /** Sotto questa velocità verticale si passa dalla posa di salto a quella di caduta. */
+  fallSpeed: -1.5,
+  runRate: 10,
+  leanRate: 6,
+  readyRate: 8,
+  /** Dopo un colpo l'arma resta alzata per questo tempo. */
+  readyHold: 0.6,
+  fireDecay: 12,
+  swingDecay: 6,
+  reloadRate: 10,
+  flinchDecay: 5,
+  /** Metri percorsi per un ciclo completo del passo. */
+  strideLength: 2.4,
+  breathPeriod: 3,
+  /** L'orologio del respiro riparte da zero dopo questo tempo (multiplo del periodo). */
+  clockWrap: 60,
+} as const;
+
 /** Regole del combattimento. I valori delle singole armi stanno in weapons.ts. */
 export const COMBAT = {
+  /** Vita di chi non ha una classe (le classi hanno la loro). */
   maxHealth: 100,
   /** Secondi tra la morte e la rinascita. */
   respawnTime: 3,
@@ -121,7 +213,7 @@ export const COMBAT = {
 
 /** Comportamento dei bot. Gli angoli sono in gradi, i tempi in secondi. */
 export const BOT = {
-  names: ['Rocco', 'Gina', 'Tino', 'Lia', 'Ugo', 'Nina', 'Pino', 'Vera'],
+  names: ['Rocco', 'Gina', 'Tino', 'Lia', 'Ugo', 'Nina', 'Pino', 'Vera', 'Ezio', 'Bice', 'Dario', 'Olga'],
   sightRange: 70,
   /** Metà dell'angolo di visuale: fuori da questo cono un nemico lontano non viene notato. */
   fieldOfView: 100,

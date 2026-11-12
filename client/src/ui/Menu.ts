@@ -12,16 +12,53 @@ export interface SkinChoice {
   skins: readonly { id: string; name: string }[];
 }
 
-/** Menu di pausa: avvio della partita, impostazioni e skin delle armi. */
+/** Classe da mostrare nella schermata di scelta. */
+export interface ClassChoice {
+  id: string;
+  name: string;
+  description: string;
+  health: number;
+  speed: number;
+  jumpHeight: number;
+  weapons: readonly string[];
+  grenades: number;
+}
+
+/** Skin di un personaggio: nome e colori principali (testa, busto, gambe) per il campione. */
+export interface CharacterSkinChoice {
+  id: string;
+  name: string;
+  swatch: readonly string[];
+  accessories: readonly string[];
+}
+
+function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text = ''): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+/** Menu di pausa: avvio della partita, classe e aspetto con anteprima, impostazioni e skin delle armi. */
 export class Menu {
   onPlay: () => void = () => {};
   onChange: (settings: Settings) => void = () => {};
 
+  readonly previewCanvas = byId<HTMLCanvasElement>('preview');
   private readonly root = byId('menu');
   private readonly lockError = byId('lock-error');
+  private readonly previewCaption = byId('preview-caption');
+  private readonly classNote = byId('class-note');
   private readonly settings: Settings;
+  private readonly classButtons = new Map<string, HTMLButtonElement>();
+  private readonly skinButtons = new Map<string, HTMLButtonElement>();
 
-  constructor(settings: Settings, skinChoices: readonly SkinChoice[]) {
+  constructor(
+    settings: Settings,
+    skinChoices: readonly SkinChoice[],
+    classes: readonly ClassChoice[],
+    characterSkins: readonly CharacterSkinChoice[],
+  ) {
     this.settings = { ...settings, skins: { ...settings.skins } };
     byId<HTMLButtonElement>('play').addEventListener('click', () => this.onPlay());
 
@@ -41,7 +78,13 @@ export class Menu {
       this.emit();
     });
 
+    this.buildClasses(classes);
+    this.buildCharacterSkins(characterSkins);
     this.buildSkins(skinChoices);
+  }
+
+  get visible(): boolean {
+    return !this.root.hidden;
   }
 
   show(): void {
@@ -57,8 +100,92 @@ export class Menu {
     this.lockError.hidden = false;
   }
 
+  setPreviewCaption(text: string): void {
+    if (this.previewCaption.textContent !== text) this.previewCaption.textContent = text;
+  }
+
+  /** Avviso sotto le classi (per esempio: la nuova classe vale dalla prossima rinascita). */
+  setClassNote(text: string): void {
+    this.classNote.textContent = text;
+    this.classNote.hidden = text === '';
+  }
+
   private emit(): void {
     this.onChange({ ...this.settings, skins: { ...this.settings.skins } });
+  }
+
+  /** Schede delle classi: statistiche a barre e armi. */
+  private buildClasses(classes: readonly ClassChoice[]): void {
+    const list = byId('class-list');
+    list.replaceChildren();
+    byId('loadout').hidden = classes.length === 0;
+    const most = {
+      health: Math.max(...classes.map((c) => c.health)),
+      speed: Math.max(...classes.map((c) => c.speed)),
+      jump: Math.max(...classes.map((c) => c.jumpHeight)),
+    };
+    for (const choice of classes) {
+      const button = element('button', 'class-card');
+      button.type = 'button';
+      button.append(element('span', 'class-name', choice.name), element('span', 'class-description', choice.description));
+      const stats = element('span', 'class-stats');
+      const stat = (label: string, value: number, max: number, text: string) => {
+        const row = element('span', 'stat');
+        const bar = element('span', 'stat-bar');
+        const fill = element('span', 'stat-fill');
+        fill.style.width = `${Math.round((value / max) * 100)}%`;
+        bar.append(fill);
+        row.append(element('span', 'stat-label', label), bar, element('span', 'stat-value', text));
+        stats.append(row);
+      };
+      stat('Vita', choice.health, most.health, String(choice.health));
+      stat('Velocità', choice.speed, most.speed, `${Math.round(choice.speed * 100)}%`);
+      stat('Salto', choice.jumpHeight, most.jump, `${choice.jumpHeight.toFixed(2)} m`);
+      button.append(stats, element('span', 'class-weapons', `${choice.weapons.join(' · ')} · granate ×${choice.grenades}`));
+      button.addEventListener('click', () => {
+        this.settings.classId = choice.id;
+        this.highlight(this.classButtons, choice.id);
+        this.emit();
+      });
+      this.classButtons.set(choice.id, button);
+      list.append(button);
+    }
+    if (!this.classButtons.has(this.settings.classId) && classes[0]) this.settings.classId = classes[0].id;
+    this.highlight(this.classButtons, this.settings.classId);
+  }
+
+  /** Skin dei personaggi: nome, campione di colori e accessori. */
+  private buildCharacterSkins(skins: readonly CharacterSkinChoice[]): void {
+    const list = byId('character-skin-list');
+    list.replaceChildren();
+    for (const skin of skins) {
+      const button = element('button', 'skin-card');
+      button.type = 'button';
+      const swatch = element('span', 'swatch');
+      for (const color of skin.swatch) {
+        const chip = element('span', 'chip');
+        chip.style.background = color;
+        swatch.append(chip);
+      }
+      button.append(swatch, element('span', 'skin-name', skin.name));
+      if (skin.accessories.length > 0) button.title = skin.accessories.join(', ');
+      button.addEventListener('click', () => {
+        this.settings.characterSkin = skin.id;
+        this.highlight(this.skinButtons, skin.id);
+        this.emit();
+      });
+      this.skinButtons.set(skin.id, button);
+      list.append(button);
+    }
+    if (!this.skinButtons.has(this.settings.characterSkin) && skins[0]) this.settings.characterSkin = skins[0].id;
+    this.highlight(this.skinButtons, this.settings.characterSkin);
+  }
+
+  private highlight(buttons: Map<string, HTMLButtonElement>, selected: string): void {
+    for (const [id, button] of buttons) {
+      button.classList.toggle('selected', id === selected);
+      button.setAttribute('aria-pressed', String(id === selected));
+    }
   }
 
   /** Un menu a tendina per ogni arma che ha skin. */

@@ -1,4 +1,4 @@
-import { COMBAT, MOVE, horizontalSpeed, type PlayerState, type WeaponDef } from '@blockstrike/shared';
+import { MOVE, horizontalSpeed, type PlayerState, type WeaponDef } from '@blockstrike/shared';
 import { HUD } from '../config.ts';
 import type { Settings } from '../settings.ts';
 import { byId } from './dom.ts';
@@ -16,6 +16,7 @@ export interface LabelData {
   id: number;
   name: string;
   health: number;
+  maxHealth: number;
   x: number;
   y: number;
   z: number;
@@ -94,13 +95,7 @@ export class Hud {
     this.weapons = weapons;
     this.grenadeName = grenadeName;
     byId('speed-mark').style.left = `${(100 / HUD.speedBarMaxFactor).toFixed(2)}%`;
-    // Le armi dei tasti 1-9; le altre si raggiungono con la rotella.
-    this.slots.innerHTML = weapons
-      .map(
-        (def, i) =>
-          `<span class="slot" data-slot="${i}"><b>${i < 9 ? i + 1 : '·'}</b>${escapeHtml(def.shortName)}</span>`,
-      )
-      .join('');
+    this.setLoadout(weapons.map((_, index) => index));
     for (let i = 0; i < 24; i++) {
       const element = document.createElement('div');
       element.className = 'damage-number';
@@ -108,6 +103,20 @@ export class Hud {
       this.numbersLayer.append(element);
       this.numbers.push({ element, x: 0, y: 0, z: 0, life: 0 });
     }
+  }
+
+  /** Armi dei tasti 1, 2, 3... (indici nell'elenco delle armi); le altre si raggiungono con la rotella. */
+  setLoadout(loadout: readonly number[]): void {
+    const key = loadout.join(',');
+    if (this.shown.get('loadout') === key) return;
+    this.shown.set('loadout', key);
+    this.shown.delete('slot');
+    this.slots.innerHTML = loadout
+      .map(
+        (index, i) =>
+          `<span class="slot" data-slot="${index}"><b>${i < 9 ? i + 1 : '·'}</b>${escapeHtml(this.weapons[index]!.shortName)}</span>`,
+      )
+      .join('');
   }
 
   /** Scrive nel DOM solo se il valore è cambiato. */
@@ -155,12 +164,12 @@ export class Hud {
   // Combattimento
   // -------------------------------------------------------------------------------------------
 
-  vitals(health: number, alive: boolean, protection: number): void {
+  vitals(health: number, maxHealth: number, alive: boolean, protection: number): void {
     const value = alive ? Math.max(0, Math.ceil(health)) : 0;
-    this.set('health', String(value), (text) => {
-      this.healthValue.textContent = text;
-      this.healthFill.style.width = `${(value / COMBAT.maxHealth) * 100}%`;
-      this.healthFill.className = value <= 30 ? 'low' : '';
+    this.set('health', `${value}/${maxHealth}`, () => {
+      this.healthValue.textContent = String(value);
+      this.healthFill.style.width = `${Math.min(100, (value / maxHealth) * 100)}%`;
+      this.healthFill.className = value <= maxHealth * 0.3 ? 'low' : '';
     });
     this.set('protection', String(alive && protection > 0), (v) => (this.protection.hidden = v !== 'true'));
   }
@@ -299,7 +308,7 @@ export class Hud {
       entry.root.hidden = !visible;
       if (!visible) continue;
       entry.root.style.transform = `translate(${this.point.x.toFixed(1)}px, ${this.point.y.toFixed(1)}px) translate(-50%, -100%)`;
-      entry.fill.style.width = `${Math.max(0, (label.health / COMBAT.maxHealth) * 100).toFixed(0)}%`;
+      entry.fill.style.width = `${Math.max(0, (label.health / label.maxHealth) * 100).toFixed(0)}%`;
     }
     for (const [id, entry] of this.labels) {
       if (seen.has(id)) continue;
