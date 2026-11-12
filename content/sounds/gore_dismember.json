@@ -1,0 +1,31 @@
+{
+  "id": "gore_dismember",
+  "seconds": 0.45,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "q": 2,
+      "from": 2600,
+      "to": 700,
+      "duration": 0.12,
+      "peak": 0.7
+    },
+    {
+      "type": "tone",
+      "wave": "triangle",
+      "from": 220,
+      "to": 70,
+      "duration": 0.14,
+      "peak": 0.5
+    },
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 700,
+      "start": 0.08,
+      "duration": 0.25,
+      "peak": 0.35
+    }
+  ]
+}

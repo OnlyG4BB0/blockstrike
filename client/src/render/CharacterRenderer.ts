@@ -53,6 +53,8 @@ export interface CharacterEffects {
   /** Da morto: caduta all'indietro (da 0 a 1) e affondamento nel terreno (m). */
   fall: number;
   sink: number;
+  /** Parti da non disegnare (bit 1 << parte): quelle staccate, o tutte tranne una per un pezzo. */
+  hidden?: number;
 }
 
 /** Box per personaggio: sei parti, nove dettagli e gli accessori. */
@@ -77,6 +79,10 @@ interface PreparedLook {
 }
 
 const HURT_COLOR = new Color('#ff2a1a');
+
+function visible(hidden: number, part: number): boolean {
+  return (hidden & (1 << part)) === 0;
+}
 
 export class CharacterRenderer {
   readonly object = new Group();
@@ -147,9 +153,11 @@ export class CharacterRenderer {
     this.setupDeath(pose, effects);
     const parts = pose.parts;
     const hurt = Math.min(1, effects.hurt) * CHARACTERS.hurtTint;
+    const hidden = effects.hidden ?? 0;
 
     // Le sei parti.
     for (let i = 0; i < PART_COUNT; i++) {
+      if (!visible(hidden, i)) continue;
       const o = i * PART_STRIDE;
       this.box.set(
         parts[o + POSE_AXIS_X]! * parts[o + POSE_HALF]! * 2,
@@ -175,16 +183,22 @@ export class CharacterRenderer {
 
     // Dettagli, nello spazio delle parti (origine nel giunto).
     const head = BODY.headHalf * 2;
-    this.detail(pose, PART_HEAD, 0, head + 0.03, 0.01, head + 0.02, 0.07, head + 0.02, prepared.hair, hurt);
-    this.detail(pose, PART_HEAD, 0, head * 0.62, 0.11, head + 0.02, head * 0.5, 0.14, prepared.hair, hurt);
-    this.detail(pose, PART_HEAD, -0.075, head * 0.55, -head / 2 - 0.005, 0.06, 0.05, 0.02, prepared.eyes, hurt);
-    this.detail(pose, PART_HEAD, 0.075, head * 0.55, -head / 2 - 0.005, 0.06, 0.05, 0.02, prepared.eyes, hurt);
-    this.detail(pose, PART_TORSO, 0, 0.03, 0, BODY.torsoHalfWidth * 2 + 0.02, 0.06, BODY.torsoHalfDepth * 2 + 0.02, prepared.belt, hurt);
-    for (const arm of [PART_ARM_LEFT, PART_ARM_RIGHT]) {
+    if (visible(hidden, PART_HEAD)) {
+      this.detail(pose, PART_HEAD, 0, head + 0.03, 0.01, head + 0.02, 0.07, head + 0.02, prepared.hair, hurt);
+      this.detail(pose, PART_HEAD, 0, head * 0.62, 0.11, head + 0.02, head * 0.5, 0.14, prepared.hair, hurt);
+      this.detail(pose, PART_HEAD, -0.075, head * 0.55, -head / 2 - 0.005, 0.06, 0.05, 0.02, prepared.eyes, hurt);
+      this.detail(pose, PART_HEAD, 0.075, head * 0.55, -head / 2 - 0.005, 0.06, 0.05, 0.02, prepared.eyes, hurt);
+    }
+    if (visible(hidden, PART_TORSO)) {
+      this.detail(pose, PART_TORSO, 0, 0.03, 0, BODY.torsoHalfWidth * 2 + 0.02, 0.06, BODY.torsoHalfDepth * 2 + 0.02, prepared.belt, hurt);
+    }
+    for (let arm = PART_ARM_LEFT; arm <= PART_ARM_RIGHT; arm++) {
+      if (!visible(hidden, arm)) continue;
       const length = parts[arm * PART_STRIDE + POSE_HALF + 1]! * 2;
       this.detail(pose, arm, 0, -length, 0, 0.13, 0.13, 0.12, prepared.hands, hurt);
     }
-    for (const leg of [PART_LEG_LEFT, PART_LEG_RIGHT]) {
+    for (let leg = PART_LEG_LEFT; leg <= PART_LEG_RIGHT; leg++) {
+      if (!visible(hidden, leg)) continue;
       const o = leg * PART_STRIDE;
       const length = parts[o + POSE_HALF + 1]! * 2;
       const depth = parts[o + POSE_HALF + 2]! * 2;
@@ -193,6 +207,7 @@ export class CharacterRenderer {
 
     // Accessori della skin.
     for (const accessory of prepared.accessories) {
+      if (!visible(hidden, accessory.part)) continue;
       this.partFrame(pose, accessory.part);
       this.temp.multiplyMatrices(this.frame, accessory.local);
       this.push(this.temp, accessory.color, hurt);

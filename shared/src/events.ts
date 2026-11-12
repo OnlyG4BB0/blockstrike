@@ -35,11 +35,20 @@ export interface HitEvent {
   /** Danno inflitto (già limitato alla vita rimasta). */
   damage: number;
   region: HitRegion;
+  /** Parte colpita (PART_HEAD ... PART_LEG_RIGHT), -1 per le esplosioni. */
+  part: number;
   headshot: boolean;
   killed: boolean;
+  /** Arma, oppure KILLED_BY_GRENADE. */
+  weapon: number;
+  explosive: boolean;
+  /** Punto colpito e direzione del colpo (normalizzata): servono a sangue e smembramento. */
   x: number;
   y: number;
   z: number;
+  dx: number;
+  dy: number;
+  dz: number;
 }
 
 export interface KillEvent {
@@ -48,6 +57,26 @@ export interface KillEvent {
   /** Indice dell'arma, oppure KILLED_BY_FALL / KILLED_BY_GRENADE. */
   weapon: number;
   headshot: boolean;
+  /** Parte colpita dal colpo letale, -1 se nessuna (esplosione, caduta). */
+  part: number;
+  /** Ucciso da un'esplosione (razzo, granata). */
+  explosive: boolean;
+  /** Punto e direzione del colpo letale. */
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  /** Distanza tra chi uccide e la vittima (-1 se nessuno, per esempio una caduta). */
+  distance: number;
+  /** Chi uccide e la vittima erano in aria. */
+  killerAirborne: boolean;
+  victimAirborne: boolean;
+  /** Uccisioni di fila di chi uccide senza morire, compresa questa (0 se non conta). */
+  streak: number;
+  /** Uccisioni ravvicinate nel tempo di chi uccide, compresa questa (doppietta = 2...). */
+  multi: number;
 }
 
 export interface ExplosionEvent {
@@ -111,13 +140,37 @@ export class EventBuffer {
     target: 0,
     damage: 0,
     region: 'torso',
+    part: -1,
     headshot: false,
     killed: false,
+    weapon: 0,
+    explosive: false,
     x: 0,
     y: 0,
     z: 0,
+    dx: 0,
+    dy: 0,
+    dz: 0,
   }));
-  readonly kills = new EventPool<KillEvent>(() => ({ killer: 0, victim: 0, weapon: 0, headshot: false }));
+  readonly kills = new EventPool<KillEvent>(() => ({
+    killer: 0,
+    victim: 0,
+    weapon: 0,
+    headshot: false,
+    part: -1,
+    explosive: false,
+    x: 0,
+    y: 0,
+    z: 0,
+    dx: 0,
+    dy: 0,
+    dz: 0,
+    distance: -1,
+    killerAirborne: false,
+    victimAirborne: false,
+    streak: 0,
+    multi: 0,
+  }));
   readonly explosions = new EventPool<ExplosionEvent>(() => ({ owner: 0, weapon: 0, x: 0, y: 0, z: 0, radius: 0 }));
   readonly actions = new EventPool<ActionEvent>(() => ({ combatant: 0, type: 'reload', x: 0, y: 0, z: 0 }));
 

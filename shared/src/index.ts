@@ -2,6 +2,7 @@ export * from './bots.ts';
 export * from './constants.ts';
 export * from './content.ts';
 export * from './events.ts';
+export * from './gore.ts';
 export * from './hitboxes.ts';
 export * from './map.ts';
 export * from './match.ts';

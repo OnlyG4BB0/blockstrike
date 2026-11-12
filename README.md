@@ -3,7 +3,7 @@
 Sparatutto in prima persona da browser, grafica low-poly a blocchi, movimento veloce.
 Nome provvisorio.
 
-**Stato: Fase 4 completata — personaggi animati, classi e skin.**
+**Stato: Fase 5 completata — splatter.**
 
 ## Avvio
 
@@ -74,6 +74,37 @@ I colpi necessari valgono contro 100 punti vita (Assaltatore).
 Granate: rimbalzano ed esplodono dopo 2,2 secondi. Dopo la rinascita si è protetti per 1,5 secondi,
 o finché non si spara.
 
+## Splatter
+
+Tutto lo splatter è calcolato solo nel browser, a partire dagli eventi della partita (colpo,
+morte con parte colpita, direzione e arma).
+
+- **Sangue all'impatto**: un getto di cubetti rossi nella direzione del colpo, più forte alla testa.
+- **Macchie**: le gocce che toccano muri e pavimento lasciano macchie a blocchi che sfumano dopo
+  circa 25 secondi.
+- **Smembramento**: se il colpo letale prende la testa o un arto con un'arma che lo prevede
+  (`"gore": { "dismember": true }`), quella parte si stacca, vola via rimbalzando e lascia una scia;
+  dal moncherino esce sangue per qualche secondo.
+- **Corpo a pezzi**: razzi e granate fanno sempre a pezzi; il fucile a pompa lo fa da vicino
+  (`gibChance` entro `gibRange` metri, nel JSON dell'arma). L'esito dipende solo dalla vittima e
+  dal numero delle sue morti, quindi è lo stesso su ogni schermo.
+- **Manichino** negli altri casi: il corpo cade intero nella direzione del colpo, con braccia e gambe
+  che seguono (punti e aste, con attrito sul terreno).
+- **Pozza di sangue** che si allarga sotto il corpo fermo.
+- **Schizzi sulla visuale** quando si uccide da meno di 3,5 m.
+- **Uccisioni speciali**, con annuncio e suono: colpo alla testa, doppietta e tripletta (uccisioni
+  entro 3 secondi), serie di uccisioni senza morire (3, 5, 7...), uccisione dall'alto o di chi è in aria.
+
+**Livello gore** (menu, sezione Impostazioni): *completo*; *ridotto*, con sangue e manichini ma senza
+smembramento né corpi a pezzi; *spento*, con scintille al posto del sangue, nessuna macchia, e i
+corpi che svaniscono.
+
+**Tetti fissi**: 2000 particelle, 150 macchie (le più vecchie si riciclano), 60 pezzi fisici e
+12 manichini. Particelle e macchie sono disegnate con l'instancing, corpi e pezzi insieme ai personaggi.
+Prova di carico (12 combattenti, un'esplosione con corpo a pezzi ogni 0,2 s per 6 s): circa 1 ms di CPU
+per fotogramma in media e 3 ms al massimo, al massimo 60 chiamate di disegno. I tempi della scheda
+grafica non sono misurati: vanno verificati su un portatile con grafica integrata.
+
 ## Contenuti: armi, classi, modelli, skin e suoni
 
 Tutto quello che riguarda le armi sta in file JSON dentro `content/`:
@@ -113,7 +144,8 @@ Esempio minimo (i campi non indicati prendono un valore predefinito):
   `melee` (con `melee`, come il coltello: niente munizioni).
 - `model` e `sounds` indicano file esistenti in `content/weapon-models` e `content/sounds`.
 - `bot` (`{ "preferredRange": 15 }`) permette ai bot di usare l'arma.
-- `gore` (smembramento, esplosione in pezzi) è già nei file e verrà usato nella Fase 5.
+- `gore`: `dismember` (il colpo letale stacca la parte colpita), `gibChance` e `gibRange`
+  (probabilità di fare a pezzi il corpo entro quella distanza).
 - Nei modelli, le parti con `role` hanno un'animazione propria: `magazine` (esce in ricarica),
   `slide` (indietro a ogni colpo), `pump`, `bolt`, `cylinder`.
 - Una skin cambia il colore delle parti per nome: `{ "weapon": "pistol", "colors": { "slide": "#d4af37" } }`.

@@ -209,6 +209,8 @@ export const COMBAT = {
   explosionUpwardBias: 0.35,
   /** Distanza dagli occhi a cui nascono razzi e granate. */
   projectileSpawnDistance: 0.5,
+  /** Uccisioni entro questo tempo l'una dall'altra contano come doppietta, tripletta... */
+  multiKillWindow: 3,
 } as const;
 
 /** Comportamento dei bot. Gli angoli sono in gradi, i tempi in secondi. */

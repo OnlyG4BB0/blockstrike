@@ -1,0 +1,29 @@
+{
+  "id": "announce",
+  "seconds": 0.6,
+  "layers": [
+    {
+      "type": "tone",
+      "wave": "triangle",
+      "from": 660,
+      "duration": 0.16,
+      "peak": 0.35
+    },
+    {
+      "type": "tone",
+      "wave": "triangle",
+      "from": 990,
+      "start": 0.12,
+      "duration": 0.3,
+      "peak": 0.35
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 1980,
+      "start": 0.12,
+      "duration": 0.25,
+      "peak": 0.12
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "gore_splat",
+  "seconds": 0.3,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "lowpass",
+      "from": 1100,
+      "to": 250,
+      "duration": 0.16,
+      "peak": 0.55
+    },
+    {
+      "type": "tone",
+      "wave": "sine",
+      "from": 140,
+      "to": 60,
+      "duration": 0.1,
+      "peak": 0.35
+    }
+  ]
+}

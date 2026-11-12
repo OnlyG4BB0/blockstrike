@@ -60,6 +60,8 @@ export interface GoreDef {
   dismember: boolean;
   /** Probabilità di far esplodere il corpo in pezzi. */
   gibChance: number;
+  /** La probabilità vale solo entro questa distanza (m): il fucile a pompa fa a pezzi da vicino. */
+  gibRange: number;
 }
 
 export interface WeaponDef {

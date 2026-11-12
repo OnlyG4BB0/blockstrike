@@ -91,7 +91,7 @@ export const EFFECTS = {
 /** Personaggi: disegno e scritte. */
 export const CHARACTERS = {
   /** Personaggi disegnabili insieme (giocatori, bot e anteprime). */
-  maxVisible: 16,
+  maxVisible: 40,
   /** Quanto il colpo subito tinge di rosso il personaggio. */
   hurtTint: 0.55,
   /** Colore delle hitbox mostrate con i dati di debug. */
@@ -101,10 +101,6 @@ export const CHARACTERS = {
   labelHeight: 0.45,
   /** Distanza oltre la quale nome e vita non si mostrano. */
   labelRange: 60,
-  deathFallTime: 0.35,
-  deathSinkDelay: 1.6,
-  deathSinkTime: 0.9,
-  deathSinkDepth: 0.6,
 } as const;
 
 /** Suoni. */
@@ -132,6 +128,11 @@ export const HUD = {
   fastFactor: 1.15,
   blazingFactor: 1.8,
   fpsInterval: 0.5,
+  /** Durata degli annunci delle uccisioni speciali. */
+  announceTime: 1.8,
+  /** Schizzi sulla visuale: quanti e per quanto. */
+  splatterDrops: 14,
+  splatterTime: 2.2,
 } as const;
 
 /** Anteprima del personaggio nella schermata di scelta. */
@@ -149,4 +150,93 @@ export const PREVIEW = {
   shotInterval: 0.22,
   /** Altezza del salto mostrato. */
   jumpLift: 0.5,
+} as const;
+
+/** Splatter (Fase 5). Tetti fissi per particelle, macchie e pezzi. */
+export const GORE = {
+  maxParticles: 2000,
+  maxDecals: 150,
+  maxPieces: 60,
+  maxRagdolls: 12,
+  /** Lato in pixel della texture a blocchi delle macchie. */
+  splatTexture: 16,
+  gravity: 18,
+  airDrag: 0.8,
+  bloodColors: ['#c4111c', '#9a0b13', '#e01825', '#78070e'],
+  sparkColors: ['#fff3b0', '#ffd25a', '#ffffff'],
+  // Getti all'impatto.
+  hitDroplets: 8,
+  dropletsPerDamage: 0.25,
+  headshotFactor: 2,
+  sprayCone: 0.5,
+  spraySpeed: [2, 6] as const,
+  headshotSpeed: [3, 8.5] as const,
+  sprayLift: 1.2,
+  dropletSize: [0.035, 0.075] as const,
+  bigDropletChance: 0.12,
+  bigDropletSize: 0.11,
+  dropletLife: 3,
+  killDroplets: 26,
+  // Gore spento: scintille.
+  sparkCount: 10,
+  sparkSpeed: [3, 9] as const,
+  sparkSize: 0.04,
+  vanishSparks: 40,
+  // Macchie e pozze.
+  decalChance: 0.5,
+  decalSize: [0.22, 0.5] as const,
+  decalOffset: 0.012,
+  decalLife: 25,
+  decalFade: 4,
+  decalOpacity: 0.92,
+  poolSize: 1.6,
+  poolStart: 0.15,
+  poolGrowTime: 5,
+  poolLife: 35,
+  /** Il corpo deve essere fermo da questo tempo perché si formi la pozza. */
+  poolDelay: 0.4,
+  // Manichini.
+  ragdollStep: 1 / 60,
+  ragdollIterations: 4,
+  ragdollDamping: 0.995,
+  ragdollFriction: 0.55,
+  ragdollRadius: 0.09,
+  ragdollLife: 8,
+  ragdollSinkTime: 1.2,
+  sinkDepth: 0.6,
+  stillThreshold: 0.004,
+  hitImpulse: 3.5,
+  hitLift: 1.5,
+  explosionImpulse: 9,
+  explosionLift: 4,
+  partImpulseFactor: 2.2,
+  impulseJitter: 0.4,
+  // Smembramento.
+  stumpBleedTime: 2.5,
+  stumpRate: 18,
+  stumpBurst: 24,
+  dismemberSpeed: 6,
+  dismemberLift: 3,
+  // Corpo a pezzi.
+  gibSpeed: [5, 11] as const,
+  gibLift: 4,
+  gibSpin: 10,
+  gibBlood: 90,
+  gibBloodSpeed: [3, 10] as const,
+  gibChunks: 12,
+  chunkSize: [0.07, 0.13] as const,
+  chunkLife: 6,
+  chunkBounce: 0.3,
+  chunkFriction: 0.6,
+  chunkSplatSpeed: 2,
+  pieceLife: 9,
+  pieceBounce: 0.35,
+  pieceFriction: 0.75,
+  pieceSpinDamping: 0.6,
+  pieceSplatSpeed: 2.5,
+  pieceRestSpeed: 0.4,
+  trailTime: 1.4,
+  trailRate: 30,
+  /** Uccisioni fatte da più vicino di così sporcano lo schermo. */
+  screenSplatterRange: 3.5,
 } as const;

@@ -24,6 +24,11 @@
           <span class="ch-dot"></span>
         </div>
         <div id="hitmarker" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div id="splatter" aria-hidden="true" hidden></div>
+        <div id="announce" hidden>
+          <div id="announce-title"></div>
+          <div id="announce-sub"></div>
+        </div>
 
         <div id="fps"></div>
         <pre id="debug"></pre>
@@ -70,7 +75,7 @@
       <div id="menu">
         <div class="menu-panel">
           <h1 class="title">BLOCK<span>STRIKE</span></h1>
-          <p class="subtitle">Fase 4 · personaggi, classi e animazioni</p>
+          <p class="subtitle">Fase 5 · splatter</p>
           <button id="play" class="play" type="button">Gioca</button>
           <p id="lock-error" class="lock-error" hidden>
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
@@ -121,6 +126,14 @@
                   <option value="fight">combattono</option>
                   <option value="roam">girano senza sparare</option>
                   <option value="idle">fermi</option>
+                </select>
+              </label>
+              <label class="row select-row">
+                <span>Gore</span>
+                <select id="set-gore">
+                  <option value="full">completo</option>
+                  <option value="reduced">ridotto (solo sangue)</option>
+                  <option value="off">spento</option>
                 </select>
               </label>
               <label class="check"><input id="set-damage-numbers" type="checkbox" /><span>Numeri di danno</span></label>

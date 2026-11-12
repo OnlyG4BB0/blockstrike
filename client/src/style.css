@@ -670,6 +670,80 @@ body {
   font-weight: 600;
 }
 
+/* Annunci delle uccisioni speciali. */
+#announce {
+  position: absolute;
+  left: 50%;
+  top: 24%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 0 18px rgba(0, 0, 0, 0.35);
+}
+#announce.show {
+  animation: announce-pop 1.8s ease-out forwards;
+}
+#announce-title {
+  font-size: clamp(22px, 4.2vw, 42px);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+#announce-sub {
+  margin-top: 2px;
+  font-size: clamp(13px, 1.8vw, 18px);
+  font-weight: 700;
+  color: var(--ui-text);
+}
+@keyframes announce-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.6);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+  }
+}
+
+/* Schizzi di sangue sulla visuale: quadrati a blocchi che colano e sfumano. */
+#splatter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+#splatter .drop {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: #b30d18;
+  box-shadow: 0.6vmin 0.9vmin 0 #8a0911, -0.5vmin 1.6vmin 0 -0.2vmin #c4111c;
+  opacity: 0.85;
+}
+#splatter.show .drop {
+  animation: drip 2.2s ease-in forwards;
+}
+@keyframes drip {
+  0% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  60% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(1, 1.25);
+  }
+}
+
 /* Classe e aspetto: classi, anteprima 3D, skin. */
 .loadout {
   display: grid;

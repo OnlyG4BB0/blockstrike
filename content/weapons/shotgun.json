@@ -26,7 +26,10 @@
   },
   "recoil": {
     "pattern": [
-      [4, 0]
+      [
+        4,
+        0
+      ]
     ],
     "recovery": 6,
     "ads": 0.8
@@ -39,7 +42,8 @@
   "moveSpeedFactor": 0.95,
   "gore": {
     "dismember": true,
-    "gibChance": 0.35
+    "gibChance": 0.5,
+    "gibRange": 5
   },
   "model": "shotgun",
   "sounds": {

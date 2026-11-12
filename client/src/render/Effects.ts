@@ -363,18 +363,6 @@ export class Effects {
     });
   }
 
-  /** Colpo su un corpo: per ora solo uno sbuffo rosso (lo splatter arriva nella Fase 5). */
-  bodyHit(x: number, y: number, z: number, damage: number): void {
-    this.burst(x, y, z, {
-      count: Math.min(10, 3 + Math.round(damage / 12)),
-      color: this.color.set('#b3121b'),
-      speed: 3.5,
-      life: 0.45,
-      size: 0.07,
-      gravity: 14,
-    });
-  }
-
   casing(x: number, y: number, z: number, vx: number, vy: number, vz: number): void {
     const c = this.casings.find((item) => !item.active) ?? this.casings[0]!;
     raycastWorld(this.world, x, y, z, 0, -1, 0, 30, this.rayHit);

@@ -78,6 +78,13 @@ export class Hud {
   private readonly scoreRows = byId('score-rows');
   private readonly labelsLayer = byId('labels');
   private readonly numbersLayer = byId('damage-numbers');
+  private readonly announceRoot = byId('announce');
+  private readonly announceTitle = byId('announce-title');
+  private readonly announceSub = byId('announce-sub');
+  private readonly splatterLayer = byId('splatter');
+  private readonly drops: HTMLDivElement[] = [];
+  private announceTimer = 0;
+  private splatterTimer = 0;
 
   private frames = 0;
   private elapsed = 0;
@@ -132,6 +139,14 @@ export class Hud {
 
   frame(dt: number, state: Readonly<PlayerState>, peakSpeed: number, settings: Readonly<Settings>, debugText: string): void {
     this.frames++;
+    if (this.announceTimer > 0) {
+      this.announceTimer -= dt;
+      if (this.announceTimer <= 0) this.announceRoot.hidden = true;
+    }
+    if (this.splatterTimer > 0) {
+      this.splatterTimer -= dt;
+      if (this.splatterTimer <= 0) this.splatterLayer.hidden = true;
+    }
     this.elapsed += dt;
     if (this.elapsed >= HUD.fpsInterval) {
       this.fps.textContent = `${Math.round(this.frames / this.elapsed)} FPS`;
@@ -196,6 +211,48 @@ export class Hud {
       }
     });
     this.set('grenades', String(grenades), (text) => (this.grenades.textContent = `G · ${this.grenadeName} ×${text}`));
+  }
+
+  /** Annuncio al centro dello schermo (colpo alla testa, serie di uccisioni...). */
+  announce(title: string, subtitle: string): void {
+    this.announceTitle.textContent = title;
+    this.announceSub.textContent = subtitle;
+    this.announceRoot.hidden = false;
+    // Riavvia l'animazione anche se l'annuncio precedente è ancora visibile.
+    this.announceRoot.classList.remove('show');
+    void this.announceRoot.offsetWidth;
+    this.announceRoot.classList.add('show');
+    this.announceTimer = HUD.announceTime;
+  }
+
+  /** Schizzi di sangue sulla visuale (uccisione da molto vicino), da 0 a 1. */
+  splatter(strength: number): void {
+    if (this.drops.length === 0) {
+      for (let i = 0; i < HUD.splatterDrops; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'drop';
+        this.splatterLayer.append(drop);
+        this.drops.push(drop);
+      }
+    }
+    const count = Math.max(3, Math.round(HUD.splatterDrops * Math.min(1, strength)));
+    this.drops.forEach((drop, i) => {
+      drop.hidden = i >= count;
+      if (drop.hidden) return;
+      // Più vicino ai bordi che al centro, per non coprire il mirino.
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 0.25 + Math.random() * 0.3;
+      const size = 3 + Math.random() * 7;
+      drop.style.left = `${(50 + Math.cos(angle) * radius * 100).toFixed(1)}%`;
+      drop.style.top = `${(50 + Math.sin(angle) * radius * 90).toFixed(1)}%`;
+      drop.style.width = `${size.toFixed(1)}vmin`;
+      drop.style.height = `${(size * (0.8 + Math.random() * 0.6)).toFixed(1)}vmin`;
+    });
+    this.splatterLayer.hidden = false;
+    this.splatterLayer.classList.remove('show');
+    void this.splatterLayer.offsetWidth;
+    this.splatterLayer.classList.add('show');
+    this.splatterTimer = HUD.splatterTime;
   }
 
   /** Mirino: lo spazio tra le linee segue la dispersione. */

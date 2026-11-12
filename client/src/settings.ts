@@ -1,5 +1,5 @@
 /** Impostazioni del giocatore, salvate nel browser quando possibile. */
-import type { BotMode } from '@blockstrike/shared';
+import { GORE_LEVELS, type BotMode, type GoreLevel } from '@blockstrike/shared';
 
 export interface Settings {
   /** Sensibilità del mouse (1 = 0,0008 radianti per pixel). */
@@ -20,6 +20,8 @@ export interface Settings {
   classId: string;
   /** Skin del personaggio (id in content/skins); vuoto = la prima. */
   characterSkin: string;
+  /** Livello di gore: completo, ridotto (solo sangue), spento. */
+  goreLevel: GoreLevel;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -40,6 +42,7 @@ const DEFAULTS: Settings = {
   skins: {},
   classId: '',
   characterSkin: '',
+  goreLevel: 'full',
 };
 
 const STORAGE_KEY = 'blockstrike.settings.v1';
@@ -84,6 +87,7 @@ export function loadSettings(): Settings {
     skins: stringRecord(stored.skins),
     classId: typeof stored.classId === 'string' ? stored.classId : DEFAULTS.classId,
     characterSkin: typeof stored.characterSkin === 'string' ? stored.characterSkin : DEFAULTS.characterSkin,
+    goreLevel: GORE_LEVELS.includes(stored.goreLevel as GoreLevel) ? (stored.goreLevel as GoreLevel) : DEFAULTS.goreLevel,
   };
 }
 

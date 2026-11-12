@@ -170,3 +170,45 @@ export class CollisionWorld {
     return r < 0 ? 0 : r >= this.rows ? this.rows - 1 : r;
   }
 }
+
+const pointQuery: number[] = [];
+
+/** Indice del solido che contiene il punto, oppure -1 (per effetti come sangue e pezzi). */
+export function solidAt(world: CollisionWorld, x: number, y: number, z: number): number {
+  const count = world.query(x, z, x, z, pointQuery);
+  for (let i = 0; i < count; i++) {
+    const index = pointQuery[i]!;
+    const s = world.solids[index]!;
+    if (x < s.minX || x > s.maxX || z < s.minZ || z > s.maxZ || y < s.minY) continue;
+    if (y <= solidTopAt(s, x, z)) return index;
+  }
+  return -1;
+}
+
+/**
+ * Uscita più breve dal solido per un punto che ci è entrato: scrive la normale della faccia in
+ * `out` (x, y, z) e restituisce la profondità.
+ */
+export function solidExit(s: Solid, x: number, y: number, z: number, out: { x: number; y: number; z: number }): number {
+  const top = solidTopAt(s, x, z);
+  let depth = top - y;
+  // Sopra: per le rampe la normale segue la pendenza.
+  let nx = -solidGradX(s);
+  let ny = 1;
+  let nz = -solidGradZ(s);
+  // Facce laterali e inferiore: vince la più vicina (senza allocare).
+  const faces = 5;
+  for (let i = 0; i < faces; i++) {
+    const d = i === 0 ? x - s.minX : i === 1 ? s.maxX - x : i === 2 ? y - s.minY : i === 3 ? z - s.minZ : s.maxZ - z;
+    if (d >= depth) continue;
+    depth = d;
+    nx = i === 0 ? -1 : i === 1 ? 1 : 0;
+    ny = i === 2 ? -1 : 0;
+    nz = i === 3 ? -1 : i === 4 ? 1 : 0;
+  }
+  const length = Math.hypot(nx, ny, nz);
+  out.x = nx / length;
+  out.y = ny / length;
+  out.z = nz / length;
+  return Math.max(0, depth);
+}

@@ -26,6 +26,8 @@ import {
   createAnimState,
   createPlayerState,
   currentSpread,
+  decideGore,
+  goreRoll,
   horizontalSpeed,
   lerpAnimState,
   lineOfSight,
@@ -34,17 +36,19 @@ import {
   type CharacterSkinDef,
   type Combatant,
   type GameContent,
+  type KillEvent,
   type MapData,
   type PlayerState,
   type WeaponDef,
 } from '@blockstrike/shared';
 import { AudioSystem } from '../audio/AudioSystem.ts';
-import { AUDIO, CHARACTERS, EFFECTS, RENDER, VIEW, VIEWMODEL } from '../config.ts';
+import { AUDIO, CHARACTERS, EFFECTS, GORE, RENDER, VIEW, VIEWMODEL } from '../config.ts';
 import { Input } from '../input/Input.ts';
 import { createBlockTexture } from '../render/blockTexture.ts';
 import { CharacterPreview } from '../render/CharacterPreview.ts';
 import { CharacterRenderer, type CharacterLook } from '../render/CharacterRenderer.ts';
 import { Effects } from '../render/Effects.ts';
+import { Gore } from '../render/Gore.ts';
 import { createMapMesh } from '../render/mapMesh.ts';
 import { createSky } from '../render/sky.ts';
 import { Viewmodel } from '../render/Viewmodel.ts';
@@ -121,7 +125,7 @@ export class Game {
   /** Ultima posa disegnata di ogni personaggio (bocca dell'arma, nome sopra la testa). */
   private readonly drawnPoses = new Map<number, BodyPose>();
   private readonly hurt = new Map<number, number>();
-  private readonly deadTime = new Map<number, number>();
+  private readonly gore: Gore;
   private readonly looks = new Map<number, CharacterLook>();
   private readonly drawAnim = createAnimState();
   private readonly footsteps = new Map<number, number>();
@@ -132,6 +136,8 @@ export class Game {
   private appliedFov = 0;
   private appliedAspect = 0;
   private deathTime = 0;
+  /** Chiamate di disegno dell'ultimo fotogramma. */
+  drawCalls = 0;
   private readonly labels: LabelData[] = [];
   private readonly temp = new Vector3();
   private readonly temp2 = new Vector3();
@@ -165,6 +171,8 @@ export class Game {
     this.buildScene();
     this.scene.add(this.characters.object);
     this.effects = new Effects(this.scene, this.match.world, map, this.library);
+    this.gore = new Gore(this.match.world);
+    this.scene.add(this.gore.object);
 
     this.input = new Input(this.renderer.domElement);
 
@@ -265,6 +273,10 @@ export class Game {
     }
     this.match.weapons.forEach((def, index) => this.viewmodel.setSkin(index, this.skinOf(def)));
     this.characters.showHitboxes = settings.showDebug;
+    if (this.gore.level !== settings.goreLevel) {
+      this.gore.level = settings.goreLevel;
+      if (settings.goreLevel === 'off') this.gore.clear();
+    }
 
     // Classe: vale dalla prossima rinascita (in allenamento, appena si torna a giocare).
     const classIndex = this.classIndexOf(settings.classId);
@@ -483,7 +495,8 @@ export class Game {
 
     for (let i = 0; i < events.hits.count; i++) {
       const hit = events.hits.get(i);
-      this.effects.bodyHit(hit.x, hit.y, hit.z, hit.damage);
+      // Il sangue di chi guarda in prima persona non si vede (finirebbe davanti alla visuale).
+      if (hit.target !== localId) this.gore.hit(hit.x, hit.y, hit.z, hit.dx, hit.dy, hit.dz, hit.damage, hit.headshot);
       this.hurt.set(hit.target, 1);
       if (hit.attacker === localId && hit.target !== localId) {
         this.hud.hitMarker(hit.headshot, hit.killed);
@@ -508,6 +521,8 @@ export class Game {
         kill.killer === localId || kill.victim === localId,
       );
       if (kill.victim === localId) this.deathTime = 0;
+      else this.splatterKill(kill);
+      if (kill.killer === localId && kill.victim !== localId) this.announceKill(kill);
     }
 
     for (let i = 0; i < events.explosions.count; i++) {
@@ -528,7 +543,6 @@ export class Game {
         if (c) {
           copyPlayerState(this.prevState(c.id), c.player);
           copyAnimState(this.prevAnimOf(c.id), c.anim);
-          this.deadTime.delete(c.id);
         }
         if (mine) this.onLocalRespawn();
         continue;
@@ -548,6 +562,58 @@ export class Game {
       if (mine && action.type !== 'bounce') this.audio.play(sound, { volume: 0.6 });
       else this.audio.play(sound, { x: action.x, y: action.y + 1, z: action.z, volume: 0.6 });
     }
+  }
+
+  /** Splatter della morte di un altro combattente: manichino, parte staccata, pezzi o niente. */
+  private splatterKill(kill: Readonly<KillEvent>): void {
+    const victim = this.match.getCombatant(kill.victim);
+    if (!victim) return;
+    let pose = this.drawnPoses.get(victim.id);
+    if (!pose) {
+      pose = new BodyPose();
+      this.drawnPoses.set(victim.id, pose);
+      poseBody(pose, victim.anim, this.match.grips);
+    }
+    const def = kill.weapon >= 0 ? this.match.weapons[kill.weapon] : undefined;
+    const outcome = decideGore(kill, def?.gore ?? null, this.gore.level, goreRoll(victim.id, victim.deaths));
+    const p = victim.player;
+    this.gore.kill({
+      outcome,
+      pose,
+      look: this.lookFor(victim),
+      part: kill.part,
+      x: kill.x,
+      y: kill.y,
+      z: kill.z,
+      dx: kill.dx,
+      dy: kill.dy,
+      dz: kill.dz,
+      vx: p.vx,
+      vy: p.vy,
+      vz: p.vz,
+      explosive: kill.explosive,
+    });
+    if (outcome === 'gib') this.audio.play('gore_gib', { x: kill.x, y: kill.y, z: kill.z });
+    else if (outcome === 'dismember') this.audio.play('gore_dismember', { x: kill.x, y: kill.y, z: kill.z });
+    else if (outcome === 'ragdoll' && kill.headshot) this.audio.play('gore_splat', { x: kill.x, y: kill.y, z: kill.z });
+    // Uccisione da molto vicino: schizzi sulla visuale.
+    const distance = this.camera.position.distanceTo(this.temp2.set(kill.x, kill.y, kill.z));
+    if (this.gore.level !== 'off' && distance < GORE.screenSplatterRange && (kill.killer === this.local.id || outcome === 'gib')) {
+      this.hud.splatter(1 - distance / GORE.screenSplatterRange + (outcome === 'gib' ? 0.5 : 0));
+    }
+  }
+
+  /** Uccisioni speciali del giocatore: annuncio e suono. */
+  private announceKill(kill: Readonly<KillEvent>): void {
+    const labels: string[] = [];
+    if (kill.multi >= 2) labels.push(kill.multi === 2 ? 'DOPPIETTA' : kill.multi === 3 ? 'TRIPLETTA' : 'STRAGE');
+    if (kill.streak >= 3 && kill.streak % 2 === 1) labels.push(`SERIE DI ${kill.streak}`);
+    if (kill.killerAirborne) labels.push('DALL\'ALTO');
+    else if (kill.victimAirborne) labels.push('ABBATTUTO IN VOLO');
+    if (kill.headshot) labels.push('COLPO ALLA TESTA');
+    if (labels.length === 0) return;
+    this.hud.announce(labels[0]!, labels.slice(1).join(' · '));
+    this.audio.play(kill.multi >= 2 || kill.streak >= 3 ? 'announce_streak' : 'announce', { volume: 0.7 });
   }
 
   /** Bossolo espulso a destra dall'arma in prima persona. */
@@ -615,10 +681,14 @@ export class Game {
     const scoped = def.ads.scope && ads > VIEWMODEL.scopeThreshold && local.alive;
     this.viewmodel.update(dt, local, this.input.yaw, this.input.pitch, ads, local.alive && !scoped);
 
+    // Le chiamate di disegno si contano su tutto il fotogramma (ombre, mondo e arma in mano).
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
     this.renderer.clearDepth();
     this.renderer.render(this.viewmodel.scene, this.viewmodel.camera);
+    this.drawCalls = this.renderer.info.render.calls;
 
     this.audio.updateListener(this.camera);
     this.updateHud(dt, scoped);
@@ -632,36 +702,30 @@ export class Game {
   private updateCharacters(dt: number, alpha: number): void {
     this.characters.begin();
     for (const c of this.match.combatants) {
-      if (c === this.local) continue;
+      // I morti diventano manichini o pezzi (Gore); il giocatore è in prima persona.
+      if (c === this.local || !c.alive) continue;
       let pose = this.drawnPoses.get(c.id);
       if (!pose) {
         pose = new BodyPose();
         this.drawnPoses.set(c.id, pose);
       }
-      let fall = 0;
-      let sink = 0;
-      if (c.alive) {
-        lerpAnimState(this.drawAnim, this.prevAnimOf(c.id), c.anim, alpha);
-        poseBody(pose, this.drawAnim, this.match.grips);
-      } else {
-        // Da morti l'animazione resta ferma all'ultimo tick; il corpo cade e poi affonda.
-        const time = (this.deadTime.get(c.id) ?? 0) + dt;
-        this.deadTime.set(c.id, time);
-        poseBody(pose, c.anim, this.match.grips);
-        const t = Math.min(1, time / CHARACTERS.deathFallTime);
-        fall = t * t;
-        sink = Math.min(1, Math.max(0, time - CHARACTERS.deathSinkDelay) / CHARACTERS.deathSinkTime) * CHARACTERS.deathSinkDepth;
-        if (sink >= CHARACTERS.deathSinkDepth) continue;
-      }
+      lerpAnimState(this.drawAnim, this.prevAnimOf(c.id), c.anim, alpha);
+      poseBody(pose, this.drawAnim, this.match.grips);
       const hurt = Math.max(0, (this.hurt.get(c.id) ?? 0) - dt * CHARACTERS.hurtDecay);
       this.hurt.set(c.id, hurt);
-      this.characters.add(pose, this.lookFor(c), c.anim.weapon, { hurt, fall, sink });
+      this.characters.add(pose, this.lookFor(c), c.anim.weapon, { hurt, fall: 0, sink: 0 });
     }
+    this.gore.update(dt);
+    this.gore.draw(this.characters);
     this.characters.end();
     // Combattenti usciti dalla partita.
     for (const id of this.drawnPoses.keys()) {
       if (this.match.getCombatant(id)) continue;
-      for (const map of [this.drawnPoses, this.prevAnim, this.hurt, this.deadTime, this.looks, this.previous]) map.delete(id);
+      this.drawnPoses.delete(id);
+      this.prevAnim.delete(id);
+      this.hurt.delete(id);
+      this.looks.delete(id);
+      this.previous.delete(id);
     }
   }
 
@@ -751,13 +815,16 @@ export class Game {
     const p = this.local.player;
     const f = (value: number) => value.toFixed(2).padStart(7);
     const projectiles = this.match.projectiles.filter((pr) => pr.active).length;
+    const g = this.gore.stats();
+    const goreText = `particelle ${g.particles}  macchie ${g.decals}  manichini ${g.ragdolls}  pezzi ${g.pieces}`;
     return [
       `pos    ${f(p.x)} ${f(p.y)} ${f(p.z)}`,
       `vel    ${f(p.vx)} ${f(p.vy)} ${f(p.vz)}`,
       `suolo  ${p.grounded ? 'sì' : 'no'}   pendenza ${f(p.groundGradX)} ${f(p.groundGradZ)}`,
       `stato  ${p.sliding ? 'scivolata' : p.crouched ? 'accovacciato' : 'in piedi'}`,
       `arma   ${this.match.weapons[this.local.weapon.current]!.id}  dispersione ${currentSpread(this.local, this.match.weapons[this.local.weapon.current]!).toFixed(2)}°  rinculo ${f(MathUtils.radToDeg(this.local.weapon.recoilPitch))}°`,
-      `tick   ${this.match.tickCount}   proiettili ${projectiles}   chiamate di disegno ${this.renderer.info.render.calls}`,
+      `tick   ${this.match.tickCount}   proiettili ${projectiles}   chiamate di disegno ${this.drawCalls}`,
+      `gore   ${goreText}`,
       `velocità max di corsa ${(MOVE.runSpeed * p.speedScale).toFixed(2)} m/s`,
     ].join('\n');
   }

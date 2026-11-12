@@ -1,4 +1,4 @@
-import type { BotMode } from '@blockstrike/shared';
+import type { BotMode, GoreLevel } from '@blockstrike/shared';
 import type { Settings } from '../settings.ts';
 import { byId } from './dom.ts';
 
@@ -75,6 +75,12 @@ export class Menu {
     mode.value = this.settings.botMode;
     mode.addEventListener('change', () => {
       this.settings.botMode = mode.value as BotMode;
+      this.emit();
+    });
+    const gore = byId<HTMLSelectElement>('set-gore');
+    gore.value = this.settings.goreLevel;
+    gore.addEventListener('change', () => {
+      this.settings.goreLevel = gore.value as GoreLevel;
       this.emit();
     });
 

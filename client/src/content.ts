@@ -6,7 +6,20 @@
 import { loadContent, type ContentFile, type GameContent } from '@blockstrike/shared';
 
 /** Suoni che il client usa direttamente: devono esistere in content/sounds. */
-export const REQUIRED_SOUNDS = ['hit', 'headshot', 'kill', 'hurt', 'step', 'land', 'dry_fire'] as const;
+export const REQUIRED_SOUNDS = [
+  'hit',
+  'headshot',
+  'kill',
+  'hurt',
+  'step',
+  'land',
+  'dry_fire',
+  'gore_gib',
+  'gore_dismember',
+  'gore_splat',
+  'announce',
+  'announce_streak',
+] as const;
 
 const weapons = import.meta.glob('../../content/weapons/*.json', { eager: true, import: 'default' });
 const equipment = import.meta.glob('../../content/equipment/*.json', { eager: true, import: 'default' });

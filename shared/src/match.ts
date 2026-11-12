@@ -111,6 +111,25 @@ export interface Combatant {
   /** Stato dell'animazione (avanza con la simulazione) e posa del corpo con le hitbox. */
   readonly anim: AnimState;
   readonly pose: BodyPose;
+  /** Uccisioni di fila senza morire, uccisioni ravvicinate e quando è avvenuta l'ultima. */
+  streak: number;
+  multiKills: number;
+  lastKillTime: number;
+}
+
+/** Come è stato inflitto un danno: lo riempie chi colpisce, lo legge applyDamage. */
+interface DamageInfo {
+  region: HitRegion;
+  part: number;
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  weapon: number;
+  headshot: boolean;
+  explosive: boolean;
 }
 
 /** Nessun cambio di classe in attesa. */
@@ -189,6 +208,46 @@ export function currentSpread(c: Combatant, def: WeaponDef): number {
 const rayHit = createRayHit();
 const bodyHit = createBodyHit();
 const aim = { x: 0, y: 0, z: 0 };
+const damage: DamageInfo = {
+  region: 'torso',
+  part: -1,
+  x: 0,
+  y: 0,
+  z: 0,
+  dx: 0,
+  dy: 0,
+  dz: 0,
+  weapon: 0,
+  headshot: false,
+  explosive: false,
+};
+
+function setDamage(
+  region: HitRegion,
+  part: number,
+  x: number,
+  y: number,
+  z: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  weapon: number,
+  headshot: boolean,
+  explosive: boolean,
+): DamageInfo {
+  damage.region = region;
+  damage.part = part;
+  damage.x = x;
+  damage.y = y;
+  damage.z = z;
+  damage.dx = dx;
+  damage.dy = dy;
+  damage.dz = dz;
+  damage.weapon = weapon;
+  damage.headshot = headshot;
+  damage.explosive = explosive;
+  return damage;
+}
 
 /** Direzione di tiro da yaw/pitch, deviata a caso entro un cono di `spread` radianti. */
 function aimDirection(yaw: number, pitch: number, spread: number, rng: RandomState): void {
@@ -288,7 +347,9 @@ export class Match implements CombatContent {
   private readonly pendingDamage: number[] = [];
   private readonly pendingHead: boolean[] = [];
   private readonly pendingRegion: HitRegion[] = [];
+  private readonly pendingPart: number[] = [];
   private readonly pendingPoint: number[] = [];
+  private readonly pendingDirection: number[] = [];
 
   constructor(map: MapData, content: CombatContent, options: MatchOptions = {}) {
     if (content.weapons.length === 0) throw new Error('Una partita ha bisogno di almeno un\'arma.');
@@ -360,6 +421,9 @@ export class Match implements CombatContent {
       jumpVelocity: MOVE.jumpVelocity,
       anim: createAnimState(),
       pose: new BodyPose(),
+      streak: 0,
+      multiKills: 0,
+      lastKillTime: -Infinity,
     };
     this.applyClass(c, classIndex);
     this.combatants.push(c);
@@ -490,7 +554,7 @@ export class Match implements CombatContent {
     if (p.y < this.map.killY) {
       // Caduta: il punto va a chi ha colpito per ultimo, se è successo da poco.
       const recent = c.lastAttacker >= 0 && this.time - c.lastDamageTime < 3;
-      this.kill(c, recent ? c.lastAttacker : c.id, KILLED_BY_FALL, false);
+      this.kill(c, recent ? c.lastAttacker : c.id, setDamage('torso', -1, p.x, p.y, p.z, 0, -1, 0, KILLED_BY_FALL, false, false));
     }
   }
 
@@ -615,6 +679,10 @@ export class Match implements CombatContent {
     let bestT = Infinity;
     let victim = -1;
     let region: HitRegion = 'torso';
+    let part = -1;
+    let hitX = 0;
+    let hitY = 0;
+    let hitZ = 0;
     let worldT = Infinity;
     for (let ray = 0; ray < 5; ray++) {
       // Il raggio centrale ha la precedenza: quelli a ventaglio servono solo se manca il bersaglio.
@@ -637,6 +705,10 @@ export class Match implements CombatContent {
         bestT = bodyHit.t;
         victim = j;
         region = bodyHit.region;
+        part = bodyHit.part;
+        hitX = aim.x;
+        hitY = aim.y;
+        hitZ = aim.z;
         shot.ends[0] = ox + aim.x * bestT;
         shot.ends[1] = oy + aim.y * bestT;
         shot.ends[2] = oz + aim.z * bestT;
@@ -666,8 +738,9 @@ export class Match implements CombatContent {
     dz /= length;
     const facing = -Math.sin(t.yaw) * dx - Math.cos(t.yaw) * dz;
     const backstab = facing > 0.5;
-    const damage = def.damage * regionMultiplier(def, region) * (backstab ? melee.backstabMultiplier : 1);
-    this.applyDamage(target, c.id, damage, region, shot.ends[0]!, shot.ends[1]!, shot.ends[2]!, c.weapon.current, region === 'head');
+    const amount = def.damage * regionMultiplier(def, region) * (backstab ? melee.backstabMultiplier : 1);
+    const info = setDamage(region, part, shot.ends[0]!, shot.ends[1]!, shot.ends[2]!, hitX, hitY, hitZ, c.weapon.current, region === 'head', false);
+    this.applyDamage(target, c.id, amount, info);
   }
 
   private fireHitscan(c: Combatant, def: WeaponDef, yaw: number, pitch: number, spread: number): void {
@@ -699,6 +772,7 @@ export class Match implements CombatContent {
       let range = rayHit.t;
       let victim = -1;
       let region: HitRegion = 'torso';
+      let part = -1;
       for (let j = 0; j < count; j++) {
         const target = this.combatants[j]!;
         if (target === c || !target.alive) continue;
@@ -706,6 +780,7 @@ export class Match implements CombatContent {
         range = bodyHit.t;
         victim = j;
         region = bodyHit.region;
+        part = bodyHit.part;
       }
 
       const k = i * 3;
@@ -715,14 +790,19 @@ export class Match implements CombatContent {
       if (victim >= 0) {
         shot.results[i] = SHOT_BODY;
         shot.targets[i] = this.combatants[victim]!.id;
-        const damage = def.damage * regionMultiplier(def, region) * damageFalloff(def, range);
-        if (this.pendingDamage[victim] === 0) {
+        const amount = def.damage * regionMultiplier(def, region) * damageFalloff(def, range);
+        if (this.pendingDamage[victim] === 0 || (region === 'head' && !this.pendingHead[victim])) {
+          // Il primo pallino a segno (o il primo alla testa) dà punto, parte e direzione.
           this.pendingRegion[victim] = region;
+          this.pendingPart[victim] = part;
           this.pendingPoint[victim * 3] = shot.ends[k]!;
           this.pendingPoint[victim * 3 + 1] = shot.ends[k + 1]!;
           this.pendingPoint[victim * 3 + 2] = shot.ends[k + 2]!;
+          this.pendingDirection[victim * 3] = dx;
+          this.pendingDirection[victim * 3 + 1] = dy;
+          this.pendingDirection[victim * 3 + 2] = dz;
         }
-        this.pendingDamage[victim]! += damage;
+        this.pendingDamage[victim]! += amount;
         if (region === 'head') this.pendingHead[victim] = true;
       } else if (rayHit.hit) {
         shot.results[i] = SHOT_WORLD;
@@ -740,17 +820,20 @@ export class Match implements CombatContent {
       const amount = this.pendingDamage[j]!;
       if (amount <= 0) continue;
       const head = this.pendingHead[j]!;
-      this.applyDamage(
-        this.combatants[j]!,
-        c.id,
-        amount,
+      const info = setDamage(
         head ? 'head' : this.pendingRegion[j]!,
+        this.pendingPart[j]!,
         this.pendingPoint[j * 3]!,
         this.pendingPoint[j * 3 + 1]!,
         this.pendingPoint[j * 3 + 2]!,
+        this.pendingDirection[j * 3]!,
+        this.pendingDirection[j * 3 + 1]!,
+        this.pendingDirection[j * 3 + 2]!,
         w.current,
         head,
+        false,
       );
+      this.applyDamage(this.combatants[j]!, c.id, amount, info);
     }
   }
 
@@ -970,14 +1053,15 @@ export class Match implements CombatContent {
       ky = ky / length + COMBAT.explosionUpwardBias;
       kz /= length;
       length = Math.hypot(kx, ky, kz);
+      // Prima il danno, poi la spinta: chi muore non risulta "in aria" per colpa dell'esplosione.
+      const amount = def.splashDamage * falloff * (self ? def.selfDamageFactor : 1);
+      this.applyDamage(target, pr.owner, amount, setDamage('torso', -1, cx, cy, cz, kx / length, ky / length, kz / length, pr.weapon, false, true));
+
       const impulse = (def.knockback * falloff * (self ? def.selfKnockbackFactor : 1)) / length;
       p.vx += kx * impulse;
       p.vy += ky * impulse;
       p.vz += kz * impulse;
       if (p.vy > 0) p.grounded = false;
-
-      const damage = def.splashDamage * falloff * (self ? def.selfDamageFactor : 1);
-      this.applyDamage(target, pr.owner, damage, 'torso', cx, cy, cz, pr.weapon, false);
     }
   }
 
@@ -985,17 +1069,7 @@ export class Match implements CombatContent {
   // Danni, morti, rinascite
   // -------------------------------------------------------------------------------------------
 
-  private applyDamage(
-    target: Combatant,
-    attackerId: number,
-    amount: number,
-    region: HitRegion,
-    x: number,
-    y: number,
-    z: number,
-    weapon: number,
-    headshot: boolean,
-  ): void {
+  private applyDamage(target: Combatant, attackerId: number, amount: number, info: DamageInfo): void {
     if (!target.alive || amount <= 0 || target.protection > 0) return;
     const dealt = Math.min(amount, target.health);
     target.health -= amount;
@@ -1009,32 +1083,57 @@ export class Match implements CombatContent {
     hit.attacker = attackerId;
     hit.target = target.id;
     hit.damage = dealt;
-    hit.region = region;
-    hit.headshot = headshot;
+    hit.region = info.region;
+    hit.part = info.part;
+    hit.headshot = info.headshot;
     hit.killed = killed;
-    hit.x = x;
-    hit.y = y;
-    hit.z = z;
-    if (killed) this.kill(target, attackerId, weapon, headshot);
+    hit.weapon = info.weapon;
+    hit.explosive = info.explosive;
+    hit.x = info.x;
+    hit.y = info.y;
+    hit.z = info.z;
+    hit.dx = info.dx;
+    hit.dy = info.dy;
+    hit.dz = info.dz;
+    if (killed) this.kill(target, attackerId, info);
   }
 
-  private kill(victim: Combatant, killerId: number, weapon: number, headshot: boolean): void {
+  private kill(victim: Combatant, killerId: number, info: DamageInfo): void {
     victim.alive = false;
     victim.health = 0;
     victim.respawnTimer = COMBAT.respawnTime;
     victim.deaths++;
     victim.killedBy = killerId;
-    victim.killedByWeapon = weapon;
+    victim.killedByWeapon = info.weapon;
     victim.weapon.triggerHeld = false;
-    if (killerId !== victim.id) {
-      const killer = this.getCombatant(killerId);
-      if (killer) killer.kills++;
-    }
+    victim.streak = 0;
+    victim.multiKills = 0;
     const event = this.events.kills.add();
+    const killer = killerId !== victim.id ? this.getCombatant(killerId) : undefined;
+    if (killer) {
+      killer.kills++;
+      killer.streak++;
+      killer.multiKills = this.time - killer.lastKillTime <= COMBAT.multiKillWindow ? killer.multiKills + 1 : 1;
+      killer.lastKillTime = this.time;
+    }
     event.killer = killerId;
     event.victim = victim.id;
-    event.weapon = weapon;
-    event.headshot = headshot;
+    event.weapon = info.weapon;
+    event.headshot = info.headshot;
+    event.part = info.part;
+    event.explosive = info.explosive;
+    event.x = info.x;
+    event.y = info.y;
+    event.z = info.z;
+    event.dx = info.dx;
+    event.dy = info.dy;
+    event.dz = info.dz;
+    const v = victim.player;
+    event.victimAirborne = !v.grounded;
+    event.killerAirborne = killer ? !killer.player.grounded : false;
+    event.distance = killer ? Math.hypot(killer.player.x - v.x, killer.player.y - v.y, killer.player.z - v.z) : -1;
+    event.streak = killer ? killer.streak : 0;
+    event.multi = killer ? killer.multiKills : 0;
   }
 
   private respawn(c: Combatant): void {

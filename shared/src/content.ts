@@ -7,6 +7,7 @@
  * skin) e raccoglie tutti i problemi: se qualcosa non va, si ferma all'avvio con un elenco chiaro.
  * Il codice è puro: chi chiama legge i file (bundle di Vite nel browser, fs in Node).
  */
+import { COMBAT } from './constants.ts';
 import { MAX_PELLETS } from './events.ts';
 import type { Vec3Tuple } from './map.ts';
 import { Validator, type JsonObject } from './validation.ts';
@@ -266,6 +267,7 @@ export function parseWeapon(raw: unknown, source: string): WeaponDef {
     gore: {
       dismember: v.optionalBoolean(gore.dismember, 'gore.dismember', false),
       gibChance: v.optionalNumber(gore.gibChance, 'gore.gibChance', 0, { min: 0, max: 1 }),
+      gibRange: v.optionalNumber(gore.gibRange, 'gore.gibRange', COMBAT.hitscanRange, { positive: true }),
     },
     model: v.id(o.model, 'model'),
     sounds: {
