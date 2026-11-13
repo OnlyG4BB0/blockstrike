@@ -299,8 +299,12 @@ export const NET = {
   /** Comandi elaborati al massimo per tick e in coda per giocatore. */
   inputsPerTick: 3,
   maxQueuedInputs: 30,
-  /** Comandi accettati in più rispetto ai tick passati (scatti di rete): oltre, si scartano. */
-  inputBurst: 12,
+  /**
+   * Comandi accettati in più rispetto ai tick passati: assorbe i comandi che arrivano tutti insieme
+   * dopo un intoppo di rete o del server fino a mezzo secondo (una ritrasmissione TCP ne prende
+   * 200-300 ms). Oltre si scartano, e restare in silenzio non ne fa accumulare di più.
+   */
+  inputBurst: 30,
   /** Correzione dell'orologio del client verso quello del server, per ogni pacchetto. */
   clockCorrection: 0.05,
   /** Oltre questo scarto (tick) l'orologio del client salta direttamente al valore del server. */

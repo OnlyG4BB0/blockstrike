@@ -251,8 +251,9 @@ nella stessa stanza.
   esegue un passo di simulazione per ogni comando ricevuto (al massimo 3 per tick).
 - **Controlli lato server**:
   - la cadenza di fuoco, le munizioni e la linea di tiro sono quelle della simulazione;
-  - i comandi accettati non possono superare il tempo passato più un piccolo margine: mandarne di più
-    non fa correre più veloci;
+  - i comandi accettati non possono superare il tempo passato più un margine di mezzo secondo (per i
+    comandi che arrivano tutti insieme dopo un intoppo di rete): mandarne di più non fa correre più
+    veloci;
   - i testi (nomi, chat) sono ripuliti e la chat ha un limite di frequenza.
 - **Predizione e riconciliazione** (`shared/src/net/client.ts`): il proprio giocatore si muove
   subito. Per ogni comando si tiene lo stato previsto e, quando il server lo conferma, si confronta. Se
@@ -278,7 +279,7 @@ tempo finto, con 150 ms di ping):
   30 senza;
 - un riavvolgimento oltre il limite viene tagliato;
 - mandare tre comandi per tick non fa correre più veloci, nemmeno dopo essere rimasti in silenzio
-  (si accetta al massimo un comando per tick, con un piccolo margine che non si accumula);
+  (si accetta al massimo un comando per tick, con un margine di mezzo secondo che non si accumula);
 - online si gioca sempre con una classe: una classe sconosciuta vale la prima e non si può cambiare
   in nessuna;
 - premere il grilletto a raffica non supera la cadenza dell'arma.

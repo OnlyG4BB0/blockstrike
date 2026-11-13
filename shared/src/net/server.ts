@@ -5,7 +5,8 @@
  * - I giocatori umani avanzano di un passo per ogni comando ricevuto (al massimo
  *   NET.inputsPerTick per tick): lo stato dopo il comando N è identico su client e server.
  *   Senza comandi in coda il giocatore non avanza. I comandi accettati non possono superare i
- *   tick passati più un piccolo margine: è il controllo sulla velocità (niente "speed hack").
+ *   tick passati più un margine di mezzo secondo (per gli intoppi di rete): è il controllo sulla
+ *   velocità (niente "speed hack").
  * - Cadenza di fuoco, munizioni e linea di tiro sono quelle della simulazione: il client manda solo
  *   comandi, mai posizioni o danni.
  * - Compensazione del lag: quando un giocatore spara, gli altri vengono riportati alla posa che
