@@ -26,6 +26,8 @@ export interface Settings {
   playerName: string;
   /** Ultima modalità scelta per giocare online. */
   onlineMode: string;
+  /** Mappa per l'allenamento e per le stanze create (id in content/maps). */
+  mapId: string;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -49,6 +51,7 @@ const DEFAULTS: Settings = {
   goreLevel: 'full',
   playerName: '',
   onlineMode: 'ffa',
+  mapId: 'cortile',
 };
 
 const STORAGE_KEY = 'blockstrike.settings.v1';
@@ -96,6 +99,7 @@ export function loadSettings(): Settings {
     goreLevel: GORE_LEVELS.includes(stored.goreLevel as GoreLevel) ? (stored.goreLevel as GoreLevel) : DEFAULTS.goreLevel,
     playerName: typeof stored.playerName === 'string' ? stored.playerName.slice(0, 16) : DEFAULTS.playerName,
     onlineMode: typeof stored.onlineMode === 'string' ? stored.onlineMode : DEFAULTS.onlineMode,
+    mapId: typeof stored.mapId === 'string' ? stored.mapId : DEFAULTS.mapId,
   };
 }
 

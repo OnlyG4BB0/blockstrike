@@ -3,7 +3,7 @@
 Sparatutto in prima persona da browser, grafica low-poly a blocchi, movimento veloce.
 Nome provvisorio.
 
-**Stato: Fase 6 completata — multiplayer online.**
+**Stato: Fase 7 completata — mappe ed editor.**
 
 ## Avvio
 
@@ -24,7 +24,7 @@ aperto è in pausa), oppure usa la sezione **Online** del menu.
 | `npm test` | Esegue i test (Vitest) |
 | `npm run typecheck` | Controlla i tipi di tutti i pacchetti |
 | `npm run build` | Build di produzione del client in `client/dist` |
-| `npm run smoke` | Controlla i contenuti e simula una partita tra bot in Node, senza browser |
+| `npm run smoke` | Controlla i contenuti e simula una partita tra bot su ogni mappa, in Node |
 | `npm run smoke:net` | Avvia il server e collega due client veri (socket), controlla che si vedano |
 
 ## Comandi di gioco
@@ -79,6 +79,50 @@ I colpi necessari valgono contro 100 punti vita (Assaltatore).
 
 Granate: rimbalzano ed esplodono dopo 2,2 secondi. Dopo la rinascita si è protetti per 1,5 secondi,
 o finché non si spara.
+
+## Mappe
+
+| Mappa | Dimensioni | Carattere |
+|---|---|---|
+| Cortile | 40 × 40 m | piccola e frenetica: piattaforma centrale con quattro rampe, casse, ballatoi bassi |
+| Corsie | 42 × 80 m | media a tre corsie: muri divisori con varchi, ballatoi alti sui lati, basi alle estremità |
+| Torri | 96 × 96 m | grande e verticale: quattro torri a gradoni (4, 8 e 12 m), ponti a 8 m, piazza rialzata |
+| Arena di prova | 66 × 66 m | la mappa delle prime fasi |
+
+Tutte hanno punti di rinascita per squadra e le basi per «cattura la bandiera». La mappa si sceglie nel
+menu accanto a **Gioca** (allenamento e stanze create); in una stanza online decide chi la crea.
+
+**Formato** (`content/maps/*.json`): `blocks` (`pos` angolo minimo, `size`, `color`, `type` `box` o
+`ramp` con `dir` verso cui sale), `spawns` (`pos`, `yaw` in gradi, `team` 1 o 2, 0 per tutti),
+`flags` (due basi, `team` e `pos`), `lights` (al massimo 8: `pos`, `color`, `intensity`,
+`distance`), `waypoints` facoltativi, cielo, nebbia, sole e luce ambiente. Le mappe nuove non hanno
+`waypoints`: il grafo dei bot si calcola dalla geometria. I punti stanno su una griglia di 2 m sulle
+strutture e di 4 m sul pavimento; due punti vicini sono collegati solo se una camminata simulata, con
+salti se servono, va davvero dall'uno all'altro. Il server lo calcola una volta all'avvio per ogni mappa.
+
+**Disegno**: tutti i blocchi statici sono fusi in un'unica mesh (una chiamata di disegno, più una per
+l'ombra) qualunque sia il loro numero.
+
+### Editor di mappe
+
+`http://localhost:5173/editor.html` (link «Editor di mappe» nel menu).
+
+| Comando | Cosa fa |
+|---|---|
+| Tasto destro + mouse | guarda intorno |
+| W A S D · Q E | muoviti · scendi e sali (Maiusc più veloce) |
+| Clic | seleziona blocco, rinascita, bandiera o luce |
+| Frecce · PagSu PagGiù | sposta la selezione sulla griglia |
+| Alt + frecce · Alt + PagSu PagGiù | ridimensiona il blocco |
+| Ctrl+D · Canc | duplica · elimina |
+| Ctrl+Z · Ctrl+Y | annulla · ripeti |
+
+Il pannello a sinistra aggiunge blocchi, rampe, rinascite, bandiere e luci davanti alla visuale; quello a
+destra modifica posizione, dimensioni, colore e tipo della selezione, oppure (senza selezione) cielo,
+nebbia e luci della mappa. La mappa si salva da sola nel browser; **Esporta JSON** la scarica (da mettere
+in `content/maps/` per includerla nel gioco), **Importa JSON** e **Apri** caricano una mappa. Ogni modifica
+è controllata con lo stesso codice del gioco; **Prova** apre la mappa nel gioco con i bot
+(`?mappa=editor`).
 
 ## Online
 

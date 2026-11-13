@@ -686,6 +686,35 @@ body {
   border-left: 3px solid #3d7be2;
 }
 
+/* Gioca, mappa ed editor. */
+.play-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.play-row .play {
+  flex: 1 1 220px;
+}
+.map-choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+}
+.map-choice select {
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--ui-line);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ui-text);
+  font: inherit;
+}
+.editor-link {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* Partita online: tempo e punteggi, chat, schermata finale. */
 #match-bar {
   position: absolute;

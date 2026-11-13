@@ -14,6 +14,7 @@
  */
 import { MATCH_RULES, NET, TICK_DT } from '../constants.ts';
 import type { MapData } from '../map.ts';
+import type { NavGraph } from '../navigation.ts';
 import { Match, type Combatant, type FireHooks } from '../match.ts';
 import { createInput } from '../player.ts';
 import { copyAnimState, createAnimState, lerpAnimState, poseBody, type AnimState } from '../pose.ts';
@@ -31,6 +32,8 @@ export interface ServerOptions {
   fillTo?: number;
   /** Disattivabile solo per i test (per mostrare che senza si sbaglia). */
   lagCompensation?: boolean;
+  /** Grafo di navigazione dei bot già calcolato per la mappa. */
+  nav?: NavGraph;
 }
 
 export interface PlayerProfile {
@@ -123,7 +126,7 @@ export class ServerCore implements FireHooks {
     this.mode = requested === 'ctf' && flags.length !== 2 ? 'tdm' : requested;
     this.fillTo = options.fillTo ?? MATCH_RULES.fillTo;
     this.lagCompensation = options.lagCompensation ?? true;
-    this.match = new Match(map, content, { seed: options.seed ?? 1 });
+    this.match = new Match(map, content, { seed: options.seed ?? 1, nav: options.nav });
     this.match.fireHooks = this;
     if (this.mode === 'ctf') {
       for (const flag of flags) {

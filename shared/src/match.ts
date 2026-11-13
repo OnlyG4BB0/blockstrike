@@ -21,7 +21,7 @@ import {
 } from './pose.ts';
 import type { MapData } from './map.ts';
 import { DEG_TO_RAD, clamp } from './math.ts';
-import { buildNavGraph, type NavGraph } from './navigation.ts';
+import { navGraphFor, type NavGraph } from './navigation.ts';
 import {
   createInput,
   createPlayerState,
@@ -339,6 +339,8 @@ export interface MatchOptions {
    * propri spari: danni e morti arrivano dal server.
    */
   authoritative?: boolean;
+  /** Grafo di navigazione già calcolato per questa mappa (il server lo calcola una volta sola). */
+  nav?: NavGraph;
 }
 
 /** Ganci attorno a uno sparo: il server li usa per riavvolgere le hitbox (compensazione del lag). */
@@ -350,10 +352,23 @@ export interface FireHooks {
 export class Match implements CombatContent {
   readonly map: MapData;
   readonly world: CollisionWorld;
-  readonly nav: NavGraph;
   /** Armi disponibili, nell'ordine dei tasti numerici. */
   readonly weapons: readonly WeaponDef[];
   readonly grenade: ThrowableDef;
+  private navGraph: NavGraph | null = null;
+
+  /**
+   * Grafo di navigazione dei bot: dai punti della mappa o, se non ci sono, calcolato dalla geometria
+   * (la prima volta che serve: chi crea la partita lo chiede subito per non avere scatti dopo).
+   */
+  get nav(): NavGraph {
+    this.navGraph ??= navGraphFor(
+      this.world,
+      this.map.waypoints,
+      this.map.spawns.map((s) => s.pos),
+    );
+    return this.navGraph;
+  }
   readonly classes: readonly ClassDef[];
   /** Dove vanno le mani su ogni arma: serve alla posa delle braccia. */
   readonly grips: readonly WeaponGrip[];
@@ -385,9 +400,10 @@ export class Match implements CombatContent {
     this.classes = content.classes ?? [];
     this.grips = buildGrips(content.weapons, content.models);
     this.world = CollisionWorld.fromBlocks(map.blocks);
-    this.nav = buildNavGraph(this.world, map.waypoints);
+
     this.random = createRandom(options.seed ?? 1);
     this.authoritative = options.authoritative ?? true;
+    this.navGraph = options.nav ?? null;
     for (let i = 0; i < COMBAT.maxProjectiles; i++) {
       this.projectiles.push({
         active: false,

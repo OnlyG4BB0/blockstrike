@@ -31,6 +31,18 @@ export interface SpawnPoint {
   team?: number;
 }
 
+/** Luce puntiforme decorativa (lampade, insegne). */
+export interface MapLight {
+  pos: Vec3Tuple;
+  color: string;
+  intensity: number;
+  /** Distanza oltre la quale la luce non illumina più (m). */
+  distance: number;
+}
+
+/** Luci al massimo per mappa: ognuna costa a ogni pixel illuminato. */
+export const MAX_MAP_LIGHTS = 8;
+
 /** Base di una bandiera (cattura la bandiera). */
 export interface FlagPoint {
   team: number;
@@ -49,6 +61,8 @@ export interface MapData {
   waypoints: Vec3Tuple[];
   /** Basi delle bandiere: una per squadra, solo nelle mappe che hanno "cattura la bandiera". */
   flags?: FlagPoint[];
+  /** Luci puntiformi, facoltative. */
+  lights?: MapLight[];
   sky: { top: string; horizon: string; bottom: string };
   fog: { color: string; near: number; far: number };
   /** Luce del sole. `direction` è la direzione in cui viaggia la luce. */
@@ -99,6 +113,19 @@ export function parseMap(raw: unknown, source = 'mappa'): MapData {
   if (flags.length > 0 && (flags.length !== 2 || flags[0]!.team === flags[1]!.team)) {
     v.fail('flags', 'servono due basi, una per la squadra 1 e una per la squadra 2');
   }
+  const lights =
+    root.lights === undefined
+      ? []
+      : v.array(root.lights, 'lights', 0).map((item, i): MapLight => {
+          const light = v.object(item, `lights[${i}]`);
+          return {
+            pos: v.vec3(light.pos, `lights[${i}].pos`),
+            color: v.color(light.color, `lights[${i}].color`),
+            intensity: v.number(light.intensity, `lights[${i}].intensity`, { min: 0, max: 100 }),
+            distance: v.number(light.distance, `lights[${i}].distance`, { positive: true, max: 200 }),
+          };
+        });
+  if (lights.length > MAX_MAP_LIGHTS) v.fail('lights', `al massimo ${MAX_MAP_LIGHTS} luci`);
 
   const blocks = v.array(root.blocks, 'blocks', 1).map((item, i): MapBlock => {
     const path = `blocks[${i}]`;
@@ -147,6 +174,7 @@ export function parseMap(raw: unknown, source = 'mappa'): MapData {
     blocks,
     waypoints,
     flags,
+    lights,
     sky: {
       top: v.color(sky.top, 'sky.top'),
       horizon: v.color(sky.horizon, 'sky.horizon'),

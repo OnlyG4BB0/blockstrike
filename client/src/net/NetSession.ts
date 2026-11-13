@@ -27,6 +27,8 @@ export interface OnlineRequest {
   name: string;
   classId: string;
   skin: string;
+  /** Mappa per una stanza nuova (l'ingresso rapido in una stanza esistente usa la sua). */
+  map: string;
   /** Ritardo simulato andata e ritorno (ms), 0 = nessuno. */
   ping: number;
 }
@@ -85,7 +87,7 @@ export class NetSession {
     mapFor: (id: string) => MapData | undefined,
   ): Promise<NetSession> {
     const client = new Client(url);
-    const options = { name: request.name, classId: request.classId, skin: request.skin, mode: request.mode };
+    const options = { name: request.name, classId: request.classId, skin: request.skin, mode: request.mode, map: request.map };
     let room: Room;
     if (request.kind === 'code') room = await client.joinById(request.code.trim().toUpperCase(), options);
     else if (request.kind === 'create') room = await client.create('privata', options);

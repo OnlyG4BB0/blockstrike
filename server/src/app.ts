@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
-import { parseMap, type MapData } from '@blockstrike/shared';
+import { CollisionWorld, navGraphFor, parseMap, type MapData, type NavGraph } from '@blockstrike/shared';
 import { loadContentFromDisk } from './content.ts';
 import { GameRoom, setResources } from './GameRoom.ts';
 
@@ -21,7 +21,19 @@ export function loadMaps(): Map<string, MapData> {
 export async function startServer(port: number): Promise<Server> {
   const content = loadContentFromDisk();
   const maps = loadMaps();
-  setResources({ content, maps, defaultMap: maps.has('arena-prova') ? 'arena-prova' : [...maps.keys()][0]! });
+  // I grafi dei bot si calcolano qui una volta: creare una stanza non blocca le altre.
+  const navs = new Map<string, NavGraph>();
+  for (const [id, map] of maps) {
+    navs.set(
+      id,
+      navGraphFor(
+        CollisionWorld.fromBlocks(map.blocks),
+        map.waypoints,
+        map.spawns.map((s) => s.pos),
+      ),
+    );
+  }
+  setResources({ content, maps, navs, defaultMap: maps.has('arena-prova') ? 'arena-prova' : [...maps.keys()][0]! });
   const server = new Server({ transport: new WebSocketTransport(), gracefullyShutdown: false });
   server.define('partita', GameRoom).filterBy(['mode']);
   server.define('privata', GameRoom);

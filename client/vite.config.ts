@@ -29,5 +29,12 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    // Due pagine: il gioco e l'editor di mappe.
+    rolldownOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        editor: fileURLToPath(new URL('./editor.html', import.meta.url)),
+      },
+    },
   },
 });

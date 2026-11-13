@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BLOCKSTRIKE · Editor di mappe</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="editor">
+      <header class="bar">
+        <strong class="logo">BLOCK<span>STRIKE</span> · editor</strong>
+        <button id="ed-new" type="button">Nuova</button>
+        <label class="inline">Apri <select id="ed-open"></select></label>
+        <button id="ed-import" type="button">Importa JSON</button>
+        <input id="ed-import-file" type="file" accept=".json,application/json" hidden />
+        <button id="ed-export" type="button">Esporta JSON</button>
+        <button id="ed-undo" type="button" title="Ctrl+Z">Annulla</button>
+        <button id="ed-redo" type="button" title="Ctrl+Y">Ripeti</button>
+        <button id="ed-test" type="button" class="primary">Prova</button>
+        <label class="inline">Nome <input id="ed-name" type="text" maxlength="40" /></label>
+        <span id="ed-status" class="status"></span>
+      </header>
+
+      <aside class="panel left">
+        <h2>Aggiungi</h2>
+        <div class="buttons">
+          <button id="add-box" type="button">Blocco</button>
+          <button id="add-ramp" type="button">Rampa</button>
+          <button id="add-spawn" type="button">Rinascita</button>
+          <button id="add-flag-1" type="button">Bandiera rossa</button>
+          <button id="add-flag-2" type="button">Bandiera blu</button>
+          <button id="add-light" type="button">Luce</button>
+        </div>
+        <label class="row">Colore nuovo <input id="new-color" type="color" value="#c97b4a" /></label>
+        <label class="row">Griglia (m) <input id="grid-step" type="number" min="0.25" max="4" step="0.25" value="0.5" /></label>
+        <h2>Comandi</h2>
+        <dl class="keys">
+          <dt>Tasto destro + mouse</dt><dd>guarda intorno</dd>
+          <dt>W A S D · Q E</dt><dd>muoviti · giù / su (Maiusc più veloce)</dd>
+          <dt>Clic</dt><dd>seleziona</dd>
+          <dt>Frecce · PagSu PagGiù</dt><dd>sposta la selezione</dd>
+          <dt>Alt + frecce · PagSu PagGiù</dt><dd>ridimensiona</dd>
+          <dt>Ctrl+D · Canc</dt><dd>duplica · elimina</dd>
+          <dt>Ctrl+Z · Ctrl+Y</dt><dd>annulla · ripeti</dd>
+        </dl>
+        <p class="hint">La mappa si salva da sola nel browser. «Prova» la apre nel gioco con i bot.</p>
+      </aside>
+
+      <aside class="panel right">
+        <h2 id="sel-title">Mappa</h2>
+        <div id="sel-fields"></div>
+        <div class="buttons" id="sel-actions" hidden>
+          <button id="sel-duplicate" type="button">Duplica</button>
+          <button id="sel-delete" type="button">Elimina</button>
+        </div>
+      </aside>
+
+      <div id="viewport"></div>
+    </div>
+    <script type="module" src="/src/editor/main.ts"></script>
+  </body>
+</html>

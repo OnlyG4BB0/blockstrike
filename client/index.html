@@ -90,8 +90,15 @@
       <div id="menu">
         <div class="menu-panel">
           <h1 class="title">BLOCK<span>STRIKE</span></h1>
-          <p class="subtitle">Fase 6 · multiplayer</p>
-          <button id="play" class="play" type="button">Gioca</button>
+          <p class="subtitle">Fase 7 · mappe ed editor</p>
+          <div class="play-row">
+            <button id="play" class="play" type="button">Gioca</button>
+            <label class="map-choice">
+              <span>Mappa</span>
+              <select id="set-map"></select>
+            </label>
+            <a class="editor-link" href="./editor.html" target="_blank" rel="noopener">Editor di mappe</a>
+          </div>
           <p id="lock-error" class="lock-error" hidden>
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
           </p>

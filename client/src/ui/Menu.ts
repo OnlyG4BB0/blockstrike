@@ -48,6 +48,8 @@ export class Menu {
   /** Richiesta di giocare online (partita veloce, nuova stanza, stanza con codice). */
   onOnline: (action: OnlineAction, mode: string, code: string) => void = () => {};
   onLeaveRoom: () => void = () => {};
+  /** Mappa scelta (in allenamento si riparte con quella). */
+  onMapChange: (mapId: string) => void = () => {};
 
   readonly previewCanvas = byId<HTMLCanvasElement>('preview');
   private readonly root = byId('menu');
@@ -121,6 +123,20 @@ export class Menu {
       if (event.key === 'Enter') join();
     });
     byId('online-leave').addEventListener('click', () => this.onLeaveRoom());
+  }
+
+  /** Elenco delle mappe; `current` è quella in uso. */
+  setMaps(maps: readonly { id: string; name: string }[], current: string, locked: boolean): void {
+    const select = byId<HTMLSelectElement>('set-map');
+    select.replaceChildren(...maps.map((m) => new Option(m.name, m.id)));
+    select.value = current;
+    select.disabled = locked;
+    select.title = locked ? 'In una stanza online la mappa la decide chi la crea.' : '';
+    select.addEventListener('change', () => {
+      this.settings.mapId = select.value;
+      this.emit();
+      this.onMapChange(select.value);
+    });
   }
 
   setOnlineStatus(text: string): void {

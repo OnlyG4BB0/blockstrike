@@ -17,12 +17,15 @@ import {
   type GameContent,
   type GameMode,
   type MapData,
+  type NavGraph,
 } from '@blockstrike/shared';
 
 /** Contenuti e mappe caricati una volta all'avvio del server (vedi index.ts). */
 export interface ServerResources {
   content: GameContent;
   maps: ReadonlyMap<string, MapData>;
+  /** Grafi di navigazione dei bot, calcolati all'avvio per ogni mappa. */
+  navs: ReadonlyMap<string, NavGraph>;
   defaultMap: string;
 }
 
@@ -78,7 +81,11 @@ export class GameRoom extends Room {
         break;
       }
     }
-    this.core = new ServerCore(map, this.content, { mode, seed: (Math.random() * 0xffffffff) >>> 0 });
+    this.core = new ServerCore(map, this.content, {
+      mode,
+      seed: (Math.random() * 0xffffffff) >>> 0,
+      nav: resources.navs.get(this.mapId),
+    });
     await this.setMetadata({ mode, map: map.name });
 
     this.onMessageBytes(MSG_INPUT, (client: Client, bytes: Uint8Array) => this.core.receiveInput(client.sessionId, bytes));

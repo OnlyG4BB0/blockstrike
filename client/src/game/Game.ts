@@ -6,6 +6,7 @@ import {
   MathUtils,
   PCFShadowMap,
   PerspectiveCamera,
+  PointLight,
   Scene,
   Vector3,
   WebGLRenderer,
@@ -117,6 +118,7 @@ export class Game {
   /** Richiesta di passare online o di tornare all'allenamento (ricarica la pagina). */
   onOnline: (action: OnlineAction, mode: string, code: string) => void = () => {};
   onLeaveRoom: () => void = () => {};
+  onMapChange: (mapId: string) => void = () => {};
   readonly input: Input;
   /** Solo per le prove: fa avanzare la partita anche senza il puntatore bloccato. */
   forceRun = false;
@@ -250,6 +252,9 @@ export class Game {
 
     this.menu.onOnline = (action, mode, code) => this.onOnline(action, mode, code);
     this.menu.onLeaveRoom = () => this.onLeaveRoom();
+    this.menu.onMapChange = (id) => this.onMapChange(id);
+    // I bot del server hanno già il grafo; in allenamento lo si calcola subito, non al primo passo.
+    if (!session) void this.match.nav;
     if (session) {
       this.menu.setOnlineRoom(session.code, MODE_NAMES[session.mode] ?? session.mode);
       session.onChat = (message) => this.hud.chat(message.name, message.text);
@@ -264,6 +269,12 @@ export class Game {
 
     window.addEventListener('resize', this.handleResize);
     this.onLocalRespawn();
+  }
+
+  /** Mappe da mostrare nel menu ('' = mappa dell'editor). */
+  setMaps(maps: readonly { id: string; name: string }[], current: string): void {
+    const list = current === '' ? [{ id: '', name: `${this.match.map.name} (editor)` }, ...maps] : maps;
+    this.menu.setMaps(list, current, this.session !== null);
   }
 
   start(): void {
@@ -346,6 +357,12 @@ export class Game {
     sun.shadow.bias = -0.0005;
     sun.shadow.normalBias = 0.04;
     scene.add(sun, sun.target);
+    // Luci della mappa (lampade, insegne): senza ombre, che costerebbero troppo.
+    for (const light of map.lights ?? []) {
+      const point = new PointLight(new Color(light.color), light.intensity, light.distance, 2);
+      point.position.set(...light.pos);
+      scene.add(point);
+    }
   }
 
   private applySettings(settings: Settings): void {

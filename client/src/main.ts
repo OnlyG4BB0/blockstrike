@@ -14,6 +14,31 @@ function mapFor(id: string): MapData | undefined {
   return entry ? parseMap(entry[1], `content/maps/${id}.json`) : undefined;
 }
 
+/** Elenco delle mappe incluse, con il loro nome. */
+function mapList(): { id: string; name: string }[] {
+  return Object.entries(mapFiles)
+    .map(([path, data]) => {
+      const id = path.replace(/^.*\//, '').replace(/\.json$/, '');
+      const name = typeof (data as { name?: unknown }).name === 'string' ? (data as { name: string }).name : id;
+      return { id, name };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Chiave in cui l'editor lascia la mappa da provare (?mappa=editor). */
+const EDITOR_MAP_KEY = 'blockstrike.editor.map';
+
+function editorMap(): MapData {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(EDITOR_MAP_KEY);
+  } catch {
+    // Archiviazione non disponibile.
+  }
+  if (!raw) throw new Error('Nessuna mappa dall\'editor: apri l\'editor e premi «Prova».');
+  return parseMap(JSON.parse(raw), 'mappa dell\'editor');
+}
+
 declare global {
   interface Window {
     /** Accesso al gioco dalla console, solo in sviluppo. */
@@ -80,6 +105,7 @@ async function main(): Promise<void> {
           name: settings.playerName || 'Giocatore',
           classId: settings.classId,
           skin: settings.characterSkin,
+          map: settings.mapId,
           ping: Number(params.get('ping') ?? 0) || 0,
         },
         content,
@@ -89,8 +115,19 @@ async function main(): Promise<void> {
       status = `Online non disponibile: ${error instanceof Error ? error.message : String(error)}. Sei in allenamento.`;
     }
   }
-  const map = session ? mapFor(session.mapId)! : mapFor('arena-prova')!;
+  const settings = loadSettings();
+  const fromEditor = !session && params.get('mappa') === 'editor';
+  const offlineId = params.get('mappa') ?? settings.mapId;
+  const map = session
+    ? mapFor(session.mapId)!
+    : fromEditor
+      ? editorMap()
+      : (mapFor(offlineId) ?? mapFor('cortile') ?? mapFor('arena-prova')!);
   const game = new Game(byId('app'), map, content, session);
+  game.setMaps(mapList(), session ? session.mapId : fromEditor ? '' : offlineId);
+  game.onMapChange = (id) => {
+    if (!session) navigate({ mappa: id });
+  };
   byId('online-status').textContent = status;
   game.onOnline = (action, mode, roomCode) => {
     if (action === 'code') navigate({ stanza: roomCode });

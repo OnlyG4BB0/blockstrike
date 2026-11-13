@@ -123,7 +123,19 @@ function addRamp(builder: GeometryBuilder, block: MapBlock, color: Color): void 
   );
 }
 
-/** Fonde tutti i blocchi della mappa in un'unica mesh: una sola chiamata di disegno. */
+/** Geometria di un solo blocco (l'editor ne disegna uno per mesh, per poterli scegliere). */
+export function createBlockGeometry(block: MapBlock): BufferGeometry {
+  const builder = new GeometryBuilder();
+  const color = new Color(block.color);
+  if (block.type === 'ramp') addRamp(builder, block, color);
+  else addBox(builder, block, color);
+  return builder.build();
+}
+
+/**
+ * Fonde tutti i blocchi statici della mappa in un'unica mesh: una sola chiamata di disegno (più
+ * una per l'ombra), qualunque sia il numero di blocchi.
+ */
 export function createMapMesh(map: MapData, texture: Texture): Mesh {
   const builder = new GeometryBuilder();
   const color = new Color();

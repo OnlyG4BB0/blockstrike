@@ -259,6 +259,23 @@ export const BOT = {
   navLinkMaxLength: 24,
 } as const;
 
+/** Grafo di navigazione calcolato dalla geometria (mappe senza punti di navigazione). */
+export const NAV = {
+  /**
+   * Lato della griglia dei punti (m): fitta sulle strutture (rampe e piattaforme strette hanno i
+   * loro punti), il doppio sul pavimento più basso.
+   */
+  spacing: 2,
+  /** Un collegamento vale se una camminata simulata arriva entro questa distanza dal punto. */
+  arriveRadius: 0.8,
+  /** Tempo massimo della camminata di prova (s). */
+  walkTime: 2.5,
+  /** Collegamenti solo tra punti vicini (in celle della griglia). */
+  neighborCells: 2,
+  /** Oltre questo dislivello in salita si tiene premuto il salto nella camminata di prova. */
+  jumpRise: 0.4,
+} as const;
+
 /** Parametri del sistema di collisioni. */
 export const COLLISION = {
   /** Tolleranza per i contatti: due superfici a meno di questa distanza si toccano senza compenetrarsi. */
