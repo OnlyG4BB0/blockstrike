@@ -148,7 +148,7 @@ export class Input {
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (!this.locked || !GAME_KEYS.has(event.code)) return;
+    if (this.typing || !this.locked || !GAME_KEYS.has(event.code)) return;
     event.preventDefault();
     if (event.repeat) return;
     this.pressed.add(event.code);
@@ -161,6 +161,18 @@ export class Input {
     const slot = SLOTS.indexOf(event.code);
     if (slot >= 0) this.requestedSlot = slot + 1;
   };
+
+  /** Mentre si scrive in chat i tasti non muovono il giocatore. */
+  get typing(): boolean {
+    return this.typingFlag;
+  }
+
+  set typing(value: boolean) {
+    this.typingFlag = value;
+    if (value) this.pressed.clear();
+  }
+
+  private typingFlag = false;
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
     this.pressed.delete(event.code);

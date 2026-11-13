@@ -4,9 +4,19 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "smoke": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/smoke.ts"
+    "dev": "node --experimental-strip-types --disable-warning=ExperimentalWarning --watch src/index.ts",
+    "start": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/index.ts",
+    "smoke": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/smoke.ts",
+    "smoke:net": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/smoke-net.ts"
   },
   "dependencies": {
-    "@blockstrike/shared": "*"
+    "@blockstrike/shared": "*",
+    "@colyseus/core": "^0.18.28",
+    "@colyseus/schema": "^5.0.48",
+    "@colyseus/ws-transport": "^0.18.5",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "^0.18.10"
   }
 }

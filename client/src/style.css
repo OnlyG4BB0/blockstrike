@@ -670,6 +670,144 @@ body {
   font-weight: 600;
 }
 
+/* Partita online: tempo e punteggi, chat, schermata finale. */
+#match-bar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  border-radius: 6px;
+  background: var(--ui-bg);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: var(--shadow);
+}
+#chat {
+  position: absolute;
+  left: 14px;
+  bottom: 120px;
+  width: min(420px, 60vw);
+  pointer-events: none;
+}
+#chat-log div {
+  margin-top: 2px;
+  font-size: 13px;
+  text-shadow: var(--shadow);
+  animation: chat-fade 9s forwards;
+}
+#chat-log b {
+  color: var(--accent);
+}
+#chat-input {
+  pointer-events: auto;
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  font: inherit;
+}
+@keyframes chat-fade {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+#end-screen {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: min(420px, 90vw);
+  padding: 18px 22px;
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  background: var(--ui-bg);
+  text-align: center;
+}
+#end-title {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+#end-screen table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+#end-screen td,
+#end-screen th {
+  padding: 3px 8px;
+}
+#end-screen tr.mine td {
+  color: var(--accent);
+}
+#end-timer {
+  margin-top: 10px;
+  color: var(--ui-dim);
+}
+.online {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ui-line);
+}
+.online-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px 18px;
+  align-items: center;
+}
+.online-buttons,
+.online-join,
+.online-room {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.online button {
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: rgba(255, 178, 56, 0.14);
+  color: var(--ui-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.online button:hover {
+  background: rgba(255, 178, 56, 0.28);
+}
+.online input[type='text'] {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--ui-line);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ui-text);
+  font: inherit;
+}
+#online-code {
+  width: 7em;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+.online-status {
+  min-height: 1.2em;
+  margin: 8px 0 0;
+  color: var(--accent);
+  font-size: 13px;
+}
+
 /* Annunci delle uccisioni speciali. */
 #announce {
   position: absolute;

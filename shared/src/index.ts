@@ -15,3 +15,7 @@ export * from './raycast.ts';
 export * from './validation.ts';
 export * from './weapons.ts';
 export * from './world.ts';
+export * from './net/client.ts';
+export * from './net/codec.ts';
+export * from './net/protocol.ts';
+export * from './net/server.ts';

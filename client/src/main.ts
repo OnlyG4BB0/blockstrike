@@ -1,9 +1,18 @@
 import './style.css';
-import { ContentError, parseMap } from '@blockstrike/shared';
-import arena from '../../content/maps/arena-prova.json';
+import { ContentError, GAME_MODES, parseMap, type GameMode, type MapData } from '@blockstrike/shared';
 import { loadGameContent } from './content.ts';
 import { Game } from './game/Game.ts';
+import { NetSession, serverUrl, type OnlineKind } from './net/NetSession.ts';
+import { loadSettings } from './settings.ts';
 import { byId } from './ui/dom.ts';
+
+/** Tutte le mappe di content/maps (id = nome del file). */
+const mapFiles = import.meta.glob('../../content/maps/*.json', { eager: true, import: 'default' });
+
+function mapFor(id: string): MapData | undefined {
+  const entry = Object.entries(mapFiles).find(([path]) => path.endsWith(`/${id}.json`));
+  return entry ? parseMap(entry[1], `content/maps/${id}.json`) : undefined;
+}
 
 declare global {
   interface Window {
@@ -40,12 +49,59 @@ function showFatalError(error: unknown): void {
   console.error(error);
 }
 
-try {
+/** Passa online o torna all'allenamento ricaricando la pagina con i parametri giusti. */
+function navigate(params: Record<string, string>): void {
+  const query = new URLSearchParams(params);
+  const ping = new URLSearchParams(location.search).get('ping');
+  if (ping) query.set('ping', ping);
+  location.search = query.toString();
+}
+
+async function main(): Promise<void> {
   const content = loadGameContent();
-  const map = parseMap(arena, 'content/maps/arena-prova.json');
-  const game = new Game(byId('app'), map, content);
+  const params = new URLSearchParams(location.search);
+  const code = (params.get('stanza') ?? '').toUpperCase();
+  const online = params.get('online');
+  let session: NetSession | null = null;
+  let status = '';
+  if (code || online) {
+    const settings = loadSettings();
+    const kind: OnlineKind = code ? 'code' : online === 'crea' ? 'create' : 'quick';
+    const modeParam = params.get('modalita') ?? settings.onlineMode;
+    const mode: GameMode = GAME_MODES.includes(modeParam as GameMode) ? (modeParam as GameMode) : 'ffa';
+    byId('online-status').textContent = 'Collegamento al server...';
+    try {
+      session = await NetSession.connect(
+        serverUrl(),
+        {
+          kind,
+          mode,
+          code,
+          name: settings.playerName || 'Giocatore',
+          classId: settings.classId,
+          skin: settings.characterSkin,
+          ping: Number(params.get('ping') ?? 0) || 0,
+        },
+        content,
+        mapFor,
+      );
+    } catch (error) {
+      status = `Online non disponibile: ${error instanceof Error ? error.message : String(error)}. Sei in allenamento.`;
+    }
+  }
+  const map = session ? mapFor(session.mapId)! : mapFor('arena-prova')!;
+  const game = new Game(byId('app'), map, content, session);
+  byId('online-status').textContent = status;
+  game.onOnline = (action, mode, roomCode) => {
+    if (action === 'code') navigate({ stanza: roomCode });
+    else navigate({ online: action === 'create' ? 'crea' : 'rapida', modalita: mode });
+  };
+  game.onLeaveRoom = () => {
+    session?.leave();
+    navigate({});
+  };
   game.start();
   if (import.meta.env.DEV) window.blockstrike = game;
-} catch (error) {
-  showFatalError(error);
 }
+
+main().catch(showFatalError);

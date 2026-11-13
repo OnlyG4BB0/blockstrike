@@ -9,13 +9,17 @@
     "server"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @blockstrike/client",
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "npm run dev --workspace @blockstrike/client",
+    "dev:server": "npm run dev --workspace @blockstrike/server",
     "build": "npm run build --workspace @blockstrike/client",
     "preview": "npm run preview --workspace @blockstrike/client",
+    "start": "npm run start --workspace @blockstrike/server",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p shared && tsc -p shared/tsconfig.test.json && tsc -p client && tsc -p server",
-    "smoke": "npm run smoke --workspace @blockstrike/server"
+    "smoke": "npm run smoke --workspace @blockstrike/server",
+    "smoke:net": "npm run smoke:net --workspace @blockstrike/server"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

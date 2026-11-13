@@ -82,6 +82,12 @@ export class Hud {
   private readonly announceTitle = byId('announce-title');
   private readonly announceSub = byId('announce-sub');
   private readonly splatterLayer = byId('splatter');
+  private readonly matchBarElement = byId('match-bar');
+  private readonly chatLog = byId('chat-log');
+  private readonly endScreenElement = byId('end-screen');
+  private readonly endTitle = byId('end-title');
+  private readonly endRows = byId('end-rows');
+  private readonly endTimer = byId('end-timer');
   private readonly drops: HTMLDivElement[] = [];
   private announceTimer = 0;
   private splatterTimer = 0;
@@ -211,6 +217,52 @@ export class Hud {
       }
     });
     this.set('grenades', String(grenades), (text) => (this.grenades.textContent = `G · ${this.grenadeName} ×${text}`));
+  }
+
+  /** Tempo e punteggi della partita online (null = nascosto). */
+  matchBar(text: string | null): void {
+    this.set('matchBar', text ?? '', (value) => {
+      this.matchBarElement.hidden = value === '';
+      this.matchBarElement.textContent = value;
+    });
+  }
+
+  /** Riga di chat (il testo arriva dalla rete: solo textContent). */
+  chat(name: string, text: string, system = false): void {
+    const line = document.createElement('div');
+    if (!system) {
+      const who = document.createElement('b');
+      who.textContent = `${name}: `;
+      line.append(who);
+    }
+    line.append(document.createTextNode(text));
+    this.chatLog.append(line);
+    while (this.chatLog.children.length > HUD.chatLines) this.chatLog.firstElementChild?.remove();
+  }
+
+  /** Schermata di fine partita con la classifica. */
+  endScreen(visible: boolean, title = '', rows: readonly ScoreRow[] = [], secondsLeft = 0): void {
+    this.set('endVisible', String(visible), (v) => (this.endScreenElement.hidden = v !== 'true'));
+    if (!visible) return;
+    this.set('endTitle', title, (value) => (this.endTitle.textContent = value));
+    this.set('endTimer', String(Math.ceil(secondsLeft)), (value) => (this.endTimer.textContent = `Nuova partita tra ${value} s`));
+    const key = rows.map((r) => `${r.name}:${r.kills}:${r.deaths}`).join('|');
+    this.set('endRows', key, () => {
+      this.endRows.replaceChildren(
+        ...[...rows]
+          .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths)
+          .map((row) => {
+            const tr = document.createElement('tr');
+            if (row.local) tr.className = 'mine';
+            for (const value of [row.name, String(row.kills), String(row.deaths)]) {
+              const td = document.createElement('td');
+              td.textContent = value;
+              tr.append(td);
+            }
+            return tr;
+          }),
+      );
+    });
   }
 
   /** Annuncio al centro dello schermo (colpo alla testa, serie di uccisioni...). */

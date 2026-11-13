@@ -133,6 +133,8 @@ export const HUD = {
   /** Schizzi sulla visuale: quanti e per quanto. */
   splatterDrops: 14,
   splatterTime: 2.2,
+  /** Righe di chat visibili. */
+  chatLines: 7,
 } as const;
 
 /** Anteprima del personaggio nella schermata di scelta. */

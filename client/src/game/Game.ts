@@ -55,7 +55,8 @@ import { Viewmodel } from '../render/Viewmodel.ts';
 import { ModelLibrary } from '../render/weaponModels.ts';
 import { SENSITIVITY_SCALE, loadSettings, saveSettings, type Settings } from '../settings.ts';
 import { Hud, type LabelData, type ScoreRow, type ScreenPoint } from '../ui/Hud.ts';
-import { Menu } from '../ui/Menu.ts';
+import { Menu, type OnlineAction } from '../ui/Menu.ts';
+import type { NetSession } from '../net/NetSession.ts';
 import { CameraRig } from './CameraRig.ts';
 
 /** Oltre questo numero di tick in un fotogramma si rinuncia a recuperare (es. scheda in pausa). */
@@ -86,6 +87,18 @@ const DEFAULT_SKIN: CharacterSkinDef = {
   accessories: [],
 };
 
+/** Ogni quanto il timer della rete controlla se è ora di un tick (ms). */
+const NET_PUMP_MS = 4;
+const MODE_NAMES: Record<string, string> = {
+  ffa: 'tutti contro tutti',
+  tdm: 'deathmatch a squadre',
+  ctf: 'cattura la bandiera',
+};
+
+function byIdInput(id: string): HTMLInputElement {
+  return document.getElementById(id) as HTMLInputElement;
+}
+
 function easeInOut(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
 }
@@ -98,6 +111,11 @@ function easeInOut(t: number): number {
 export class Game {
   readonly match: Match;
   readonly local: Combatant;
+  /** Partita online (null = allenamento con i bot, in locale). */
+  readonly session: NetSession | null;
+  /** Richiesta di passare online o di tornare all'allenamento (ricarica la pagina). */
+  onOnline: (action: OnlineAction, mode: string, code: string) => void = () => {};
+  onLeaveRoom: () => void = () => {};
   readonly input: Input;
   /** Solo per le prove: fa avanzare la partita anche senza il puntatore bloccato. */
   forceRun = false;
@@ -136,6 +154,9 @@ export class Game {
   private appliedFov = 0;
   private appliedAspect = 0;
   private deathTime = 0;
+  private lastPump = 0;
+  private closed = false;
+  private requestedClass = -1;
   /** Chiamate di disegno dell'ultimo fotogramma. */
   drawCalls = 0;
   private readonly labels: LabelData[] = [];
@@ -143,16 +164,23 @@ export class Game {
   private readonly temp2 = new Vector3();
   private readonly projected = new Vector3();
 
-  constructor(container: HTMLElement, map: MapData, content: GameContent) {
+  constructor(container: HTMLElement, map: MapData, content: GameContent, session: NetSession | null = null) {
     this.settings = loadSettings();
     this.content = content;
     this.library = new ModelLibrary(content);
     this.hud = new Hud(content.weapons, content.grenade.name);
     this.audio = new AudioSystem(content.sounds);
-    this.match = new Match(map, content, { seed: (Math.random() * 0xffffffff) >>> 0 });
-    this.local = this.match.addCombatant(LOCAL_NAME, { classIndex: this.classIndexOf(this.settings.classId) });
-    this.match.setBotCount(this.settings.botCount);
-    this.match.botMode = this.settings.botMode;
+    this.session = session;
+    if (session) {
+      // Online: la partita è lo specchio del client (predizione e altri giocatori dal server).
+      this.match = session.core.match;
+      this.local = session.core.local!;
+    } else {
+      this.match = new Match(map, content, { seed: (Math.random() * 0xffffffff) >>> 0 });
+      this.local = this.match.addCombatant(LOCAL_NAME, { classIndex: this.classIndexOf(this.settings.classId) });
+      this.match.setBotCount(this.settings.botCount);
+      this.match.botMode = this.settings.botMode;
+    }
 
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, VIEW.maxPixelRatio));
@@ -203,7 +231,7 @@ export class Game {
       void this.audio.start();
       void this.input.requestLock();
       // In allenamento la nuova classe vale subito: si rinasce con quella.
-      if (this.local.pendingClass !== NO_CLASS_CHANGE) {
+      if (!this.session && this.local.pendingClass !== NO_CLASS_CHANGE) {
         this.match.forceRespawn(this.local);
         this.onLocalRespawn();
       }
@@ -216,13 +244,66 @@ export class Game {
     this.input.onLockChange = (locked) => (locked ? this.menu.hide() : this.menu.show());
     this.input.onLockError = () => this.menu.showLockError();
 
+    this.menu.onOnline = (action, mode, code) => this.onOnline(action, mode, code);
+    this.menu.onLeaveRoom = () => this.onLeaveRoom();
+    if (session) {
+      this.menu.setOnlineRoom(session.code, MODE_NAMES[session.mode] ?? session.mode);
+      session.onChat = (message) => this.hud.chat(message.name, message.text);
+      session.onClose = (reason) => {
+        this.menu.show();
+        this.menu.setOnlineStatus(reason);
+        this.closed = true;
+      };
+      this.hud.chat('', `Stanza ${session.code}: invita gli amici con questo codice. Invio per scrivere.`, true);
+    }
+    window.addEventListener('keydown', this.handleChatKey);
+
     window.addEventListener('resize', this.handleResize);
     this.onLocalRespawn();
   }
 
   start(): void {
     requestAnimationFrame(this.frame);
+    // Online la partita non si ferma con il menu: i tick vanno a tempo, anche a scheda nascosta.
+    if (this.session) window.setInterval(this.pump, NET_PUMP_MS);
   }
+
+  /** Tick online a passo fisso, guidati dall'orologio e non dai fotogrammi. */
+  private readonly pump = (): void => {
+    const now = performance.now();
+    if (this.lastPump === 0) this.lastPump = now;
+    this.accumulator = Math.min(this.accumulator + (now - this.lastPump) / 1000, TICK_DT * MAX_TICKS_PER_FRAME);
+    this.lastPump = now;
+    while (this.accumulator >= TICK_DT && !this.closed) {
+      this.tick();
+      this.accumulator -= TICK_DT;
+    }
+  };
+
+  /** Invio apre la chat (online); Invio di nuovo la manda, Esc la chiude. */
+  private readonly handleChatKey = (event: KeyboardEvent): void => {
+    const session = this.session;
+    if (!session || event.key !== 'Enter' || this.input.typing) return;
+    const field = byIdInput('chat-input');
+    field.hidden = false;
+    field.value = '';
+    this.input.typing = true;
+    event.preventDefault();
+    field.focus();
+    const finish = (send: boolean) => {
+      field.removeEventListener('keydown', onKey);
+      if (send && field.value.trim()) session.sendChat(field.value.trim());
+      field.hidden = true;
+      field.blur();
+      this.input.typing = false;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') finish(true);
+      else if (e.key === 'Escape') finish(false);
+    };
+    field.addEventListener('keydown', onKey);
+  };
 
   private buildScene(): void {
     const map = this.match.map;
@@ -267,9 +348,11 @@ export class Game {
     this.settings = settings;
     this.input.radiansPerPixel = settings.sensitivity * SENSITIVITY_SCALE;
     this.audio.setVolume(settings.volume);
-    this.match.botMode = settings.botMode;
-    if (this.match.combatants.filter((c) => c.bot).length !== settings.botCount) {
-      this.match.setBotCount(settings.botCount);
+    if (!this.session) {
+      this.match.botMode = settings.botMode;
+      if (this.match.combatants.filter((c) => c.bot).length !== settings.botCount) {
+        this.match.setBotCount(settings.botCount);
+      }
     }
     this.match.weapons.forEach((def, index) => this.viewmodel.setSkin(index, this.skinOf(def)));
     this.characters.showHitboxes = settings.showDebug;
@@ -280,7 +363,16 @@ export class Game {
 
     // Classe: vale dalla prossima rinascita (in allenamento, appena si torna a giocare).
     const classIndex = this.classIndexOf(settings.classId);
-    if (classIndex !== this.local.classIndex) {
+    if (this.session) {
+      // Online decide il server: la classe vale dalla prossima rinascita.
+      if (classIndex !== this.local.classIndex && classIndex >= 0) {
+        if (this.requestedClass !== classIndex) this.session.sendClass(this.content.classes[classIndex]!.id);
+        this.requestedClass = classIndex;
+        this.menu.setClassNote('La nuova classe vale dalla prossima rinascita.');
+      } else {
+        this.menu.setClassNote('');
+      }
+    } else if (classIndex !== this.local.classIndex) {
       this.match.setClass(this.local, classIndex);
       this.menu.setClassNote('La nuova classe vale appena torni a giocare.');
     } else {
@@ -380,8 +472,8 @@ export class Game {
     const dt = this.lastFrame === 0 ? 0 : Math.min((now - this.lastFrame) / 1000, MAX_FRAME_TIME);
     this.lastFrame = now;
 
-    // Con il menu aperto la partita è in pausa.
-    if (this.input.locked || this.forceRun) {
+    // Con il menu aperto la partita è in pausa (solo in allenamento: online va avanti a tempo).
+    if (!this.session && (this.input.locked || this.forceRun)) {
       this.accumulator += dt;
       let ticks = 0;
       while (this.accumulator >= TICK_DT) {
@@ -398,11 +490,24 @@ export class Game {
 
   private tick(): void {
     const local = this.local;
-    if (this.input.consumeRespawn()) {
+    const respawn = this.input.consumeRespawn();
+    if (respawn && !this.session) {
       this.match.forceRespawn(local);
       this.onLocalRespawn();
     }
     this.input.sample(local.input);
+    if (this.session && !this.input.locked && !this.forceRun) {
+      // Menu aperto online: si resta fermi (la visuale resta dov'era).
+      const input = local.input;
+      input.forward = 0;
+      input.right = 0;
+      input.jump = false;
+      input.crouch = false;
+      input.fire = false;
+      input.ads = false;
+      input.reload = false;
+      input.grenade = false;
+    }
     // I tasti scelgono tra le armi della classe.
     const loadout = local.loadout;
     local.input.weaponSlot = this.input.consumeWeaponRequest(
@@ -419,7 +524,13 @@ export class Game {
     this.prevRecoilYaw = local.weapon.recoilYaw;
     this.prevAds = local.weapon.adsAmount;
 
-    this.match.tick();
+    if (this.session) {
+      const wasAlive = local.alive;
+      this.session.sendInput(this.session.core.tick(local.input));
+      if (!wasAlive && local.alive) this.onLocalRespawn();
+    } else {
+      this.match.tick();
+    }
     this.handleEvents();
 
     const p = local.player;
@@ -575,7 +686,7 @@ export class Game {
       poseBody(pose, victim.anim, this.match.grips);
     }
     const def = kill.weapon >= 0 ? this.match.weapons[kill.weapon] : undefined;
-    const outcome = decideGore(kill, def?.gore ?? null, this.gore.level, goreRoll(victim.id, victim.deaths));
+    const outcome = decideGore(kill, def?.gore ?? null, this.gore.level, goreRoll(victim.id, kill.victimDeaths));
     const p = victim.player;
     this.gore.kill({
       outcome,
@@ -780,6 +891,7 @@ export class Game {
       }));
     }
     this.hud.scores(rows, dt);
+    this.updateMatchInfo();
 
     // Nome e vita sopra i bot vivi, vicini e visibili (niente scritte attraverso i muri).
     this.labels.length = 0;
@@ -795,6 +907,36 @@ export class Game {
       this.labels.push({ id, name: c.name, health: c.health, maxHealth: c.maxHealth, x: point.x, y: point.y, z: point.z, visible });
     }
     this.hud.updateOverlays(dt, this.labels, this.project);
+  }
+
+  /** Tempo, punteggi e schermata finale della partita online. */
+  private updateMatchInfo(): void {
+    const session = this.session;
+    if (!session) {
+      this.hud.matchBar(null);
+      return;
+    }
+    const info = session.core.info;
+    const seconds = Math.max(0, Math.ceil(info.timeLeft));
+    const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    let leader = this.local;
+    for (const c of this.match.combatants) if (c.kills > leader.kills) leader = c;
+    const leaderName = leader === this.local ? LOCAL_NAME : leader.name;
+    if (info.phase === 0) {
+      this.hud.matchBar(`${clock} · prima a ${info.scoreLimit}: ${leaderName} ${leader.kills}`);
+      this.hud.endScreen(false);
+      return;
+    }
+    this.hud.matchBar(null);
+    const winner = this.match.getCombatant(info.winner);
+    const title = winner ? (winner === this.local ? 'Hai vinto!' : `Vince ${winner.name}`) : 'Partita finita';
+    const rows = this.match.combatants.map((c) => ({
+      name: c === this.local ? LOCAL_NAME : c.name,
+      kills: c.kills,
+      deaths: c.deaths,
+      local: c === this.local,
+    }));
+    this.hud.endScreen(true, title, rows, info.timeLeft);
   }
 
   /** Converte il campo visivo orizzontale delle impostazioni in quello verticale, con lo zoom della mira. */

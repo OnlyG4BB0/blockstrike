@@ -40,9 +40,14 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
 }
 
 /** Menu di pausa: avvio della partita, classe e aspetto con anteprima, impostazioni e skin delle armi. */
+export type OnlineAction = 'quick' | 'create' | 'code';
+
 export class Menu {
   onPlay: () => void = () => {};
   onChange: (settings: Settings) => void = () => {};
+  /** Richiesta di giocare online (partita veloce, nuova stanza, stanza con codice). */
+  onOnline: (action: OnlineAction, mode: string, code: string) => void = () => {};
+  onLeaveRoom: () => void = () => {};
 
   readonly previewCanvas = byId<HTMLCanvasElement>('preview');
   private readonly root = byId('menu');
@@ -87,6 +92,54 @@ export class Menu {
     this.buildClasses(classes);
     this.buildCharacterSkins(characterSkins);
     this.buildSkins(skinChoices);
+    this.bindOnline();
+  }
+
+  private bindOnline(): void {
+    const name = byId<HTMLInputElement>('online-name');
+    const mode = byId<HTMLSelectElement>('online-mode');
+    const code = byId<HTMLInputElement>('online-code');
+    name.value = this.settings.playerName;
+    mode.value = this.settings.onlineMode;
+    name.addEventListener('change', () => {
+      this.settings.playerName = name.value.trim().slice(0, 16);
+      this.emit();
+    });
+    mode.addEventListener('change', () => {
+      this.settings.onlineMode = mode.value;
+      this.emit();
+    });
+    code.addEventListener('input', () => (code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, '')));
+    byId('online-quick').addEventListener('click', () => this.onOnline('quick', mode.value, ''));
+    byId('online-create').addEventListener('click', () => this.onOnline('create', mode.value, ''));
+    const join = () => {
+      if (code.value.length === 5) this.onOnline('code', mode.value, code.value);
+      else this.setOnlineStatus('Il codice ha 5 caratteri.');
+    };
+    byId('online-join').addEventListener('click', join);
+    code.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') join();
+    });
+    byId('online-leave').addEventListener('click', () => this.onLeaveRoom());
+  }
+
+  setOnlineStatus(text: string): void {
+    byId('online-status').textContent = text;
+  }
+
+  /** In una stanza: codice e modalità al posto dei pulsanti per entrare. */
+  setOnlineRoom(code: string, mode: string): void {
+    byId('online-lobby').hidden = true;
+    byId('online-room').hidden = false;
+    byId('online-room-code').textContent = code;
+    byId('online-room-mode').textContent = mode;
+    byId('online-copy').addEventListener('click', () => {
+      const link = `${location.origin}${location.pathname}?stanza=${code}`;
+      void navigator.clipboard?.writeText(link).then(
+        () => this.setOnlineStatus(`Invito copiato: ${link}`),
+        () => this.setOnlineStatus(`Invito: ${link}`),
+      );
+    });
   }
 
   get visible(): boolean {

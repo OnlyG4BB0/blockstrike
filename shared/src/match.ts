@@ -79,9 +79,21 @@ export interface WeaponState {
   random: RandomState;
 }
 
+/**
+ * Chi fa avanzare un combattente:
+ * - tick: la partita, a ogni tick (bot, giocatore in allenamento);
+ * - input: chi riceve i comandi, uno stepCombatant() per comando (giocatori in rete, sul server e
+ *   nella predizione del client);
+ * - remote: nessuno, lo stato arriva da fuori (gli altri giocatori visti dal client).
+ */
+export type CombatantDriver = 'tick' | 'input' | 'remote';
+
 export interface Combatant {
   readonly id: number;
-  readonly name: string;
+  name: string;
+  driver: CombatantDriver;
+  /** Squadra (0 = nessuna, tutti contro tutti). */
+  team: number;
   readonly player: PlayerState;
   readonly weapon: WeaponState;
   /** Comandi del tick corrente: li scrive il client (giocatore) o l'IA (bot). */
@@ -321,6 +333,18 @@ function rayAabb(
 export interface MatchOptions {
   /** Seme dei numeri casuali: stessa partita, stessi risultati. */
   seed?: number;
+  /**
+   * Partita autoritativa (server, allenamento): applica danni, morti, rinascite e proiettili.
+   * Il client in rete usa una partita non autoritativa solo per predire il proprio movimento e i
+   * propri spari: danni e morti arrivano dal server.
+   */
+  authoritative?: boolean;
+}
+
+/** Ganci attorno a uno sparo: il server li usa per riavvolgere le hitbox (compensazione del lag). */
+export interface FireHooks {
+  beforeFire(shooter: Combatant): void;
+  afterFire(shooter: Combatant): void;
 }
 
 export class Match implements CombatContent {
@@ -336,6 +360,8 @@ export class Match implements CombatContent {
   readonly combatants: Combatant[] = [];
   readonly projectiles: Projectile[] = [];
   readonly events = new EventBuffer();
+  readonly authoritative: boolean;
+  fireHooks: FireHooks | null = null;
   botMode: BotMode = 'fight';
   time = 0;
   tickCount = 0;
@@ -361,6 +387,7 @@ export class Match implements CombatContent {
     this.world = CollisionWorld.fromBlocks(map.blocks);
     this.nav = buildNavGraph(this.world, map.waypoints);
     this.random = createRandom(options.seed ?? 1);
+    this.authoritative = options.authoritative ?? true;
     for (let i = 0; i < COMBAT.maxProjectiles; i++) {
       this.projectiles.push({
         active: false,
@@ -387,8 +414,13 @@ export class Match implements CombatContent {
    * Aggiunge un combattente e lo fa nascere subito. Con `classIndex` usa le armi e le statistiche
    * della classe; senza, ha tutte le armi (e parte con `weapon` in mano).
    */
-  addCombatant(name: string, options: { bot?: boolean; weapon?: number; classIndex?: number } = {}): Combatant {
-    const id = this.nextId++;
+  addCombatant(
+    name: string,
+    options: { bot?: boolean; weapon?: number; classIndex?: number; driver?: CombatantDriver; team?: number; id?: number } = {},
+  ): Combatant {
+    // Il client in rete usa gli id del server.
+    const id = options.id ?? this.nextId++;
+    if (id >= this.nextId) this.nextId = id + 1;
     const classIndex = this.validClass(options.classIndex ?? -1);
     const weapon =
       classIndex >= 0
@@ -399,6 +431,8 @@ export class Match implements CombatContent {
     const c: Combatant = {
       id,
       name,
+      driver: options.driver ?? 'tick',
+      team: options.team ?? 0,
       player: createPlayerState(),
       weapon: createWeaponState(seed, this, weapon),
       input: createInput(),
@@ -458,7 +492,8 @@ export class Match implements CombatContent {
     return result;
   }
 
-  private applyClass(c: Combatant, classIndex: number): void {
+  /** Applica subito una classe (alla rinascita, o sul client quando il server la conferma). */
+  applyClass(c: Combatant, classIndex: number): void {
     const def = this.classes[classIndex];
     c.classIndex = def ? classIndex : -1;
     c.pendingClass = NO_CLASS_CHANGE;
@@ -512,7 +547,15 @@ export class Match implements CombatContent {
     this.respawn(c);
   }
 
+  /** Un tick completo: inizio, combattenti guidati dal tick, proiettili. */
   tick(dt: number = TICK_DT): void {
+    this.beginTick(dt);
+    this.stepScheduled(dt);
+    this.endTick(dt);
+  }
+
+  /** Inizio del tick: svuota gli eventi, avanza il tempo, rimette le hitbox sulla posizione attuale. */
+  beginTick(dt: number = TICK_DT): void {
     this.events.clear();
     this.time += dt;
     this.tickCount++;
@@ -522,16 +565,33 @@ export class Match implements CombatContent {
       syncAnimPosition(c.anim, c.player);
       poseBody(c.pose, c.anim, this.grips);
     }
+  }
+
+  /** Rinascite e combattenti guidati dal tick (bot e giocatore in allenamento). */
+  stepScheduled(dt: number = TICK_DT): void {
     for (const c of this.combatants) {
+      if (c.driver === 'remote') continue;
       if (!c.alive) {
+        if (!this.authoritative) continue;
         c.respawnTimer -= dt;
         if (c.respawnTimer <= 0) this.respawn(c);
         continue;
       }
+      if (c.driver !== 'tick') continue;
       if (c.bot) updateBot(c, this, dt);
       this.step(c, dt);
     }
-    this.updateProjectiles(dt);
+  }
+
+  /** Fine del tick: proiettili ed esplosioni (solo nella partita autoritativa). */
+  endTick(dt: number = TICK_DT): void {
+    if (this.authoritative) this.updateProjectiles(dt);
+  }
+
+  /** Fa avanzare un combattente guidato dai comandi, con il comando in c.input. */
+  stepCombatant(c: Combatant, dt: number = TICK_DT): void {
+    if (!c.alive || c.driver === 'remote') return;
+    this.step(c, dt);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -551,7 +611,7 @@ export class Match implements CombatContent {
     this.handleGrenade(c, dt);
     updateAnimState(c.anim, p, w, this.weapons[w.current]!, dt);
     poseBody(c.pose, c.anim, this.grips);
-    if (p.y < this.map.killY) {
+    if (this.authoritative && p.y < this.map.killY) {
       // Caduta: il punto va a chi ha colpito per ultimo, se è successo da poco.
       const recent = c.lastAttacker >= 0 && this.time - c.lastDamageTime < 3;
       this.kill(c, recent ? c.lastAttacker : c.id, setDamage('torso', -1, p.x, p.y, p.z, 0, -1, 0, KILLED_BY_FALL, false, false));
@@ -643,9 +703,11 @@ export class Match implements CombatContent {
     const yaw = p.yaw + w.recoilYaw;
     const pitch = clamp(p.pitch + w.recoilPitch, -PLAYER.pitchLimit, PLAYER.pitchLimit);
     const spread = currentSpread(c, def) * DEG_TO_RAD;
+    this.fireHooks?.beforeFire(c);
     if (def.kind === 'hitscan') this.fireHitscan(c, def, yaw, pitch, spread);
     else if (def.kind === 'projectile') this.fireProjectile(c, def, yaw, pitch, spread);
     else this.fireMelee(c, def, yaw, pitch);
+    this.fireHooks?.afterFire(c);
 
     w.bloom = Math.min(def.spread.max, w.bloom + def.spread.perShot);
     const kick = def.recoil.pattern[recoilPatternIndex(def.recoil.pattern.length, w.shotIndex)]!;
@@ -867,6 +929,8 @@ export class Match implements CombatContent {
 
   /** Lancia un proiettile nella direzione in `aim`, partendo poco davanti agli occhi. */
   private launch(c: Combatant, def: ProjectileDef, weapon: number, speed: number, extraUp: number, inherit: number): void {
+    // Sul client in rete razzi e granate arrivano dal server.
+    if (!this.authoritative) return;
     const p = c.player;
     const ex = p.x;
     const ey = p.y + playerEyeHeight(p);
@@ -1070,7 +1134,7 @@ export class Match implements CombatContent {
   // -------------------------------------------------------------------------------------------
 
   private applyDamage(target: Combatant, attackerId: number, amount: number, info: DamageInfo): void {
-    if (!target.alive || amount <= 0 || target.protection > 0) return;
+    if (!this.authoritative || !target.alive || amount <= 0 || target.protection > 0) return;
     const dealt = Math.min(amount, target.health);
     target.health -= amount;
     target.anim.flinch = 1;
@@ -1134,6 +1198,7 @@ export class Match implements CombatContent {
     event.distance = killer ? Math.hypot(killer.player.x - v.x, killer.player.y - v.y, killer.player.z - v.z) : -1;
     event.streak = killer ? killer.streak : 0;
     event.multi = killer ? killer.multiKills : 0;
+    event.victimDeaths = victim.deaths;
   }
 
   private respawn(c: Combatant): void {

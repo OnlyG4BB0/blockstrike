@@ -268,3 +268,45 @@ export const COLLISION = {
   /** Lato delle celle della griglia spaziale usata per trovare i blocchi vicini. */
   gridCellSize: 4,
 } as const;
+
+/** Rete (Fase 6). Tempi in tick di simulazione (60 al secondo). */
+export const NET = {
+  /** Ogni quanti tick il server invia lo stato: 2 = 30 volte al secondo. */
+  snapshotInterval: 2,
+  /** Gli altri giocatori si vedono così indietro nel tempo (6 tick = 100 ms), interpolando. */
+  interpolationDelay: 6,
+  /** Latenza compensata al massimo quando il server riavvolge le hitbox (12 tick = 200 ms). */
+  maxRewind: 12,
+  /** Storia delle pose tenuta dal server per riavvolgere (tick). */
+  historyTicks: 64,
+  /** Comandi elaborati al massimo per tick e in coda per giocatore. */
+  inputsPerTick: 3,
+  maxQueuedInputs: 30,
+  /** Comandi accettati in più rispetto ai tick passati (scatti di rete): oltre, si scartano. */
+  inputBurst: 12,
+  /** Correzione dell'orologio del client verso quello del server, per ogni pacchetto. */
+  clockCorrection: 0.05,
+  /** Oltre questo scarto (tick) l'orologio del client salta direttamente al valore del server. */
+  clockSnap: 12,
+  /** Giocatori per stanza. */
+  maxPlayers: 12,
+  /** Lunghezza massima di nomi e messaggi della chat. */
+  maxName: 16,
+  maxChat: 120,
+  /** Messaggi di chat al massimo ogni questi secondi. */
+  chatInterval: 0.7,
+} as const;
+
+/** Regole delle modalità online: tempo (s), punteggio per vincere, durata della schermata finale. */
+export const MATCH_RULES = {
+  ffa: { timeLimit: 480, scoreLimit: 25 },
+  tdm: { timeLimit: 600, scoreLimit: 50 },
+  ctf: { timeLimit: 600, scoreLimit: 3 },
+  /** Secondi di schermata finale prima della partita successiva. */
+  endScreen: 10,
+  /** Combattenti minimi in una stanza: i bot riempiono i posti vuoti. */
+  fillTo: 6,
+  /** Cattura la bandiera: distanza per prenderla o portarla alla base, ritorno automatico. */
+  flagReach: 1.4,
+  flagReturnTime: 20,
+} as const;

@@ -33,6 +33,21 @@
         <div id="fps"></div>
         <pre id="debug"></pre>
         <div id="hint">Esc · menu &nbsp; Tab · punteggi &nbsp; K · ricomincia</div>
+        <div id="match-bar" hidden></div>
+        <div id="chat">
+          <div id="chat-log" aria-live="polite"></div>
+          <input id="chat-input" type="text" maxlength="120" autocomplete="off" placeholder="Scrivi e premi Invio" hidden />
+        </div>
+        <div id="end-screen" hidden>
+          <div id="end-title"></div>
+          <table>
+            <thead>
+              <tr><th>Giocatore</th><th>Uccisioni</th><th>Morti</th></tr>
+            </thead>
+            <tbody id="end-rows"></tbody>
+          </table>
+          <div id="end-timer"></div>
+        </div>
         <div id="killfeed"></div>
         <div id="protection" hidden>PROTETTO</div>
 
@@ -75,11 +90,40 @@
       <div id="menu">
         <div class="menu-panel">
           <h1 class="title">BLOCK<span>STRIKE</span></h1>
-          <p class="subtitle">Fase 5 · splatter</p>
+          <p class="subtitle">Fase 6 · multiplayer</p>
           <button id="play" class="play" type="button">Gioca</button>
           <p id="lock-error" class="lock-error" hidden>
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
           </p>
+
+          <section id="online" class="online" aria-label="Online">
+            <h2>Online</h2>
+            <div id="online-lobby" class="online-grid">
+              <label class="row"><span>Nome</span><input id="online-name" type="text" maxlength="16" autocomplete="off" /></label>
+              <label class="row select-row">
+                <span>Modalità</span>
+                <select id="online-mode">
+                  <option value="ffa">tutti contro tutti</option>
+                  <option value="tdm">deathmatch a squadre</option>
+                  <option value="ctf">cattura la bandiera</option>
+                </select>
+              </label>
+              <div class="online-buttons">
+                <button id="online-quick" type="button">Partita veloce</button>
+                <button id="online-create" type="button">Crea stanza</button>
+              </div>
+              <div class="online-join">
+                <input id="online-code" type="text" maxlength="5" autocomplete="off" placeholder="CODICE" />
+                <button id="online-join" type="button">Entra</button>
+              </div>
+            </div>
+            <div id="online-room" class="online-room" hidden>
+              <span>Stanza <b id="online-room-code"></b> · <span id="online-room-mode"></span></span>
+              <button id="online-copy" type="button">Copia invito</button>
+              <button id="online-leave" type="button">Esci</button>
+            </div>
+            <p id="online-status" class="online-status"></p>
+          </section>
 
           <section id="loadout" class="loadout" aria-label="Classe e aspetto">
             <div class="loadout-classes">

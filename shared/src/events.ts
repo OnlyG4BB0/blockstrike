@@ -77,6 +77,8 @@ export interface KillEvent {
   streak: number;
   /** Uccisioni ravvicinate nel tempo di chi uccide, compresa questa (doppietta = 2...). */
   multi: number;
+  /** Morti della vittima, compresa questa: con l'id decide lo splatter, uguale su ogni client. */
+  victimDeaths: number;
 }
 
 export interface ExplosionEvent {
@@ -170,6 +172,7 @@ export class EventBuffer {
     victimAirborne: false,
     streak: 0,
     multi: 0,
+    victimDeaths: 0,
   }));
   readonly explosions = new EventPool<ExplosionEvent>(() => ({ owner: 0, weapon: 0, x: 0, y: 0, z: 0, radius: 0 }));
   readonly actions = new EventPool<ActionEvent>(() => ({ combatant: 0, type: 'reload', x: 0, y: 0, z: 0 }));

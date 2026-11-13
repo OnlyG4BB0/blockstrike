@@ -22,6 +22,10 @@ export interface Settings {
   characterSkin: string;
   /** Livello di gore: completo, ridotto (solo sangue), spento. */
   goreLevel: GoreLevel;
+  /** Nome mostrato agli altri giocatori online. */
+  playerName: string;
+  /** Ultima modalità scelta per giocare online. */
+  onlineMode: string;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -43,6 +47,8 @@ const DEFAULTS: Settings = {
   classId: '',
   characterSkin: '',
   goreLevel: 'full',
+  playerName: '',
+  onlineMode: 'ffa',
 };
 
 const STORAGE_KEY = 'blockstrike.settings.v1';
@@ -88,6 +94,8 @@ export function loadSettings(): Settings {
     classId: typeof stored.classId === 'string' ? stored.classId : DEFAULTS.classId,
     characterSkin: typeof stored.characterSkin === 'string' ? stored.characterSkin : DEFAULTS.characterSkin,
     goreLevel: GORE_LEVELS.includes(stored.goreLevel as GoreLevel) ? (stored.goreLevel as GoreLevel) : DEFAULTS.goreLevel,
+    playerName: typeof stored.playerName === 'string' ? stored.playerName.slice(0, 16) : DEFAULTS.playerName,
+    onlineMode: typeof stored.onlineMode === 'string' ? stored.onlineMode : DEFAULTS.onlineMode,
   };
 }
 
