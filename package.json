@@ -21,7 +21,8 @@
     "smoke": "npm run smoke --workspace @blockstrike/server",
     "smoke:net": "npm run smoke:net --workspace @blockstrike/server",
     "build:android": "node scripts/build-android.mjs",
-    "deploy:pages": "node scripts/deploy-pages.mjs"
+    "deploy:pages": "node scripts/deploy-pages.mjs",
+    "publish:repo": "node scripts/publish-repo.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

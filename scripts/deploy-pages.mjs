@@ -27,10 +27,11 @@ run('npm', ['run', 'build', '--workspace', '@blockstrike/client'], {
 // Niente elaborazione Jekyll: i file vanno pubblicati così come sono.
 writeFileSync(join(ROOT, 'client', 'dist', '.nojekyll'), '');
 
-const remote = read('git', ['remote', 'get-url', 'origin']);
 const source = read('git', ['rev-parse', '--short', 'HEAD']);
 const user = JSON.parse(read('gh', ['api', 'user']));
 const email = `${user.id}+${user.login}@users.noreply.github.com`;
+// Il repository pubblico (non è l'origin di questa copia: la storia pubblicata ha l'autore noreply).
+const remote = process.env.BLOCKSTRIKE_PAGES_REPO ?? `https://github.com/${user.login}/blockstrike.git`;
 
 const work = mkdtempSync(join(tmpdir(), 'blockstrike-pages-'));
 try {
@@ -40,7 +41,8 @@ try {
   git('add', '-A');
   git('-c', `user.name=${user.login}`, '-c', `user.email=${email}`, 'commit', '-q', '-m', `Pagina da ${source}`);
   console.log('== pubblicazione sul ramo gh-pages');
-  git('push', '-q', '--force', remote, 'gh-pages');
+  // Credenziali di GitHub CLI (gh auth login), solo per questo comando.
+  git('-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', '-q', '--force', remote, 'gh-pages');
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
