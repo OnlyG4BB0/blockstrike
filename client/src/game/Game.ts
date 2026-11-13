@@ -43,7 +43,7 @@ import {
   type WeaponDef,
 } from '@blockstrike/shared';
 import { AudioSystem } from '../audio/AudioSystem.ts';
-import { AUDIO, CHARACTERS, EFFECTS, GORE, MINIMAP, QUALITY, TEAMS, VIEW, VIEWMODEL, type Quality } from '../config.ts';
+import { AUDIO, CHARACTERS, EFFECTS, GAMEPAD, GORE, MINIMAP, QUALITY, TEAMS, TOUCH, VIEW, VIEWMODEL, type Quality } from '../config.ts';
 import { Input } from '../input/Input.ts';
 import { createBlockTexture } from '../render/blockTexture.ts';
 import { CharacterPreview } from '../render/CharacterPreview.ts';
@@ -58,6 +58,7 @@ import { ModelLibrary } from '../render/weaponModels.ts';
 import { SENSITIVITY_SCALE, loadSettings, saveSettings, type Settings } from '../settings.ts';
 import { Hud, type LabelData, type ScoreRow, type ScreenPoint } from '../ui/Hud.ts';
 import { Menu, applyCrosshair, type OnlineAction } from '../ui/Menu.ts';
+import { promptHtml, promptLabels, weaponSlotLabels, type PromptContext } from '../ui/prompts.ts';
 import { Minimap, type MinimapDot } from '../ui/Minimap.ts';
 import type { NetSession } from '../net/NetSession.ts';
 import { CameraRig } from './CameraRig.ts';
@@ -220,7 +221,7 @@ export class Game {
     this.gore = new Gore(this.match.world);
     this.scene.add(this.gore.object, this.flags.object);
 
-    this.input = new Input(this.renderer.domElement);
+    this.input = new Input(this.renderer.domElement, document.getElementById('app') ?? document.body);
 
     const skinChoices = content.weapons
       .map((def) => ({ weaponId: def.id, weaponName: def.name, skins: this.library.skinsFor(def.id) }))
@@ -245,9 +246,13 @@ export class Game {
     this.menu = new Menu(this.settings, skinChoices, classChoices, characterSkinChoices);
     this.preview = new CharacterPreview(this.menu.previewCanvas, this.match.grips);
     this.applySettings(this.settings);
+    this.menu.setOnline(session !== null);
+    this.applyDevice();
+    this.input.onDeviceChange = () => this.applyDevice();
+    this.input.touch.onChat = () => this.openChat();
     this.menu.onPlay = () => {
       void this.audio.start();
-      void this.input.requestLock();
+      this.input.play();
       // In allenamento la nuova classe vale subito: si rinasce con quella.
       if (!this.session && this.local.pendingClass !== NO_CLASS_CHANGE) {
         this.match.forceRespawn(this.local);
@@ -257,12 +262,15 @@ export class Game {
     };
     this.menu.onChange = (settings) => {
       this.applySettings(settings);
+      this.applyDevice();
       saveSettings(settings);
     };
-    this.input.onLockChange = (locked) => {
-      if (locked) this.menu.hide();
+    this.input.onActiveChange = (active) => {
+      if (active) this.menu.hide();
       else this.menu.show();
-      this.audio.setMusic(!locked);
+      this.audio.setMusic(!active);
+      document.body.classList.toggle('playing', active);
+      this.updateTouchControls();
     };
     // La musica del menu parte al primo clic (i browser non lasciano partire l'audio da soli).
     const wake = () => {
@@ -287,7 +295,8 @@ export class Game {
         this.menu.setOnlineStatus(reason);
         this.closed = true;
       };
-      this.hud.chat('', `Stanza ${session.code}: invita gli amici con questo codice. Invio per scrivere.`, true);
+      const how = this.input.device === 'touch' ? 'tocca 💬 per scrivere' : 'Invio per scrivere';
+      this.hud.chat('', `Stanza ${session.code}: invita gli amici con questo codice. ${how}.`, true);
     }
     window.addEventListener('keydown', this.handleChatKey);
 
@@ -321,20 +330,29 @@ export class Game {
 
   /** Invio apre la chat (online); Invio di nuovo la manda, Esc la chiude. */
   private readonly handleChatKey = (event: KeyboardEvent): void => {
+    if (!this.session || event.key !== 'Enter' || this.input.typing) return;
+    event.preventDefault();
+    this.openChat();
+  };
+
+  /** Campo della chat (online): da Invio o dal tasto 💬 sullo schermo touch. */
+  private openChat(): void {
     const session = this.session;
-    if (!session || event.key !== 'Enter' || this.input.typing) return;
+    if (!session || this.input.typing) return;
     const field = byIdInput('chat-input');
     field.hidden = false;
     field.value = '';
     this.input.typing = true;
-    event.preventDefault();
     field.focus();
+    let done = false;
     const finish = (send: boolean) => {
+      if (done) return;
+      done = true;
       field.removeEventListener('keydown', onKey);
       if (send && field.value.trim()) session.sendChat(field.value.trim());
+      this.input.typing = false;
       field.hidden = true;
       field.blur();
-      this.input.typing = false;
     };
     const onKey = (e: KeyboardEvent) => {
       e.stopPropagation();
@@ -342,7 +360,33 @@ export class Game {
       else if (e.key === 'Escape') finish(false);
     };
     field.addEventListener('keydown', onKey);
-  };
+    // Sul telefono si chiude la tastiera senza Invio: si manda quello che c'è.
+    field.addEventListener('blur', () => finish(true), { once: true });
+  }
+
+  /**
+   * Il dispositivo in uso decide i tasti mostrati: menu (Comandi, «Gioca», schede), suggerimenti
+   * in basso e tasti delle armi.
+   */
+  private applyDevice(): void {
+    const input = this.input;
+    const ctx: PromptContext = { device: input.device, style: input.pad.style, keys: input.keys };
+    this.menu.setDevice(ctx.device, ctx.style, ctx.keys, input.pad.connected);
+    const grenadeKey = ctx.device === 'touch' ? '●' : (promptLabels('grenade', ctx)[0] ?? '');
+    this.hud.setSlotLabels(weaponSlotLabels(this.local.loadout.length, ctx), grenadeKey);
+    const hint = document.getElementById('hint');
+    if (hint) {
+      const parts = [`${promptHtml('menu', ctx)} menu`, `${promptHtml('scoreboard', ctx)} punteggi`];
+      if (!this.session) parts.push(`${promptHtml('respawn', ctx)} ricomincia`);
+      hint.innerHTML = ctx.device === 'touch' ? '' : parts.join(' &nbsp; ');
+    }
+    this.updateTouchControls();
+  }
+
+  /** Comandi sullo schermo: solo giocando con il touch (un controller collegato li nasconde). */
+  private updateTouchControls(): void {
+    this.input.touch.setVisible(this.input.active && this.input.device === 'touch', this.session !== null);
+  }
 
   private buildScene(): void {
     const map = this.match.map;
@@ -396,6 +440,10 @@ export class Game {
     this.audio.setVolume(settings.volume);
     this.audio.setMusicVolume(settings.musicVolume);
     this.input.setBindings(settings.keys);
+    this.input.pad.sensitivity = settings.padSensitivity;
+    this.input.pad.invertY = settings.padInvertY;
+    this.input.pad.vibration = settings.vibration;
+    this.input.touch.sensitivity = settings.touchSensitivity;
     applyCrosshair(document.getElementById('crosshair')!, settings.crosshair);
     this.minimap.visible = settings.minimap;
     this.applyQuality(settings.quality);
@@ -525,8 +573,10 @@ export class Game {
     const dt = this.lastFrame === 0 ? 0 : Math.min((now - this.lastFrame) / 1000, MAX_FRAME_TIME);
     this.lastFrame = now;
 
+    // Controller: letto a ogni fotogramma, anche con il menu aperto (per navigarlo).
+    this.input.update(dt, this.menu.visible ? this.menu : null);
     // Con il menu aperto la partita è in pausa (solo in allenamento: online va avanti a tempo).
-    if (!this.session && (this.input.locked || this.forceRun)) {
+    if (!this.session && (this.input.active || this.forceRun)) {
       this.accumulator += dt;
       let ticks = 0;
       while (this.accumulator >= TICK_DT) {
@@ -549,7 +599,7 @@ export class Game {
       this.onLocalRespawn();
     }
     this.input.sample(local.input);
-    if (this.session && !this.input.locked && !this.forceRun) {
+    if (this.session && !this.input.active && !this.forceRun) {
       // Menu aperto online: si resta fermi (la visuale resta dov'era).
       const input = local.input;
       input.forward = 0;
@@ -673,6 +723,10 @@ export class Game {
       if (hit.target === localId) {
         this.showDamageDirection(hit.attacker);
         this.hud.hurt(hit.damage);
+        if (this.settings.vibration) {
+          this.input.pad.rumble(GAMEPAD.rumbleHitMs, GAMEPAD.rumbleHitWeak, GAMEPAD.rumbleHitStrong);
+          if (this.input.device === 'touch') navigator.vibrate?.(TOUCH.vibrateHitMs);
+        }
         this.rig.addShake(0.25 + hit.damage / 150);
         this.audio.play('hurt', { volume: 0.8 });
       }

@@ -58,6 +58,14 @@ export interface Settings {
   minimap: boolean;
   /** Tasti per ogni azione. */
   keys: KeyBindings;
+  /** Velocità della visuale con la levetta del controller (1 = normale). */
+  padSensitivity: number;
+  /** Levetta destra con l'asse verticale invertito. */
+  padInvertY: boolean;
+  /** Velocità della visuale trascinando sullo schermo touch (1 = normale). */
+  touchSensitivity: number;
+  /** Vibrazione del controller o del telefono quando si viene colpiti. */
+  vibration: boolean;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -87,7 +95,17 @@ const DEFAULTS: Settings = {
   crosshair: { ...DEFAULT_CROSSHAIR },
   minimap: true,
   keys: defaultBindings(),
+  padSensitivity: 1,
+  padInvertY: false,
+  touchSensitivity: 1,
+  vibration: true,
 };
+
+/** Sui telefoni si parte con la qualità bassa (al primo avvio: poi vale la scelta del giocatore). */
+function defaultQuality(): Quality {
+  const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches;
+  return touch ? 'bassa' : DEFAULTS.quality;
+}
 
 function crosshairFrom(value: unknown): CrosshairSettings {
   const raw = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
@@ -159,10 +177,14 @@ export function loadSettings(): Settings {
     onlineMode: typeof stored.onlineMode === 'string' ? stored.onlineMode : DEFAULTS.onlineMode,
     mapId: typeof stored.mapId === 'string' ? stored.mapId : DEFAULTS.mapId,
     musicVolume: numberIn(stored.musicVolume, 0, 1, DEFAULTS.musicVolume),
-    quality: QUALITIES.includes(stored.quality as Quality) ? (stored.quality as Quality) : DEFAULTS.quality,
+    quality: QUALITIES.includes(stored.quality as Quality) ? (stored.quality as Quality) : defaultQuality(),
     crosshair: crosshairFrom(stored.crosshair),
     minimap: booleanOr(stored.minimap, DEFAULTS.minimap),
     keys: keysFrom(stored.keys),
+    padSensitivity: numberIn(stored.padSensitivity, 0.2, 3, DEFAULTS.padSensitivity),
+    padInvertY: booleanOr(stored.padInvertY, DEFAULTS.padInvertY),
+    touchSensitivity: numberIn(stored.touchSensitivity, 0.2, 3, DEFAULTS.touchSensitivity),
+    vibration: booleanOr(stored.vibration, DEFAULTS.vibration),
   };
 }
 

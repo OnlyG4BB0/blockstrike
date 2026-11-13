@@ -284,3 +284,43 @@ export const GORE = {
   /** Uccisioni fatte da più vicino di così sporcano lo schermo. */
   screenSplatterRange: 3.5,
 } as const;
+
+/** Controller (Gamepad API, disposizione standard). */
+export const GAMEPAD = {
+  /** Zona morta delle levette (0..1): sotto, la levetta è ferma. */
+  deadzone: 0.18,
+  /** Oltre questa spinta (dopo la zona morta) la levetta sinistra muove in quella direzione. */
+  moveThreshold: 0.35,
+  /** Rotazione a levetta tutta spinta, a sensibilità 1 (radianti al secondo). */
+  lookSpeed: 3.4,
+  /** Curva della levetta destra: >1 mira fine vicino al centro. */
+  lookCurve: 1.8,
+  /** La mira verticale è più lenta di quella orizzontale. */
+  lookVerticalScale: 0.65,
+  /** Spinta che conta come "uso" del controller (per mostrare i suoi tasti). */
+  activity: 0.55,
+  /** Grilletti: premuti oltre questo valore. */
+  trigger: 0.3,
+  /** Navigazione nel menu: prima ripetizione e ripetizioni successive (secondi). */
+  navDelay: 0.35,
+  navRepeat: 0.12,
+  navThreshold: 0.6,
+  /** Vibrazione quando si viene colpiti (ms e intensità 0..1). */
+  rumbleHitMs: 140,
+  rumbleHitWeak: 0.35,
+  rumbleHitStrong: 0.8,
+};
+
+/** Comandi touch sullo schermo. */
+export const TOUCH = {
+  /** Raggio della levetta virtuale (px CSS). */
+  joystickRadius: 58,
+  /** Oltre questa frazione del raggio la levetta muove in quella direzione. */
+  moveThreshold: 0.32,
+  /** Radianti per pixel trascinato, a sensibilità 1. */
+  lookRadiansPerPixel: 0.0042,
+  /** Vibrazione del telefono quando si viene colpiti (ms). */
+  vibrateHitMs: 35,
+  /** Tenere premuto il tasto delle armi così a lungo torna all'arma di prima (secondi). */
+  longPress: 0.4,
+};

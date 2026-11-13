@@ -1276,3 +1276,533 @@ body {
   font-size: 14px;
   line-height: 1.45;
 }
+
+/* =============================================================================================
+   Fase 10: menu adattabile (intestazione fissa, contenuto che scorre), tasti del dispositivo in
+   uso, selezione con il controller, comandi touch e HUD per i telefoni.
+   ============================================================================================= */
+
+#menu {
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(255, 178, 56, 0.12), rgba(0, 0, 0, 0) 55%),
+    radial-gradient(ellipse at center, rgba(10, 14, 24, 0.45), rgba(10, 14, 24, 0.82));
+  backdrop-filter: blur(2px);
+}
+
+.menu-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, 100%);
+  max-height: calc(100dvh - 24px);
+  padding: 22px 26px 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(26, 32, 46, 0.94), rgba(14, 18, 28, 0.92));
+}
+
+.menu-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 28px;
+}
+
+.menu-head .subtitle {
+  margin: 6px 0 0;
+}
+
+.play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: background 0.15s, transform 0.08s;
+}
+
+.play kbd.prompt {
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.menu-panel .tabs {
+  flex: none;
+  gap: 6px;
+  margin-top: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: center;
+}
+
+.menu-panel .tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 10px 14px;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.menu-panel .tabs button:hover {
+  color: var(--ui-text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.menu-panel .tabs button.active {
+  background: rgba(255, 178, 56, 0.1);
+}
+
+.tab-icon {
+  color: var(--accent);
+  font-size: 1.05em;
+}
+
+.tab-prompt {
+  flex: none;
+  font-size: 11px;
+}
+
+.menu-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 4px 22px;
+  margin: 0 -4px;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.menu-body > .online,
+.menu-body > .loadout {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.menu-body > .columns {
+  margin-top: 14px;
+}
+
+/* Tasti dei dispositivi. */
+kbd.prompt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75em;
+  height: 1.75em;
+  padding: 0 0.5em;
+  border-radius: 5px;
+  font: 800 0.82em var(--font);
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+kbd.prompt.key {
+  background: #f4f1ea;
+  color: #151821;
+  box-shadow: 0 2px 0 #8d887d;
+}
+
+kbd.prompt.pad {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #262d3d;
+  color: #fff;
+}
+
+kbd.prompt.xb-a {
+  background: #3a9b3a;
+}
+kbd.prompt.xb-b {
+  background: #c9403a;
+}
+kbd.prompt.xb-x {
+  background: #3a72c9;
+}
+kbd.prompt.xb-y {
+  background: #d9a91c;
+  color: #1a1a1a;
+}
+kbd.prompt.ps-cross {
+  color: #8fb0ff;
+  font-size: 1em;
+}
+kbd.prompt.ps-circle {
+  color: #ff7a7a;
+  font-size: 1em;
+}
+kbd.prompt.ps-square {
+  color: #f09ae0;
+  font-size: 1em;
+}
+kbd.prompt.ps-triangle {
+  color: #5ad8bc;
+  font-size: 1em;
+}
+
+kbd.prompt.touch {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ui-text);
+  font-weight: 700;
+}
+
+.controls dt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  color: var(--ui-text);
+}
+
+.controls dd {
+  align-self: center;
+}
+
+.device-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.device-tabs button {
+  padding: 6px 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ui-dim);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.device-tabs button.active {
+  border-color: transparent;
+  background: var(--accent);
+  color: #1b1408;
+}
+
+.setting-note {
+  margin: 0 0 10px;
+  color: var(--ui-dim);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#hint kbd.prompt {
+  font-size: 11px;
+}
+
+/* Selezione con il controller. */
+.pad-focus {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 7px rgba(255, 178, 56, 0.22) !important;
+}
+
+/* Comandi touch. */
+#touch {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.touch-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.touch-move {
+  left: 0;
+  width: 45%;
+}
+
+.touch-look {
+  right: 0;
+  width: 55%;
+}
+
+.touch-stick {
+  position: absolute;
+  width: 116px;
+  height: 116px;
+  margin: -58px 0 0 -58px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+.touch-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  transform: translate(-50%, -50%);
+}
+
+.tbtn {
+  --r: env(safe-area-inset-right, 0px);
+  --b: env(safe-area-inset-bottom, 0px);
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-radius: 50%;
+  background: rgba(16, 20, 30, 0.42);
+  color: #fff;
+  font: 700 22px var(--font);
+  text-shadow: var(--shadow);
+  transition: transform 0.06s, background 0.1s;
+}
+
+.tbtn.down {
+  background: rgba(255, 178, 56, 0.55);
+  transform: scale(0.93);
+}
+
+.tbtn.on {
+  border-color: var(--accent);
+  background: rgba(255, 178, 56, 0.32);
+}
+
+.tbtn-fire {
+  right: calc(22px + var(--r));
+  bottom: calc(66px + var(--b));
+  width: 88px;
+  height: 88px;
+  font-size: 34px;
+  background: rgba(220, 60, 50, 0.42);
+}
+
+.tbtn-jump {
+  right: calc(122px + var(--r));
+  bottom: calc(18px + var(--b));
+  width: 66px;
+  height: 66px;
+}
+
+.tbtn-aim {
+  right: calc(126px + var(--r));
+  bottom: calc(98px + var(--b));
+}
+
+.tbtn-crouch {
+  right: calc(200px + var(--r));
+  bottom: calc(18px + var(--b));
+}
+
+.tbtn-grenade {
+  right: calc(196px + var(--r));
+  bottom: calc(88px + var(--b));
+  width: 50px;
+  height: 50px;
+  font-size: 18px;
+}
+
+.tbtn-reload {
+  right: calc(34px + var(--r));
+  bottom: calc(166px + var(--b));
+  width: 52px;
+  height: 52px;
+}
+
+.tbtn-weapon {
+  right: calc(98px + var(--r));
+  bottom: calc(166px + var(--b));
+  width: 52px;
+  height: 52px;
+}
+
+.tbtn-pause,
+.tbtn-score,
+.tbtn-chat,
+.tbtn-respawn {
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.tbtn-pause {
+  right: calc(12px + var(--r));
+}
+
+.tbtn-score {
+  right: calc(62px + var(--r));
+}
+
+.tbtn-chat,
+.tbtn-respawn {
+  right: calc(112px + var(--r));
+}
+
+/* HUD con i comandi touch: niente sotto i tasti. */
+body[data-device='touch'].playing #weapon-panel {
+  right: auto;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+body[data-device='touch'].playing #speedometer,
+body[data-device='touch'] #hint {
+  display: none;
+}
+
+body[data-device='touch'].playing #killfeed {
+  top: 60px;
+}
+
+body[data-device='touch'].playing #chat {
+  bottom: 96px;
+}
+
+/* Telefono in verticale: si gioca in orizzontale. */
+#rotate {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #0d1017;
+  color: var(--ui-text);
+  font-weight: 800;
+  text-align: center;
+}
+
+#rotate span {
+  font-size: 54px;
+  color: var(--accent);
+}
+
+@media (orientation: portrait) {
+  body[data-device='touch'].playing #rotate {
+    display: flex;
+  }
+}
+
+/* Schermi stretti. */
+@media (max-width: 860px) {
+  .menu-head {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Schermi bassi (telefoni in orizzontale): tutto più compatto, il contenuto scorre. */
+@media (max-height: 540px) {
+  #menu {
+    padding: 6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
+  }
+
+  .menu-panel {
+    max-height: calc(100dvh - 12px);
+    padding: 10px 14px 0;
+    border-radius: 10px;
+  }
+
+  .menu-head {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px 16px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .menu-head .subtitle {
+    display: none;
+  }
+
+  .play {
+    padding: 8px 12px;
+    font-size: 17px;
+  }
+
+  .play-row {
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+
+  .map-choice > span,
+  .editor-link {
+    display: none;
+  }
+
+  .menu-panel .tabs {
+    margin-top: 8px;
+  }
+
+  .menu-panel .tabs button {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .menu-body {
+    padding-top: 8px;
+  }
+
+  .loadout-preview {
+    height: 220px;
+  }
+
+  .menu-body > .loadout,
+  .menu-body > .online {
+    padding-top: 2px;
+  }
+
+  .menu-body h2 {
+    margin: 2px 0 8px;
+    font-size: 15px;
+  }
+
+  #health,
+  #weapon-panel,
+  #speedometer,
+  #death {
+    zoom: 0.72;
+  }
+
+  #app #minimap {
+    top: 30px;
+    width: 104px;
+    height: 104px;
+  }
+
+  #killfeed,
+  #chat {
+    zoom: 0.85;
+  }
+}
+
+/* Sul touch non ci sono il mouse e il passaggio sopra: pulsanti del menu più grandi. */
+@media (pointer: coarse) {
+  .menu-panel button,
+  .menu-panel select,
+  .menu-panel input[type='text'] {
+    min-height: 40px;
+  }
+
+  .row input[type='range'] {
+    height: 28px;
+  }
+}

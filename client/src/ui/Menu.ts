@@ -2,10 +2,23 @@ import type { BotMode, GoreLevel } from '@blockstrike/shared';
 import { KEY_ACTIONS, KEY_ACTION_NAMES, defaultBindings, keyName, type KeyAction } from '../input/Input.ts';
 import { DEFAULT_CROSSHAIR, type CrosshairSettings, type Settings } from '../settings.ts';
 import type { Quality } from '../config.ts';
+import { nearestInDirection, padLabel, type DeviceKind, type NavDirection, type PadStyle } from '../input/devices.ts';
+import type { PadMenuHandler } from '../input/Gamepad.ts';
 import { byId } from './dom.ts';
+import { PROMPT_ACTIONS, promptHtml, type PromptContext } from './prompts.ts';
 
-type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount' | 'musicVolume';
-type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers' | 'minimap';
+type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount' | 'musicVolume' | 'padSensitivity' | 'touchSensitivity';
+type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers' | 'minimap' | 'padInvertY' | 'vibration';
+
+const PAD_STYLE_NAMES: Record<PadStyle, string> = {
+  xbox: 'Xbox',
+  playstation: 'PlayStation',
+  nintendo: 'Nintendo',
+  generic: 'generico',
+};
+
+/** Elementi che il controller può selezionare nel menu. */
+const FOCUSABLE = 'button, a[href], input, select';
 
 /** Applica le impostazioni del mirino a un elemento (quello del gioco o l'anteprima). */
 export function applyCrosshair(element: HTMLElement, c: Readonly<CrosshairSettings>): void {
@@ -54,7 +67,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
 /** Menu di pausa: avvio della partita, classe e aspetto con anteprima, impostazioni e skin delle armi. */
 export type OnlineAction = 'quick' | 'create' | 'code';
 
-export class Menu {
+export class Menu implements PadMenuHandler {
   onPlay: () => void = () => {};
   onChange: (settings: Settings) => void = () => {};
   /** Richiesta di giocare online (partita veloce, nuova stanza, stanza con codice). */
@@ -71,6 +84,11 @@ export class Menu {
   private readonly settings: Settings;
   private readonly classButtons = new Map<string, HTMLButtonElement>();
   private readonly skinButtons = new Map<string, HTMLButtonElement>();
+  /** Dispositivo di cui si mostrano i comandi (segue quello in uso, si può cambiare a mano). */
+  private shownDevice: DeviceKind = 'keyboard';
+  private prompt: PromptContext = { device: 'keyboard', style: 'generic', keys: defaultBindings() };
+  private padConnected = false;
+  private online = false;
 
   constructor(
     settings: Settings,
@@ -92,6 +110,18 @@ export class Menu {
     this.bindRange('set-bot-count', 'out-bot-count', 'botCount', (v) => String(Math.round(v)));
     this.bindRange('set-music', 'out-music', 'musicVolume', (v) => `${Math.round(v * 100)}%`, 100);
     this.bindCheck('set-minimap', 'minimap');
+    this.bindRange('set-pad-sensitivity', 'out-pad-sensitivity', 'padSensitivity', (v) => `${v.toFixed(1)}×`);
+    this.bindRange('set-touch-sensitivity', 'out-touch-sensitivity', 'touchSensitivity', (v) => `${v.toFixed(1)}×`);
+    this.bindCheck('set-pad-invert', 'padInvertY');
+    this.bindCheck('set-vibration', 'vibration');
+    for (const button of document.querySelectorAll<HTMLButtonElement>('.device-tabs button')) {
+      button.addEventListener('click', () => {
+        this.shownDevice = (button.dataset.device as DeviceKind | undefined) ?? 'keyboard';
+        this.renderControls();
+      });
+    }
+    // Con il mouse o il dito la selezione del controller sparisce.
+    this.root.addEventListener('pointerdown', () => this.clearPadFocus());
     const quality = byId<HTMLSelectElement>('set-quality');
     quality.value = this.settings.quality;
     quality.addEventListener('change', () => {
@@ -169,6 +199,152 @@ export class Menu {
 
   setOnlineStatus(text: string): void {
     byId('online-status').textContent = text;
+  }
+
+  /**
+   * Dispositivo in uso: i comandi mostrati, il tasto accanto a «Gioca» e quelli per cambiare
+   * scheda seguono tastiera, touch o il modello di controller collegato.
+   */
+  setDevice(device: DeviceKind, style: PadStyle, keys: PromptContext['keys'], padConnected: boolean): void {
+    this.prompt = { device, style, keys };
+    this.padConnected = padConnected;
+    this.shownDevice = device;
+    document.body.dataset.device = device;
+    const pad = device === 'gamepad';
+    const playPrompt = byId('play-prompt');
+    playPrompt.hidden = !pad;
+    playPrompt.textContent = padLabel('start', style);
+    for (const [id, button] of [['tab-prev', 'lb'], ['tab-next', 'rb']] as const) {
+      const tab = byId(id);
+      tab.hidden = !pad;
+      tab.textContent = padLabel(button, style);
+    }
+    if (!pad) this.clearPadFocus();
+    byId('pad-status').textContent = padConnected
+      ? `Controller collegato (${PAD_STYLE_NAMES[style]}): i tasti mostrati cambiano da soli quando lo usi.`
+      : 'Nessun controller: collegane uno (USB o Bluetooth) e premi un tasto.';
+    this.renderControls();
+  }
+
+  /** Online la scheda Comandi mostra la chat e non «ricomincia». */
+  setOnline(online: boolean): void {
+    this.online = online;
+    this.renderControls();
+  }
+
+  private renderControls(): void {
+    const device = this.shownDevice;
+    for (const button of document.querySelectorAll<HTMLButtonElement>('.device-tabs button')) {
+      button.classList.toggle('active', button.dataset.device === device);
+    }
+    const ctx: PromptContext = { ...this.prompt, device };
+    const rows: string[] = [];
+    for (const item of PROMPT_ACTIONS) {
+      if (item.onlineOnly && !this.online) continue;
+      if (item.trainingOnly && this.online) continue;
+      if (device === 'gamepad' && item.action === 'chat') continue;
+      rows.push(`<dt>${promptHtml(item.action, ctx)}</dt><dd>${item.text}</dd>`);
+    }
+    byId('controls-list').innerHTML = rows.join('');
+    const status = byId('device-status');
+    if (device === 'gamepad') {
+      status.textContent = this.padConnected
+        ? `Nel menu: croce o levetta per spostarti, ${padLabel('a', ctx.style)} per scegliere, ${padLabel('lb', ctx.style)} e ${padLabel('rb', ctx.style)} per cambiare scheda, ${padLabel('start', ctx.style)} per giocare. La chat si usa da tastiera o telefono.`
+        : 'Collega un controller e premi un tasto: i comandi qui sotto si adattano al modello.';
+    } else if (device === 'touch') {
+      status.textContent = 'Comandi sullo schermo: tieni il telefono in orizzontale. Online la chat si apre con 💬.';
+    } else {
+      status.textContent = 'I tasti si cambiano in Impostazioni → Tasti.';
+    }
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Controller nel menu
+  // -------------------------------------------------------------------------------------------
+
+  navigate(direction: NavDirection): void {
+    const current = this.focused();
+    const sideways = direction === 'left' || direction === 'right';
+    if (current instanceof HTMLInputElement && current.type === 'range' && sideways) {
+      if (direction === 'left') current.stepDown();
+      else current.stepUp();
+      current.dispatchEvent(new Event('input', { bubbles: true }));
+      current.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
+    if (current instanceof HTMLSelectElement && sideways && !current.disabled) {
+      const count = current.options.length;
+      current.selectedIndex = (current.selectedIndex + (direction === 'right' ? 1 : count - 1)) % count;
+      current.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
+    const items = this.focusables();
+    if (items.length === 0) return;
+    if (!current) {
+      this.setPadFocus(items.find((e) => e.id === 'play') ?? items[0]!);
+      return;
+    }
+    const rect = (e: Element) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    };
+    const others = items.filter((e) => e !== current);
+    const next = nearestInDirection(rect(current), others.map(rect), direction);
+    if (next >= 0) this.setPadFocus(others[next]!);
+  }
+
+  activate(): void {
+    const current = this.focused();
+    if (!current) {
+      this.navigate('down');
+      return;
+    }
+    if (current instanceof HTMLInputElement && current.type === 'text') {
+      current.focus();
+      return;
+    }
+    current.click();
+  }
+
+  back(): void {
+    this.onPlay();
+  }
+
+  start(): void {
+    this.onPlay();
+  }
+
+  switchTab(delta: number): void {
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>('.tabs button')];
+    if (buttons.length === 0) return;
+    const index = buttons.findIndex((b) => b.classList.contains('active'));
+    const next = buttons[(index + delta + buttons.length) % buttons.length]!;
+    next.click();
+    this.setPadFocus(next);
+  }
+
+  private focused(): HTMLElement | null {
+    const active = document.activeElement;
+    return active instanceof HTMLElement && this.root.contains(active) && active.classList.contains('pad-focus') ? active : null;
+  }
+
+  private focusables(): HTMLElement[] {
+    return [...this.root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((e) => {
+      if ((e as HTMLButtonElement).disabled) return false;
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && e.closest('[hidden]') === null;
+    });
+  }
+
+  private setPadFocus(element: HTMLElement): void {
+    this.clearPadFocus();
+    element.classList.add('pad-focus');
+    element.focus({ preventScroll: true });
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  private clearPadFocus(): void {
+    for (const e of this.root.querySelectorAll('.pad-focus')) e.classList.remove('pad-focus');
   }
 
   /** In una stanza: codice e modalità al posto dei pulsanti per entrare. */

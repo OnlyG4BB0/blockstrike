@@ -125,17 +125,28 @@ export class Hud {
     }
   }
 
-  /** Armi dei tasti 1, 2, 3... (indici nell'elenco delle armi); le altre si raggiungono con la rotella. */
+  /** Tasti delle armi da mostrare (1, 2, 3 sulla tastiera, la croce sul controller, niente sul touch). */
+  setSlotLabels(labels: readonly string[], grenadeKey: string): void {
+    this.slotLabels = labels;
+    this.grenadeKey = grenadeKey;
+    this.shown.delete('loadout');
+  }
+
+  private slotLabels: readonly string[] = ['1', '2', '3'];
+  private grenadeKey = 'G';
+
+  /** Armi della classe (indici nell'elenco delle armi), con il tasto per sceglierle. */
   setLoadout(loadout: readonly number[]): void {
     const key = loadout.join(',');
     if (this.shown.get('loadout') === key) return;
     this.shown.set('loadout', key);
     this.shown.delete('slot');
     this.slots.innerHTML = loadout
-      .map(
-        (index, i) =>
-          `<span class="slot" data-slot="${index}"><b>${i < 9 ? i + 1 : '·'}</b>${escapeHtml(this.weapons[index]!.shortName)}</span>`,
-      )
+      .map((index, i) => {
+        const label = this.slotLabels[i] ?? '';
+        const prompt = label ? `<b>${escapeHtml(label)}</b>` : '';
+        return `<span class="slot" data-slot="${index}">${prompt}${escapeHtml(this.weapons[index]!.shortName)}</span>`;
+      })
       .join('');
   }
 
@@ -223,7 +234,9 @@ export class Hud {
         (element as HTMLElement).classList.toggle('active', (element as HTMLElement).dataset.slot === value);
       }
     });
-    this.set('grenades', String(grenades), (text) => (this.grenades.textContent = `G · ${this.grenadeName} ×${text}`));
+    this.set('grenades', `${grenades}|${this.grenadeKey}`, () => {
+      this.grenades.textContent = `${this.grenadeKey ? `${this.grenadeKey} · ` : ''}${this.grenadeName} ×${grenades}`;
+    });
   }
 
   /**
