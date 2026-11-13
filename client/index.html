@@ -136,36 +136,74 @@
           <div class="menu-body">
 
           <section id="online" class="online tab-panel" data-panel="gioca" aria-label="Online">
-            <h2>Online</h2>
-            <div id="online-lobby" class="online-grid">
-              <label class="row"><span>Nome</span><input id="online-name" type="text" maxlength="16" autocomplete="off" /></label>
-              <label class="row select-row">
-                <span>Modalità</span>
-                <select id="online-mode">
-                  <option value="ffa">tutti contro tutti</option>
-                  <option value="tdm">deathmatch a squadre</option>
-                  <option value="ctf">cattura la bandiera</option>
-                </select>
+            <div class="online-head">
+              <h2>Online</h2>
+              <span id="online-server-state" class="server-pill" data-state="checking">Controllo il server…</span>
+            </div>
+            <div id="online-lobby" class="online-lobby">
+              <label class="online-name">
+                <span>Il tuo nome</span>
+                <input id="online-name" type="text" maxlength="16" autocomplete="off" placeholder="Giocatore" />
               </label>
-              <div class="online-buttons">
-                <button id="online-quick" type="button">Partita veloce</button>
-                <button id="online-create" type="button">Crea stanza</button>
+
+              <div class="mode-cards" role="radiogroup" aria-label="Modalità">
+                <button type="button" role="radio" class="mode-card" data-mode="ffa">
+                  <span class="mode-icon" aria-hidden="true">✦</span>
+                  <b>Tutti contro tutti</b>
+                  <small>Ognuno per sé: vince chi fa più punti.</small>
+                </button>
+                <button type="button" role="radio" class="mode-card" data-mode="tdm">
+                  <span class="mode-icon" aria-hidden="true">⚔</span>
+                  <b>A squadre</b>
+                  <small>Due squadre: conta il punteggio di squadra.</small>
+                </button>
+                <button type="button" role="radio" class="mode-card" data-mode="ctf">
+                  <span class="mode-icon" aria-hidden="true">⚑</span>
+                  <b>Cattura la bandiera</b>
+                  <small>Prendi la bandiera nemica e portala alla base.</small>
+                </button>
               </div>
-              <label id="online-server-row" class="row select-row online-server" hidden>
-                <span>Server</span>
-                <input id="online-server" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="gioco.example.com" />
-              </label>
-              <div class="online-join">
-                <input id="online-code" type="text" maxlength="5" autocomplete="off" placeholder="CODICE" />
-                <button id="online-join" type="button">Entra</button>
+
+              <div class="online-actions">
+                <div class="online-card quick-card">
+                  <h3>Partita veloce</h3>
+                  <p>Entri subito in una partita pubblica. Se mancano giocatori, ci sono i bot.</p>
+                  <button id="online-quick" class="online-primary" type="button">Gioca online</button>
+                </div>
+                <div class="online-card friends-card">
+                  <h3>Con gli amici</h3>
+                  <p>Crea una stanza privata e manda il codice, o entra con quello di un amico.</p>
+                  <div class="friends-row">
+                    <button id="online-create" type="button">Crea stanza</button>
+                    <span class="or">oppure</span>
+                    <div class="online-join">
+                      <input id="online-code" type="text" maxlength="5" autocomplete="off" placeholder="CODICE" aria-label="Codice della stanza" />
+                      <button id="online-join" type="button">Entra</button>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              <details id="online-server-row" class="online-server" hidden>
+                <summary>Server personalizzato</summary>
+                <label>
+                  <span>Indirizzo</span>
+                  <input id="online-server" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="vuoto = server ufficiale" />
+                </label>
+              </details>
             </div>
             <div id="online-room" class="online-room" hidden>
-              <span>Stanza <b id="online-room-code"></b> · <span id="online-room-mode"></span></span>
-              <button id="online-copy" type="button">Copia invito</button>
-              <button id="online-leave" type="button">Esci</button>
+              <div class="room-info">
+                <span class="room-label">Sei nella stanza</span>
+                <b id="online-room-code" class="room-code"></b>
+                <span id="online-room-mode" class="room-mode"></span>
+              </div>
+              <div class="room-buttons">
+                <button id="online-copy" class="online-primary" type="button">Copia invito</button>
+                <button id="online-leave" type="button">Esci dalla stanza</button>
+              </div>
             </div>
-            <p id="online-status" class="online-status"></p>
+            <p id="online-status" class="online-status" role="status"></p>
 
             <div id="install-card" class="install-card">
               <img src="./icons/icon-192.png" alt="" width="56" height="56" />

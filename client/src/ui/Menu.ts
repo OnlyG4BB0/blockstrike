@@ -6,6 +6,7 @@ import { nearestInDirection, padLabel, type DeviceKind, type NavDirection, type 
 import type { PadMenuHandler } from '../input/Gamepad.ts';
 import type { TouchLayout } from '../input/touchLayout.ts';
 import { normalizeServerAddress } from '../net/address.ts';
+import { serverUrl } from '../net/NetSession.ts';
 import { SEPARATE_SERVER } from '../target.ts';
 import { byId } from './dom.ts';
 import { PROMPT_ACTIONS, promptHtml, type PromptContext } from './prompts.ts';
@@ -187,10 +188,24 @@ export class Menu implements PadMenuHandler {
 
   private bindOnline(): void {
     const name = byId<HTMLInputElement>('online-name');
-    const mode = byId<HTMLSelectElement>('online-mode');
     const code = byId<HTMLInputElement>('online-code');
     name.value = this.settings.playerName;
-    mode.value = this.settings.onlineMode;
+    // Modalità: tre riquadri (radio), il valore resta in settings.onlineMode.
+    const modeCards = [...document.querySelectorAll<HTMLButtonElement>('.mode-card')];
+    const mode = { value: modeCards.some((c) => c.dataset.mode === this.settings.onlineMode) ? this.settings.onlineMode : 'ffa' };
+    const showMode = () => {
+      for (const card of modeCards) card.setAttribute('aria-checked', String(card.dataset.mode === mode.value));
+    };
+    showMode();
+    for (const card of modeCards) {
+      card.addEventListener('click', () => {
+        mode.value = card.dataset.mode!;
+        this.settings.onlineMode = mode.value;
+        showMode();
+        this.emit();
+      });
+    }
+    void this.checkServer();
     // App Android e sito statico: la pagina non è il server, lo si sceglie qui (se la build non lo dice).
     const server = byId<HTMLInputElement>('online-server');
     byId('online-server-row').hidden = !SEPARATE_SERVER;
@@ -205,16 +220,16 @@ export class Menu implements PadMenuHandler {
       this.settings.serverAddress = address;
       this.setOnlineStatus(address ? `Server: ${address}` : 'Server predefinito.');
       this.emit();
+      void this.checkServer();
     });
     name.addEventListener('change', () => {
       this.settings.playerName = name.value.trim().slice(0, 16);
       this.emit();
     });
-    mode.addEventListener('change', () => {
-      this.settings.onlineMode = mode.value;
-      this.emit();
+    code.addEventListener('input', () => {
+      code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      byId('online-join').classList.toggle('ready', code.value.length === 5);
     });
-    code.addEventListener('input', () => (code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, '')));
     byId('online-quick').addEventListener('click', () => this.onOnline('quick', mode.value, ''));
     byId('online-create').addEventListener('click', () => this.onOnline('create', mode.value, ''));
     const join = () => {
@@ -244,6 +259,28 @@ export class Menu implements PadMenuHandler {
 
   setOnlineStatus(text: string): void {
     byId('online-status').textContent = text;
+  }
+
+  /** Spia del server: raggiungibile o no (senza leggere la risposta, quindi senza CORS). */
+  private async checkServer(): Promise<void> {
+    const pill = byId('online-server-state');
+    const url = serverUrl(this.settings.serverAddress);
+    const set = (state: string, text: string) => {
+      pill.dataset.state = state;
+      pill.textContent = text;
+    };
+    if (!url) {
+      set('off', 'Nessun server');
+      return;
+    }
+    set('checking', 'Controllo il server…');
+    const http = url.replace(/^ws/, 'http');
+    try {
+      await fetch(http, { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(6000) });
+      set('on', 'Server online');
+    } catch {
+      set('off', 'Server non raggiungibile');
+    }
   }
 
   /**

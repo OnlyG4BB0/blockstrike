@@ -1,6 +1,16 @@
 {
   "patches": [
     {
+      "version": "0.2.2",
+      "date": "2026-11-14",
+      "title": "Nuovo menu Online",
+      "notes": [
+        "Menu Online rifatto: le modalità si scelgono con tre riquadri, «Gioca online» è in evidenza e «Con gli amici» raccoglie stanza privata e codice.",
+        "Spia del server in alto: verde se il server è raggiungibile.",
+        "Codice della stanza grande e pulsante «Copia invito» in evidenza; sul telefono in orizzontale tutto sta in una schermata."
+      ]
+    },
+    {
       "version": "0.2.1",
       "date": "2026-11-13",
       "title": "Online pronto",
