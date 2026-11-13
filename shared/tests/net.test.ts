@@ -86,8 +86,9 @@ function world(oneWay: number, lagCompensation = true) {
   const add = (id: string, script: Script, flood = 0): Session => {
     const client = new ClientCore(map, content);
     client.now = () => net.time;
-    const c = server.join(id, { name: id, classIndex: -1, skin: '' });
-    client.welcome(c.id, server.tick, id, -1);
+    // Classe 0 (Assaltatore): fucile d'assalto, pistola, coltello.
+    const c = server.join(id, { name: id, classIndex: 0, skin: '' });
+    client.welcome(c.id, server.tick, id, c.classIndex);
     client.setRoster(server.roster());
     const session = { id, client, script, input: createInput(), flood, floodWriter: new ByteWriter(), floodSeq: 0 };
     sessions.push(session);
@@ -286,11 +287,50 @@ describe('controlli del server', () => {
     expect(cheater.server.stats.droppedInputs).toBeGreaterThan(SECOND * 3);
   });
 
+  it('restare in silenzio non fa accumulare comandi da spendere dopo', () => {
+    // Due secondi senza comandi, poi tre comandi per tick (il client simula tre volte per tick).
+    const banker = world(30);
+    const session = banker.add('a', (_tick, _c, input) => {
+      input.forward = 1;
+    });
+    const original = session.client.tick.bind(session.client);
+    let ticks = 0;
+    session.client.tick = (input) => {
+      ticks++;
+      if (ticks <= SECOND * 2) return new Uint8Array(0);
+      const parts = [original({ ...input }), original({ ...input }), original({ ...input })];
+      const all = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+      let offset = 0;
+      for (const p of parts) {
+        all.set(p, offset);
+        offset += p.length;
+      }
+      return all;
+    };
+    banker.run(SECOND * 4);
+    const p = banker.server.combatantOf('a')!.player;
+    const distance = Math.hypot(p.x, p.z);
+    // Si muove, ma al più per i due secondi attivi più il margine: non per il tempo "risparmiato".
+    expect(distance).toBeGreaterThan(MOVE.runSpeed);
+    expect(distance).toBeLessThan(MOVE.runSpeed * (2 + (NET.inputBurst + 6) / SECOND));
+  });
+
+  it('online si gioca sempre con una classe: una classe sconosciuta vale la prima e non si cambia in nessuna', () => {
+    const server = new ServerCore(testMap(), gameContent(), { fillTo: 0 });
+    const c = server.join('x', { name: 'x', classIndex: -1, skin: '' });
+    expect(c.classIndex).toBe(0);
+    expect(c.loadout).toHaveLength(3);
+    server.setClass('x', 99);
+    server.setClass('x', -1);
+    expect(c.pendingClass).toBeLessThan(-1);
+  });
+
   it('premere il grilletto a raffica non supera la cadenza dell\'arma', () => {
     const { server, add, run } = world(30);
     add('a', (tick, _c, input) => {
       input.fire = tick % 2 === 0;
-      input.weaponSlot = tick === 0 ? weaponIndex('pistol') + 1 : 0;
+      // Tasto 2: la pistola dell'Assaltatore.
+      input.weaponSlot = tick === 0 ? 2 : 0;
     });
     let shots = 0;
     const shooter = server.combatantOf('a')!.id;

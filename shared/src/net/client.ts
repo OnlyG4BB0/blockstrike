@@ -172,8 +172,16 @@ export class ClientCore {
     this.info.scoreA = info.scoreA;
     this.info.scoreB = info.scoreB;
     this.info.winner = info.winner;
+    for (let i = 0; i < info.flags.length; i++) {
+      const from = info.flags[i]!;
+      const to = (this.info.flags[i] ??= { state: 0, carrier: -1, x: 0, y: 0, z: 0 });
+      to.state = from.state;
+      to.carrier = from.carrier;
+      to.x = from.x;
+      to.y = from.y;
+      to.z = from.z;
+    }
     this.info.flags.length = info.flags.length;
-    for (let i = 0; i < info.flags.length; i++) this.info.flags[i] = { ...info.flags[i]! };
 
     if (snap.hasLocal && this.local) this.reconcile(snap.ackSeq);
     // Ping: dal comando inviato alla sua conferma (comprende l'attesa in coda sul server).

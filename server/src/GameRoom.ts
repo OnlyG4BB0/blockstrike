@@ -113,7 +113,7 @@ export class GameRoom extends Room {
     const c = this.core.join(client.sessionId, {
       name: typeof options.name === 'string' ? options.name : '',
       classIndex: this.classIndexOf(options.classId),
-      skin: typeof options.skin === 'string' ? options.skin : '',
+      skin: this.skinOf(options.skin),
     });
     client.send(MSG_WELCOME, {
       id: c.id,
@@ -131,8 +131,14 @@ export class GameRoom extends Room {
     this.core.leave(client.sessionId);
   }
 
+  /** Indice della classe, o -1 se l'id non esiste (il nucleo del server lo sostituisce o lo ignora). */
   private classIndexOf(id: unknown): number {
     return typeof id === 'string' ? this.content.classes.findIndex((c) => c.id === id) : -1;
+  }
+
+  /** Skin del personaggio se esiste, altrimenti nessuna: gli altri client ne mostrano una a caso. */
+  private skinOf(id: unknown): string {
+    return typeof id === 'string' && this.content.characterSkins.some((s) => s.id === id) ? id : '';
   }
 
   private pump(): void {

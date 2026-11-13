@@ -103,8 +103,9 @@ async function main(): Promise<void> {
           mode,
           code,
           name: settings.playerName || 'Giocatore',
-          classId: settings.classId,
-          skin: settings.characterSkin,
+          // Mai senza classe né skin: alla prima partita valgono le prime dell'elenco.
+          classId: settings.classId || (content.classes[0]?.id ?? ''),
+          skin: settings.characterSkin || (content.characterSkins[0]?.id ?? ''),
           map: settings.mapId,
           ping: Number(params.get('ping') ?? 0) || 0,
         },

@@ -152,6 +152,8 @@ export class Game {
   private readonly teamColors = TEAMS.colors.map((color) => new Color(color));
   private readonly carrier = new Vector3();
   private readonly looks = new Map<number, CharacterLook>();
+  /** Skin chiesta quando è stato creato l'aspetto in memoria: si rifà solo se cambia. */
+  private readonly lookRequests = new Map<number, string>();
   private readonly drawAnim = createAnimState();
   private readonly footsteps = new Map<number, number>();
   private settings: Settings;
@@ -165,6 +167,7 @@ export class Game {
   private appliedQuality: Quality | null = null;
   private readonly minimap: Minimap;
   private readonly minimapDots: MinimapDot[] = [];
+  private readonly minimapPool: MinimapDot[] = [];
   /** Ultimo sparo di ogni combattente (per mostrarlo sulla minimappa). */
   private readonly lastShot = new Map<number, number>();
   private lastPump = 0;
@@ -448,15 +451,16 @@ export class Game {
    * del personaggio e skin delle armi a caso (sempre le stesse).
    */
   private lookFor(c: Combatant): CharacterLook {
-    let look = this.looks.get(c.id);
-    if (look) return look;
-    const skins = this.content.characterSkins;
     const mine = c === this.local;
-    const skin: CharacterSkinDef =
-      (mine ? skins.find((s) => s.id === this.settings.characterSkin) : skins[(c.id * 5 + 3) % skins.length]) ??
-      skins[0] ??
-      DEFAULT_SKIN;
-    look = {
+    // Online gli altri giocatori hanno la skin che hanno scelto (dall'elenco dei giocatori); i bot una a caso.
+    const chosen = mine ? this.settings.characterSkin : (this.session?.core.roster.get(c.id)?.skin ?? '');
+    const cached = this.looks.get(c.id);
+    // Si confronta con la skin chiesta, non con quella usata: un id sconosciuto non rifà l'aspetto a ogni frame.
+    if (cached && this.lookRequests.get(c.id) === chosen) return cached;
+    const skins = this.content.characterSkins;
+    const fallback = mine ? 0 : (c.id * 5 + 3) % Math.max(1, skins.length);
+    const skin: CharacterSkinDef = skins.find((s) => s.id === chosen) ?? skins[fallback] ?? skins[0] ?? DEFAULT_SKIN;
+    const look: CharacterLook = {
       skin,
       weaponGeometry: (index) => {
         const def = this.match.weapons[index];
@@ -473,6 +477,7 @@ export class Game {
       },
     };
     this.looks.set(c.id, look);
+    this.lookRequests.set(c.id, chosen);
     return look;
   }
 
@@ -794,11 +799,19 @@ export class Game {
     this.gore.particleLimit = q.particles;
   }
 
+  /** Punto riusato della minimappa; restituisce il nuovo numero di punti. */
+  private minimapDot(count: number, x: number, z: number, color: string): number {
+    const d = (this.minimapPool[count] ??= { x: 0, z: 0, color: '' });
+    d.x = x;
+    d.z = z;
+    d.color = color;
+    return count + 1;
+  }
+
   /** Punti della minimappa: compagni sempre, nemici solo se hanno sparato da poco. */
   private updateMinimap(dt: number): void {
     if (!this.settings.minimap) return;
-    const dots = this.minimapDots;
-    dots.length = 0;
+    let count = 0;
     const local = this.local;
     const now = performance.now() / 1000;
     for (const c of this.match.combatants) {
@@ -806,15 +819,18 @@ export class Game {
       const ally = c.team > 0 && c.team === local.team;
       const revealed = now - (this.lastShot.get(c.id) ?? -Infinity) < MINIMAP.revealTime;
       if (!ally && !revealed) continue;
-      dots.push({ x: c.player.x, z: c.player.z, color: ally ? '#7fc4ff' : '#ff5a4a' });
+      count = this.minimapDot(count, c.player.x, c.player.z, ally ? '#7fc4ff' : '#ff5a4a');
     }
     // Bandiere, del colore della loro squadra (stesso ordine delle basi nella mappa).
     const flags = this.session?.core.info.flags ?? [];
-    flags.forEach((flag, i) => {
+    for (let i = 0; i < flags.length; i++) {
+      const flag = flags[i]!;
       const team = this.match.map.flags?.[i]?.team ?? 0;
-      dots.push({ x: flag.x, z: flag.z, color: TEAMS.colors[team] ?? '#ffffff' });
-    });
-    this.minimap.render(dt, local.player.x, local.player.z, this.input.yaw, dots);
+      count = this.minimapDot(count, flag.x, flag.z, TEAMS.colors[team] ?? '#ffffff');
+    }
+    this.minimapDots.length = count;
+    for (let i = 0; i < count; i++) this.minimapDots[i] = this.minimapPool[i]!;
+    this.minimap.render(dt, local.player.x, local.player.z, this.input.yaw, this.minimapDots);
   }
 
   /** Splatter della morte di un altro combattente: manichino, parte staccata, pezzi o niente. */
@@ -990,6 +1006,7 @@ export class Game {
       this.prevAnim.delete(id);
       this.hurt.delete(id);
       this.looks.delete(id);
+      this.lookRequests.delete(id);
       this.previous.delete(id);
     }
   }

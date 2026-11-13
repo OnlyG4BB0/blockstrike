@@ -58,8 +58,8 @@ interface Slot {
   head: number;
   size: number;
   lastQueuedSeq: number;
-  accepted: number;
-  joinTick: number;
+  /** Comandi che si possono ancora accettare: uno in più a ogni tick, al massimo NET.inputBurst. */
+  tokens: number;
   ackSeq: number;
   viewTick: number;
   lastEventTick: number;
@@ -179,9 +179,16 @@ export class ServerCore implements FireHooks {
   // Giocatori
   // -------------------------------------------------------------------------------------------
 
+  /** Classe valida: quella chiesta se esiste, altrimenti la prima (online si gioca sempre con una classe). */
+  private validClass(index: unknown): number {
+    const classes = this.match.classes.length;
+    if (classes === 0) return -1;
+    return typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < classes ? index : 0;
+  }
+
   join(session: string, profile: PlayerProfile): Combatant {
     const name = cleanText(profile.name, NET.maxName) || 'Giocatore';
-    const c = this.match.addCombatant(name, { driver: 'input', classIndex: profile.classIndex });
+    const c = this.match.addCombatant(name, { driver: 'input', classIndex: this.validClass(profile.classIndex) });
     const queue: InputFrame[] = [];
     for (let i = 0; i < NET.maxQueuedInputs; i++) queue.push({ seq: 0, viewTick: 0, input: createInput() });
     this.slots.set(session, {
@@ -192,8 +199,7 @@ export class ServerCore implements FireHooks {
       head: 0,
       size: 0,
       lastQueuedSeq: 0,
-      accepted: 0,
-      joinTick: this.tick,
+      tokens: NET.inputBurst,
       ackSeq: 0,
       viewTick: 0,
       lastEventTick: this.tick,
@@ -220,9 +226,10 @@ export class ServerCore implements FireHooks {
     return this.slots.get(session)?.c;
   }
 
+  /** Cambio di classe: una classe sconosciuta si ignora (non si resta mai senza classe). */
   setClass(session: string, classIndex: unknown): void {
     const slot = this.slots.get(session);
-    if (!slot || typeof classIndex !== 'number') return;
+    if (!slot || typeof classIndex !== 'number' || this.validClass(classIndex) !== classIndex) return;
     this.match.setClass(slot.c, classIndex);
   }
 
@@ -272,19 +279,18 @@ export class ServerCore implements FireHooks {
     const reader = this.reader.reset(bytes);
     try {
       while (reader.remaining > 0) {
-        const allowed = this.tick - slot.joinTick + NET.inputBurst;
         const full = slot.size >= slot.queue.length;
         const index = (slot.head + slot.size) % slot.queue.length;
         // Si legge comunque, per consumare i byte; il comando entra solo se è nuovo e consentito.
         const frame = full ? this.spare : slot.queue[index]!;
         readInput(reader, frame);
         if (frame.seq <= slot.lastQueuedSeq || !Number.isFinite(frame.viewTick)) continue;
-        if (full || slot.accepted >= allowed) {
+        if (full || slot.tokens < 1) {
           this.stats.droppedInputs++;
           continue;
         }
         slot.lastQueuedSeq = frame.seq;
-        slot.accepted++;
+        slot.tokens--;
         slot.size++;
       }
     } catch {
@@ -293,6 +299,7 @@ export class ServerCore implements FireHooks {
   }
 
   private readonly spare: InputFrame = { seq: 0, viewTick: 0, input: createInput() };
+  private readonly pendingEvents: TickEvents[] = [];
 
   // -------------------------------------------------------------------------------------------
   // Tick
@@ -304,6 +311,8 @@ export class ServerCore implements FireHooks {
     const playing = this.info.phase === 0;
     for (const slot of this.slots.values()) {
       const c = slot.c;
+      // Un gettone per tick: chi resta in silenzio non accumula comandi da spendere dopo.
+      slot.tokens = Math.min(NET.inputBurst, slot.tokens + 1);
       for (let n = 0; n < NET.inputsPerTick && slot.size > 0; n++) {
         const frame = slot.queue[slot.head]!;
         slot.head = (slot.head + 1) % slot.queue.length;
@@ -343,7 +352,9 @@ export class ServerCore implements FireHooks {
   snapshot(session: string): Uint8Array | null {
     const slot = this.slots.get(session);
     if (!slot) return null;
-    const events = this.eventLog.filter((e) => e.tick > slot.lastEventTick);
+    const events = this.pendingEvents;
+    events.length = 0;
+    for (const e of this.eventLog) if (e.tick > slot.lastEventTick) events.push(e);
     slot.lastEventTick = this.tick;
     this.writer.reset();
     writeSnapshot(this.writer, this.tick, slot.ackSeq, slot.c, this.match.combatants, this.match.projectiles, this.info, events);
@@ -523,8 +534,12 @@ export class ServerCore implements FireHooks {
         }
       }
       // Cattura: la bandiera nemica portata alla propria base, con la propria bandiera a casa.
-      const carried = this.flags.find((f) => f.state === 1 && f.carrier === c.id);
-      const own = this.flags.find((f) => f.team === c.team);
+      let carried: FlagState | null = null;
+      let own: FlagState | null = null;
+      for (const f of this.flags) {
+        if (f.state === 1 && f.carrier === c.id) carried = f;
+        if (f.team === c.team) own = f;
+      }
       if (carried && own && own.state === 0 && Math.hypot(p.x - own.homeX, p.y - own.homeY, p.z - own.homeZ) < reach + 1) {
         this.teamScores[c.team]!++;
         match.addAction(c.id, 'flagCaptured', own.homeX, own.homeY, own.homeZ);

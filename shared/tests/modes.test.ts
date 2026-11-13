@@ -47,7 +47,7 @@ function server(mode: 'tdm' | 'ctf', players: string[]) {
   const seq = new Map<string, number>();
   const writer = new ByteWriter();
   for (const id of players) {
-    core.join(id, { name: id, classIndex: -1, skin: '' });
+    core.join(id, { name: id, classIndex: 0, skin: '' });
     seq.set(id, 0);
   }
   /** Un tick con i comandi indicati (gli altri stanno fermi). */

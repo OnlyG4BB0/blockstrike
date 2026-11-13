@@ -46,6 +46,10 @@ Poi si apre http://localhost:2567 (o l'indirizzo del server). In produzione si m
 proxy con HTTPS (per esempio Caddy o nginx) che inoltri anche le connessioni WebSocket: la pagina in
 `https://` si collega da sola in `wss://` allo stesso indirizzo.
 
+> **Da provare**: l'immagine non è ancora stata costruita su una macchina con Docker attivo. I passi
+> del `Dockerfile` sono stati provati a mano (build del client, installazione delle sole dipendenze
+> del server, server che serve `client/dist` e partite dalla stessa origine), non `docker build`.
+
 ### Client e server separati
 
 1. **Client come sito statico**: si compila indicando dove sarà il server di gioco, poi si pubblica la
@@ -273,8 +277,14 @@ tempo finto, con 150 ms di ping):
 - contro un bersaglio che si sposta di lato, 27 colpi su 30 vanno a segno con la compensazione e 1 su
   30 senza;
 - un riavvolgimento oltre il limite viene tagliato;
-- mandare tre comandi per tick non fa correre più veloci;
+- mandare tre comandi per tick non fa correre più veloci, nemmeno dopo essere rimasti in silenzio
+  (si accetta al massimo un comando per tick, con un piccolo margine che non si accumula);
+- online si gioca sempre con una classe: una classe sconosciuta vale la prima e non si può cambiare
+  in nessuna;
 - premere il grilletto a raffica non supera la cadenza dell'arma.
+
+La prova con socket veri (`npm run smoke:net`) controlla anche che ognuno veda la skin scelta
+dall'altro e che una skin che non esiste non arrivi agli altri.
 
 Nel browser, con due schede e `&ping=150`, il server ha confermato 5 dei 6 colpi che il client
 vedeva a segno su un bersaglio in movimento, con un ping misurato di 163 ms e nessuna correzione

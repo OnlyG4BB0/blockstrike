@@ -54,9 +54,11 @@ const check = (ok: boolean, message: string) => {
 };
 
 try {
-  const a = await connect('Anna', () => sdk.create('privata', { mode: 'ffa', name: 'Anna' }));
+  // Anna sceglie una skin che esiste, Bruno una che non esiste.
+  const annaSkin = content.characterSkins.at(-1)?.id ?? '';
+  const a = await connect('Anna', () => sdk.create('privata', { mode: 'ffa', name: 'Anna', skin: annaSkin }));
   check(/^[A-Z2-9]{5}$/.test(a.welcome.code), `codice d'invito ${a.welcome.code}`);
-  const b = await connect('Bruno', () => sdk.joinById(a.welcome.code, { name: 'Bruno' }));
+  const b = await connect('Bruno', () => sdk.joinById(a.welcome.code, { name: 'Bruno', skin: 'inesistente' }));
   check(b.room.roomId === a.room.roomId, 'il secondo giocatore entra con il codice');
 
   // 60 tick al secondo per ogni client: Anna corre e salta, Bruno si sposta di lato.
@@ -93,11 +95,16 @@ try {
     const seen = player.core.match.getCombatant(other.welcome.id);
     check(seen !== undefined && seen.name === other.name, `${player.name} vede ${other.name}`);
     check(player.core.stats.snapshots > SECONDS * 25, `${player.name}: ${player.core.stats.snapshots} pacchetti di stato`);
+    check(player.core.local?.loadout.length === 3, `${player.name}: entra con una classe (${player.core.local?.loadout.length} armi)`);
     check(
       player.core.stats.mismatches <= 2,
       `${player.name}: ${player.core.stats.mismatches} correzioni della predizione (${player.core.stats.replays} comandi rigiocati)`,
     );
   }
+  const seenSkin = b.core.roster.get(a.welcome.id)?.skin;
+  check(annaSkin !== '' && seenSkin === annaSkin, `Bruno vede la skin scelta da Anna (${seenSkin})`);
+  const unknownSkin = a.core.roster.get(b.welcome.id)?.skin;
+  check(unknownSkin === '', `la skin sconosciuta di Bruno non passa («${unknownSkin}»)`);
   const bots = a.core.match.combatants.filter((c) => a.core.roster.get(c.id)?.bot).length;
   check(bots >= 1, `i bot riempiono la stanza (${bots})`);
   await a.room.leave();
