@@ -250,6 +250,13 @@ export class Game {
     this.applyDevice();
     this.input.onDeviceChange = () => this.applyDevice();
     this.input.touch.onChat = () => this.openChat();
+    this.menu.onEditTouch = () => {
+      this.menu.hide();
+      this.input.touch.edit((layout) => {
+        this.menu.setTouchLayout(layout);
+        this.menu.show();
+      });
+    };
     this.menu.onPlay = () => {
       void this.audio.start();
       this.input.play();
@@ -451,6 +458,7 @@ export class Game {
     this.input.pad.invertY = settings.padInvertY;
     this.input.pad.vibration = settings.vibration;
     this.input.touch.sensitivity = settings.touchSensitivity;
+    this.input.touch.setLayout(structuredClone(settings.touchLayout), settings.touchOpacity);
     applyCrosshair(document.getElementById('crosshair')!, settings.crosshair);
     this.minimap.visible = settings.minimap;
     this.applyQuality(settings.quality);

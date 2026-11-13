@@ -4,12 +4,13 @@ import { DEFAULT_CROSSHAIR, type CrosshairSettings, type Settings } from '../set
 import type { Quality } from '../config.ts';
 import { nearestInDirection, padLabel, type DeviceKind, type NavDirection, type PadStyle } from '../input/devices.ts';
 import type { PadMenuHandler } from '../input/Gamepad.ts';
+import type { TouchLayout } from '../input/touchLayout.ts';
 import { normalizeServerAddress } from '../net/address.ts';
 import { SEPARATE_SERVER } from '../target.ts';
 import { byId } from './dom.ts';
 import { PROMPT_ACTIONS, promptHtml, type PromptContext } from './prompts.ts';
 
-type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount' | 'musicVolume' | 'padSensitivity' | 'touchSensitivity';
+type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount' | 'musicVolume' | 'padSensitivity' | 'touchSensitivity' | 'touchOpacity';
 type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers' | 'minimap' | 'padInvertY' | 'vibration';
 
 const PAD_STYLE_NAMES: Record<PadStyle, string> = {
@@ -75,6 +76,8 @@ export class Menu implements PadMenuHandler {
   /** Richiesta di giocare online (partita veloce, nuova stanza, stanza con codice). */
   onOnline: (action: OnlineAction, mode: string, code: string) => void = () => {};
   onLeaveRoom: () => void = () => {};
+  /** Apre l'editor della disposizione dei tasti touch. */
+  onEditTouch: () => void = () => {};
   /** Mappa scelta (in allenamento si riparte con quella). */
   onMapChange: (mapId: string) => void = () => {};
 
@@ -115,6 +118,8 @@ export class Menu implements PadMenuHandler {
     this.bindRange('set-pad-sensitivity', 'out-pad-sensitivity', 'padSensitivity', (v) => `${v.toFixed(1)}×`);
     this.bindRange('set-touch-sensitivity', 'out-touch-sensitivity', 'touchSensitivity', (v) => `${v.toFixed(1)}×`);
     this.bindCheck('set-pad-invert', 'padInvertY');
+    this.bindRange('set-touch-opacity', 'out-touch-opacity', 'touchOpacity', (v) => `${Math.round(v * 100)}%`);
+    byId('touch-edit').addEventListener('click', () => this.onEditTouch());
     this.bindCheck('set-vibration', 'vibration');
     for (const button of document.querySelectorAll<HTMLButtonElement>('.device-tabs button')) {
       button.addEventListener('click', () => {
@@ -241,6 +246,12 @@ export class Menu implements PadMenuHandler {
       ? `Controller collegato (${PAD_STYLE_NAMES[style]}): i tasti mostrati cambiano da soli quando lo usi.`
       : 'Nessun controller: collegane uno (USB o Bluetooth) e premi un tasto.';
     this.renderControls();
+  }
+
+  /** Nuova disposizione dei tasti touch (dall'editor): si salva come le altre impostazioni. */
+  setTouchLayout(layout: TouchLayout): void {
+    this.settings.touchLayout = layout;
+    this.emit();
   }
 
   /** Online la scheda Comandi mostra la chat e non «ricomincia». */
@@ -412,6 +423,7 @@ export class Menu implements PadMenuHandler {
       skins: { ...this.settings.skins },
       crosshair: { ...this.settings.crosshair },
       keys: { ...this.settings.keys },
+      touchLayout: structuredClone(this.settings.touchLayout),
     });
   }
 

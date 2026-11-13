@@ -1864,3 +1864,90 @@ body[data-device='touch'].playing #chat {
     grid-column: 1 / -1;
   }
 }
+
+/* Tasti touch: posizione e dimensione dall'editor, opacità dalle impostazioni. */
+.tbtn {
+  right: auto;
+  bottom: auto;
+  opacity: var(--touch-opacity, 0.85);
+  touch-action: none;
+}
+
+#touch.editing {
+  z-index: 30;
+  background: rgba(8, 10, 16, 0.55);
+}
+
+#touch.editing .tbtn {
+  opacity: 1;
+  outline: 2px dashed rgba(255, 255, 255, 0.45);
+  outline-offset: 3px;
+  cursor: grab;
+}
+
+#touch.editing .tbtn.selected {
+  outline: 3px solid var(--accent);
+}
+
+/* In alto a sinistra: lì c'è solo la levetta, nessun tasto da spostare sotto il pannello. */
+.touch-editor {
+  position: absolute;
+  left: calc(10px + env(safe-area-inset-left, 0px));
+  top: 8px;
+  width: min(300px, 40vw);
+  padding: 12px 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  background: rgba(18, 22, 32, 0.94);
+  color: var(--ui-text);
+  font-size: 14px;
+  text-align: center;
+}
+
+.touch-editor p {
+  margin: 0 0 8px;
+  color: var(--ui-dim);
+}
+
+.touch-editor label {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.touch-editor input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.touch-editor-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.touch-editor-buttons button {
+  min-height: 40px;
+  padding: 6px 16px;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui-text);
+  font: 700 15px var(--font);
+}
+
+.touch-editor-buttons button.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #1b1408;
+}
+
+#touch-edit {
+  margin: 4px 0 12px;
+}
+
+/* Munizioni a sinistra del centro: libere dai tasti sotto il pollice destro. */
+body[data-device='touch'].playing #weapon-panel {
+  left: 36%;
+}

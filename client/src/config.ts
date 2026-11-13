@@ -319,8 +319,19 @@ export const TOUCH = {
   joystickRadius: 58,
   /** Oltre questa frazione del raggio la levetta muove in quella direzione. */
   moveThreshold: 0.32,
-  /** Radianti per pixel trascinato, a sensibilità 1. */
-  lookRadiansPerPixel: 0.0042,
+  /** Radianti per pixel trascinato, a sensibilità 1 (100 px ≈ 37°). */
+  lookRadiansPerPixel: 0.0065,
+  /** Accelerazione della visuale: oltre questa velocità del dito (px/ms) il guadagno cresce... */
+  lookAccelStart: 0.45,
+  /** ...di tanto per ogni px/ms in più... */
+  lookAccel: 0.8,
+  /** ...fino a questo in più (guadagno massimo 2,2). */
+  lookAccelMax: 1.2,
+  /** Spostamento del dito (px) oltre il quale un tasto diventa anche visuale. */
+  lookFromButton: 10,
+  /** Diametro dei tasti (px) consentito nell'editor della disposizione. */
+  buttonMin: 36,
+  buttonMax: 140,
   /** Vibrazione del telefono quando si viene colpiti (ms). */
   vibrateHitMs: 35,
   /** Tenere premuto il tasto delle armi così a lungo torna all'arma di prima (secondi). */

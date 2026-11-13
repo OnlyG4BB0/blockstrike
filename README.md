@@ -240,12 +240,18 @@ tornare a giocare. La chat online si scrive solo da tastiera o telefono.
 Si gioca in orizzontale; con il telefono in verticale compare l'avviso per ruotarlo.
 
 - **Metà sinistra**: la levetta compare dove si appoggia il pollice.
-- **Metà destra**: si trascina per guardarsi intorno.
-- **✹ Fuoco**: tenuto, spara; si può trascinare anche lui per mirare mentre si spara.
+- **Metà destra**: si trascina per guardarsi intorno. Con il dito lento si mira fine (100 px ≈ 37°),
+  con uno scatto ci si gira di colpo (fino a 2,2 volte più veloce).
+- Si guarda anche **trascinando da un tasto** (fuoco, mirino, salto, giù, ricarica, granata, arma):
+  il tasto agisce e il dito, appena si sposta, muove la visuale.
+- **✹ Fuoco**: tenuto, spara.
 - **◎ Mirino** e **⤓ Giù** restano attivi finché non si toccano di nuovo.
 - **⤒ Salto**, **⟳ Ricarica**, **● Granata**, **⇄ Arma** (tenuto premuto: l'arma di prima).
 - In alto a destra: **❚❚ Menu**, **☰ Punteggi** (tenuto), **💬 Chat** (online) o **↺ Ricomincia**
   (allenamento).
+- **Disposizione**: Impostazioni → Controller e touch → **Disponi i comandi touch**. Si trascinano i
+  tasti dove si vuole, toccandone uno se ne cambia la dimensione; **Ripristina** torna a quella
+  predefinita. Lì accanto anche l'opacità dei tasti e la velocità della visuale.
 
 ### Tasti mostrati automaticamente
 

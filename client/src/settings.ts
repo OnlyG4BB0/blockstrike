@@ -3,6 +3,7 @@ import { GORE_LEVELS, type BotMode, type GoreLevel } from '@blockstrike/shared';
 import { QUALITIES, type Quality } from './config.ts';
 import { KEY_ACTIONS, defaultBindings, type KeyBindings } from './input/Input.ts';
 import { normalizeServerAddress } from './net/address.ts';
+import { defaultTouchLayout, touchLayoutFrom, type TouchLayout } from './input/touchLayout.ts';
 
 /** Mirino personalizzabile. */
 export interface CrosshairSettings {
@@ -69,6 +70,10 @@ export interface Settings {
   vibration: boolean;
   /** Server di gioco scelto dal giocatore (app Android); vuoto = quello predefinito. */
   serverAddress: string;
+  /** Posizione e dimensione dei tasti touch (editor nelle impostazioni). */
+  touchLayout: TouchLayout;
+  /** Opacità dei tasti touch, da 0,2 a 1. */
+  touchOpacity: number;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -103,6 +108,8 @@ const DEFAULTS: Settings = {
   touchSensitivity: 1,
   vibration: true,
   serverAddress: '',
+  touchLayout: defaultTouchLayout(),
+  touchOpacity: 0.85,
 };
 
 /** Sui telefoni si parte con la qualità bassa (al primo avvio: poi vale la scelta del giocatore). */
@@ -191,6 +198,8 @@ export function loadSettings(): Settings {
     vibration: booleanOr(stored.vibration, DEFAULTS.vibration),
     serverAddress:
       typeof stored.serverAddress === 'string' ? (normalizeServerAddress(stored.serverAddress) ?? '') : DEFAULTS.serverAddress,
+    touchLayout: touchLayoutFrom(stored.touchLayout),
+    touchOpacity: numberIn(stored.touchOpacity, 0.2, 1, DEFAULTS.touchOpacity),
   };
 }
 

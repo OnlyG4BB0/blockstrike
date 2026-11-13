@@ -1,41 +1,32 @@
 /**
  * Comandi touch sullo schermo (telefoni e tablet). Metà sinistra: levetta che compare dove si
- * appoggia il pollice. Metà destra: si trascina per guardarsi intorno. Tasti: fuoco (si può
- * trascinare anche lui per mirare mentre si spara), mirino, salto, giù, ricarica, granata, arma
- * (tenuto premuto: quella di prima), punteggi, pausa, chat (online) e ricomincia (allenamento).
+ * appoggia il pollice. Metà destra: si trascina per guardarsi intorno, anche partendo da un tasto
+ * (fuoco, mirino, salto, giù, ricarica, granata, arma): il tasto agisce e il dito muove la visuale.
+ * La visuale accelera con gli scatti veloci e resta precisa con i movimenti lenti.
+ *
+ * Posizione e dimensione dei tasti vengono dalle impostazioni e si cambiano con l'editor
+ * (`edit`): si trascinano i tasti, si sceglie la dimensione, si ripristina la disposizione.
  * Si usano i Pointer Events: ogni dito ha il suo ruolo finché non si alza.
  */
 import { TOUCH } from '../config.ts';
 import { toDigital } from './devices.ts';
+import { LOOK_BUTTONS, defaultTouchLayout, lookGain, type TouchButton, type TouchLayout } from './touchLayout.ts';
 
-type Role =
-  | 'move'
-  | 'look'
-  | 'fire'
-  | 'aim'
-  | 'jump'
-  | 'crouch'
-  | 'reload'
-  | 'grenade'
-  | 'weapon'
-  | 'score'
-  | 'pause'
-  | 'chat'
-  | 'respawn';
+type Role = TouchButton | 'move' | 'look';
 
-const BUTTONS: readonly { role: Role; label: string; title: string }[] = [
-  { role: 'fire', label: '✹', title: 'Fuoco' },
-  { role: 'aim', label: '◎', title: 'Mirino' },
-  { role: 'jump', label: '⤒', title: 'Salta' },
-  { role: 'crouch', label: '⤓', title: 'Giù' },
-  { role: 'reload', label: '⟳', title: 'Ricarica' },
-  { role: 'grenade', label: '●', title: 'Granata' },
-  { role: 'weapon', label: '⇄', title: 'Arma (tieni premuto: quella di prima)' },
-  { role: 'score', label: '☰', title: 'Punteggi' },
-  { role: 'pause', label: '❚❚', title: 'Menu' },
-  { role: 'chat', label: '💬', title: 'Chat' },
-  { role: 'respawn', label: '↺', title: 'Ricomincia' },
-];
+const LABELS: Record<TouchButton, { label: string; title: string }> = {
+  fire: { label: '✹', title: 'Fuoco' },
+  aim: { label: '◎', title: 'Mirino' },
+  jump: { label: '⤒', title: 'Salta' },
+  crouch: { label: '⤓', title: 'Giù' },
+  reload: { label: '⟳', title: 'Ricarica' },
+  grenade: { label: '●', title: 'Granata' },
+  weapon: { label: '⇄', title: 'Arma (tieni premuto: quella di prima)' },
+  score: { label: '☰', title: 'Punteggi' },
+  pause: { label: '❚❚', title: 'Menu' },
+  chat: { label: '💬', title: 'Chat' },
+  respawn: { label: '↺', title: 'Ricomincia' },
+};
 
 interface Finger {
   role: Role;
@@ -43,7 +34,10 @@ interface Finger {
   startY: number;
   lastX: number;
   lastY: number;
+  lastTime: number;
   startTime: number;
+  /** Il dito partito da un tasto si è spostato abbastanza: ora muove anche la visuale. */
+  looking: boolean;
 }
 
 export class TouchControls {
@@ -65,7 +59,7 @@ export class TouchControls {
   lastWeaponLatch = false;
   respawnLatch = false;
 
-  /** Trascinamento per guardarsi intorno, in radianti (a sensibilità e zoom già applicati da Input). */
+  /** Rotazione della visuale in radianti (sensibilità già applicata; lo zoom lo applica Input). */
   onLook: (dx: number, dy: number) => void = () => {};
   onPause: () => void = () => {};
   onChat: () => void = () => {};
@@ -75,7 +69,15 @@ export class TouchControls {
   private readonly fingers = new Map<number, Finger>();
   private readonly stick: HTMLElement;
   private readonly knob: HTMLElement;
-  private readonly buttons = new Map<Role, HTMLElement>();
+  private readonly buttons = new Map<TouchButton, HTMLElement>();
+  private layout: TouchLayout = defaultTouchLayout();
+  private online = false;
+
+  // Editor della disposizione.
+  private editing = false;
+  private editor: HTMLElement | null = null;
+  private selected: TouchButton | null = null;
+  private onEditDone: (layout: TouchLayout) => void = () => {};
 
   constructor(parent: HTMLElement) {
     const root = document.createElement('div');
@@ -89,15 +91,15 @@ export class TouchControls {
     this.knob.className = 'touch-knob';
     this.stick.append(this.knob);
     root.append(this.stick);
-    for (const b of BUTTONS) {
+    for (const [role, info] of Object.entries(LABELS) as [TouchButton, { label: string; title: string }][]) {
       const button = document.createElement('div');
-      button.className = `tbtn tbtn-${b.role}`;
-      button.dataset.role = b.role;
+      button.className = `tbtn tbtn-${role}`;
+      button.dataset.role = role;
       button.setAttribute('role', 'button');
-      button.setAttribute('aria-label', b.title);
-      button.textContent = b.label;
+      button.setAttribute('aria-label', info.title);
+      button.textContent = info.label;
       root.append(button);
-      this.buttons.set(b.role, button);
+      this.buttons.set(role, button);
     }
     parent.append(root);
     this.root = root;
@@ -106,10 +108,20 @@ export class TouchControls {
     root.addEventListener('pointerup', this.handleUp);
     root.addEventListener('pointercancel', this.handleUp);
     root.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.applyLayout();
+  }
+
+  /** Disposizione e trasparenza dei tasti (dalle impostazioni). */
+  setLayout(layout: TouchLayout, opacity: number): void {
+    this.layout = layout;
+    this.root.style.setProperty('--touch-opacity', String(opacity));
+    this.applyLayout();
   }
 
   /** Mostra o nasconde i comandi; online c'è la chat, in allenamento il tasto per ricominciare. */
   setVisible(visible: boolean, online: boolean): void {
+    this.online = online;
+    if (this.editing) return;
     this.root.hidden = !visible;
     this.buttons.get('chat')!.hidden = !online;
     this.buttons.get('respawn')!.hidden = online;
@@ -133,15 +145,99 @@ export class TouchControls {
     for (const button of this.buttons.values()) button.classList.remove('down', 'on');
   }
 
+  // -------------------------------------------------------------------------------------------
+  // Editor della disposizione
+  // -------------------------------------------------------------------------------------------
+
+  /** Apre l'editor: si trascinano i tasti; «Fatto» restituisce la nuova disposizione. */
+  edit(onDone: (layout: TouchLayout) => void): void {
+    this.releaseAll();
+    this.editing = true;
+    this.onEditDone = onDone;
+    this.root.hidden = false;
+    this.root.classList.add('editing');
+    for (const button of this.buttons.values()) button.hidden = false;
+    this.buttons.get(this.online ? 'respawn' : 'chat')!.hidden = true;
+    const editor = document.createElement('div');
+    editor.className = 'touch-editor';
+    editor.innerHTML = `
+      <p>Trascina i tasti dove ti comodano. Tocca un tasto per cambiarne la dimensione.</p>
+      <label><span id="touch-size-label">Dimensione</span>
+        <input id="touch-size" type="range" min="${TOUCH.buttonMin}" max="${TOUCH.buttonMax}" step="2" disabled /></label>
+      <div class="touch-editor-buttons">
+        <button type="button" data-act="reset">Ripristina</button>
+        <button type="button" data-act="done" class="primary">Fatto</button>
+      </div>`;
+    editor.addEventListener('pointerdown', (e) => e.stopPropagation());
+    const size = editor.querySelector<HTMLInputElement>('#touch-size')!;
+    size.addEventListener('input', () => {
+      if (!this.selected) return;
+      this.layout[this.selected].size = Number(size.value);
+      this.applyLayout();
+    });
+    editor.querySelector('[data-act="reset"]')!.addEventListener('click', () => {
+      this.layout = defaultTouchLayout();
+      this.select(this.selected);
+      this.applyLayout();
+    });
+    editor.querySelector('[data-act="done"]')!.addEventListener('click', () => this.finishEditing());
+    this.root.append(editor);
+    this.editor = editor;
+    this.select(null);
+  }
+
+  get isEditing(): boolean {
+    return this.editing;
+  }
+
+  private finishEditing(): void {
+    this.editing = false;
+    this.editor?.remove();
+    this.editor = null;
+    this.root.classList.remove('editing');
+    for (const button of this.buttons.values()) button.classList.remove('selected');
+    this.root.hidden = true;
+    this.onEditDone(this.layout);
+  }
+
+  private select(button: TouchButton | null): void {
+    this.selected = button;
+    for (const [role, element] of this.buttons) element.classList.toggle('selected', role === button);
+    const size = this.editor?.querySelector<HTMLInputElement>('#touch-size');
+    const label = this.editor?.querySelector('#touch-size-label');
+    if (!size || !label) return;
+    size.disabled = button === null;
+    if (button) {
+      size.value = String(this.layout[button].size);
+      label.textContent = `Dimensione: ${LABELS[button].title.split(' (')[0]}`;
+    } else {
+      label.textContent = 'Dimensione (tocca un tasto)';
+    }
+  }
+
+  private applyLayout(): void {
+    for (const [role, element] of this.buttons) {
+      const place = this.layout[role];
+      element.style.left = `calc(${(place.x * 100).toFixed(2)}% - ${place.size / 2}px)`;
+      element.style.top = `calc(${(place.y * 100).toFixed(2)}% - ${place.size / 2}px)`;
+      element.style.width = `${place.size}px`;
+      element.style.height = `${place.size}px`;
+      element.style.fontSize = `${Math.round(place.size * 0.36)}px`;
+    }
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Dita
+  // -------------------------------------------------------------------------------------------
+
   private roleAt(event: PointerEvent): Role {
     const button = (event.target as HTMLElement).closest<HTMLElement>('.tbtn');
-    if (button?.dataset.role) return button.dataset.role as Role;
+    if (button?.dataset.role) return button.dataset.role as TouchButton;
     return event.clientX < window.innerWidth * TOUCH.moveZone ? 'move' : 'look';
   }
 
   private readonly handleDown = (event: PointerEvent): void => {
     event.preventDefault();
-    this.onActivity();
     try {
       this.root.setPointerCapture(event.pointerId);
     } catch {
@@ -154,9 +250,16 @@ export class TouchControls {
       startY: event.clientY,
       lastX: event.clientX,
       lastY: event.clientY,
+      lastTime: event.timeStamp,
       startTime: performance.now(),
+      looking: role === 'look',
     });
-    this.buttons.get(role)?.classList.add('down');
+    if (this.editing) {
+      if (role !== 'move' && role !== 'look') this.select(role);
+      return;
+    }
+    this.onActivity();
+    if (role !== 'move' && role !== 'look') this.buttons.get(role)?.classList.add('down');
     switch (role) {
       case 'move':
         this.stick.hidden = false;
@@ -200,6 +303,15 @@ export class TouchControls {
     const finger = this.fingers.get(event.pointerId);
     if (!finger) return;
     event.preventDefault();
+    if (this.editing) {
+      if (finger.role !== 'move' && finger.role !== 'look') {
+        const place = this.layout[finger.role];
+        place.x = Math.min(1, Math.max(0, event.clientX / window.innerWidth));
+        place.y = Math.min(1, Math.max(0, event.clientY / window.innerHeight));
+        this.applyLayout();
+      }
+      return;
+    }
     if (finger.role === 'move') {
       const r = TOUCH.joystickRadius;
       let dx = event.clientX - finger.startX;
@@ -212,19 +324,29 @@ export class TouchControls {
       this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       this.right = toDigital(dx / r, TOUCH.moveThreshold);
       this.forward = toDigital(-dy / r, TOUCH.moveThreshold);
-    } else if (finger.role === 'look' || finger.role === 'fire') {
-      const scale = TOUCH.lookRadiansPerPixel * this.sensitivity;
-      this.onLook((event.clientX - finger.lastX) * scale, (event.clientY - finger.lastY) * scale);
+    } else {
+      if (!finger.looking && LOOK_BUTTONS.has(finger.role as TouchButton)) {
+        finger.looking = Math.hypot(event.clientX - finger.startX, event.clientY - finger.startY) >= TOUCH.lookFromButton;
+      }
+      if (finger.looking) {
+        const dx = event.clientX - finger.lastX;
+        const dy = event.clientY - finger.lastY;
+        const speed = Math.hypot(dx, dy) / Math.max(1, event.timeStamp - finger.lastTime);
+        const scale = TOUCH.lookRadiansPerPixel * this.sensitivity * lookGain(speed);
+        this.onLook(dx * scale, dy * scale);
+      }
     }
     finger.lastX = event.clientX;
     finger.lastY = event.clientY;
+    finger.lastTime = event.timeStamp;
   };
 
   private readonly handleUp = (event: PointerEvent): void => {
     const finger = this.fingers.get(event.pointerId);
     if (!finger) return;
     this.fingers.delete(event.pointerId);
-    this.buttons.get(finger.role)?.classList.remove('down');
+    if (this.editing) return;
+    if (finger.role !== 'move' && finger.role !== 'look') this.buttons.get(finger.role)?.classList.remove('down');
     switch (finger.role) {
       case 'move':
         this.forward = 0;
@@ -241,6 +363,8 @@ export class TouchControls {
         this.scoreboard = false;
         break;
       case 'weapon':
+        // Trascinato per guardare: niente cambio d'arma.
+        if (finger.looking) break;
         if ((performance.now() - finger.startTime) / 1000 >= TOUCH.longPress) this.lastWeaponLatch = true;
         else this.nextWeaponLatch = true;
         break;
