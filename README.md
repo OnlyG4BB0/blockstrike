@@ -64,6 +64,9 @@ Compila il sito per un hosting statico, ci mette l'APK se c'è (`npm run build:a
 `VITE_SERVER_URL=wss://…` per avere lo stesso server già impostato nell'app) e lo pubblica sul
 ramo `gh-pages`. Senza indirizzo, nel menu compare il campo **Server**.
 
+**3. Codice**: `npm run publish:repo` aggiorna https://github.com/OnlyG4BB0/blockstrike (ramo `main`)
+con l'indirizzo noreply di GitHub come autore dei commit: l'email personale resta solo in locale.
+
 ### Un solo container (consigliato)
 
 Il server di gioco può servire anche il client compilato: pagina, editor e partite stanno allo stesso
