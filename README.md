@@ -43,12 +43,16 @@ nella console Oracle: istanza → «Run command» o la console seriale). Serve l
 curl -fsSL https://raw.githubusercontent.com/OnlyG4BB0/blockstrike/main/deploy/vps/install.sh | bash -s -- IP.DELLA.VPS
 ```
 
-- Mette solo due container suoi, `blockstrike-game` (server) e `blockstrike-caddy` (https/wss con
-  certificato Let's Encrypt per `IP-CON-TRATTINI.sslip.io`, un nome gratuito che punta all'IP).
+- Niente Docker, per stare leggero sulle VPS piccole (1 GB) condivise: due servizi suoi,
+  `blockstrike-game` (il server, con il Node già installato, 22.6 o più nuovo, che non aggiorna) e
+  `blockstrike-caddy` (https/wss con certificato Let's Encrypt per `IP-CON-TRATTINI.sslip.io`, un
+  nome gratuito che punta all'IP). Codice in `/opt/blockstrike`, utente `blockstrike`, memoria
+  limitata (300 MB il server, 150 MB Caddy). Registri: `sudo journalctl -u blockstrike-game`.
+- Chi preferisce Docker usa `deploy/vps/compose.yaml` (`DOMAIN=… docker compose up -d --build`).
 - Usa **solo la porta 443**: la 80 resta a chi la usa già (sulla VPS di questo progetto c'è nginx).
   Il certificato si ottiene sulla 443 stessa (sfida TLS-ALPN), senza passare dalla 80.
-- **Non tocca nient'altro** (per esempio bobertbot o nginx): niente container fermati o cancellati,
-  nessuna configurazione cambiata. Se la porta 443 è già usata da un altro programma si ferma prima
+- **Non tocca nient'altro** (per esempio bobertbot o nginx): niente servizi fermati o cambiati,
+  nessuna configurazione altrui modificata. Se la porta 443 è già usata da un altro programma si ferma prima
   di cambiare qualcosa.
 - Aggiunge solo una regola al firewall della macchina (porta 443). Nella **console Oracle** va
   aperta anche lì: Networking → Virtual Cloud Network → Security List → Ingress rule TCP 443 da

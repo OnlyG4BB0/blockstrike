@@ -12,5 +12,6 @@ https://{$DOMAIN} {
 	}
 	@root path /
 	respond @root "Server di BLOCKSTRIKE attivo. Si gioca da {$SITE}" 200
-	reverse_proxy blockstrike-game:2567
+	# install.sh (senza Docker) imposta UPSTREAM=127.0.0.1:2567; con compose.yaml resta il container.
+	reverse_proxy {$UPSTREAM:blockstrike-game:2567}
 }
