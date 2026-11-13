@@ -58,8 +58,9 @@ curl -fsSL https://raw.githubusercontent.com/OnlyG4BB0/blockstrike/main/deploy/v
   aperta anche lì: Networking → Virtual Cloud Network → Security List → Ingress rule TCP 443 da
   0.0.0.0/0.
 - Rilanciare lo stesso comando aggiorna il server all'ultima versione del repository.
-- Provato qui con Docker: Caddy con certificato locale e la prova di rete con due client attraverso
-  `wss://` (`SMOKE_URL=wss://… npm run smoke:net`), tutto a posto.
+- In funzione sulla VPS di questo progetto (Ubuntu 24.04, 1 GB, accanto a bobertbot, nginx,
+  PostgreSQL e coturn, rimasti attivi): certificato preso sulla 443 e prova di rete con due client
+  attraverso `wss://` superata (`SMOKE_URL=wss://204-216-210-91.sslip.io npm run smoke:net`).
 
 **2. Pagina** con il server già scelto:
 
