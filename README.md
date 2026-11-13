@@ -25,7 +25,7 @@ aperto è in pausa), oppure usa la sezione **Online** del menu.
 | `npm run typecheck` | Controlla i tipi di tutti i pacchetti |
 | `npm run build` | Build di produzione del client in `client/dist` |
 | `npm run smoke` | Controlla i contenuti e simula una partita tra bot su ogni mappa, in Node |
-| `npm run smoke:net` | Avvia il server e collega due client veri (socket), controlla che si vedano |
+| `npm run smoke:net` | Avvia il server e collega due client veri (socket), controlla che si vedano. Con `SMOKE_URL` si collega a un server già avviato (per esempio il container) |
 
 ## Messa online
 
@@ -46,9 +46,18 @@ Poi si apre http://localhost:2567 (o l'indirizzo del server). In produzione si m
 proxy con HTTPS (per esempio Caddy o nginx) che inoltri anche le connessioni WebSocket: la pagina in
 `https://` si collega da sola in `wss://` allo stesso indirizzo.
 
-> **Da provare**: l'immagine non è ancora stata costruita su una macchina con Docker attivo. I passi
-> del `Dockerfile` sono stati provati a mano (build del client, installazione delle sole dipendenze
-> del server, server che serve `client/dist` e partite dalla stessa origine), non `docker build`.
+L'immagine (circa 290 MB, su `node:24-alpine`) è stata costruita e provata con Docker Desktop: il
+server gira come utente `node`, serve pagina ed editor, accetta le partite dalla stessa origine e si
+ferma subito con `docker stop`. Per controllare un container avviato con due client veri:
+
+```bash
+SMOKE_URL=ws://localhost:2567 npm run smoke:net
+```
+
+(In PowerShell: `$env:SMOKE_URL="ws://localhost:2567"; npm run smoke:net`.)
+
+npm 11 avvisa che lo script di installazione di `msgpackr-extract` (accelerazione nativa facoltativa
+usata da Colyseus) non è approvato: senza, Colyseus funziona lo stesso.
 
 ### Client e server separati
 

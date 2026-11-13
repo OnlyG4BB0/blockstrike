@@ -2,6 +2,9 @@
  * Prova di rete con socket veri: avvia il server, collega due client (lo stesso codice del browser,
  * ClientCore con l'SDK di Colyseus), li fa muovere e sparare per qualche secondo e controlla che si
  * vedano, che la predizione regga e che il codice d'invito funzioni. Esce con 0 se va tutto bene.
+ *
+ * Con SMOKE_URL (per esempio ws://localhost:2567) non avvia un server: si collega a uno già in
+ * funzione, per esempio il container Docker.
  */
 import { Client } from '@colyseus/sdk';
 import {
@@ -29,10 +32,13 @@ interface Welcome {
   roster: RosterEntry[];
 }
 
-const server = await startServer(PORT);
+const EXTERNAL = process.env.SMOKE_URL ?? '';
+const server = EXTERNAL ? null : await startServer(PORT);
 const content = loadContentFromDisk();
+// La mappa predefinita del server, quella delle stanze create senza sceglierne una.
 const map = loadMaps().get('arena-prova')!;
-const sdk = new Client(`ws://localhost:${PORT}`);
+const sdk = new Client(EXTERNAL || `ws://localhost:${PORT}`);
+if (EXTERNAL) console.log(`Server già avviato: ${EXTERNAL}`);
 
 async function connect(name: string, join: () => Promise<Awaited<ReturnType<Client['create']>>>) {
   const room = await join();
@@ -114,6 +120,6 @@ try {
   console.error(error);
 }
 
-await server.gracefullyShutdown(false);
+await server?.gracefullyShutdown(false);
 console.log(failures === 0 ? 'Prova di rete superata.' : `Prova di rete: ${failures} problemi.`);
 process.exitCode = failures === 0 ? 0 : 1;
