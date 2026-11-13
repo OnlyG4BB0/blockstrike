@@ -144,6 +144,10 @@
                 <button id="online-quick" type="button">Partita veloce</button>
                 <button id="online-create" type="button">Crea stanza</button>
               </div>
+              <label id="online-server-row" class="row select-row online-server" hidden>
+                <span>Server</span>
+                <input id="online-server" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="gioco.example.com" />
+              </label>
               <div class="online-join">
                 <input id="online-code" type="text" maxlength="5" autocomplete="off" placeholder="CODICE" />
                 <button id="online-join" type="button">Entra</button>
@@ -161,6 +165,10 @@
               <div>
                 <h3>App per il telefono</h3>
                 <p id="install-status" class="setting-note"></p>
+                <p id="apk-link" class="setting-note apk-link" hidden>
+                  Oppure <a href="./download/blockstrike.apk" download>scarica l'APK per Android</a> (va permessa
+                  l'installazione di app da questa fonte).
+                </p>
               </div>
               <button id="install-button" type="button" hidden>Installa l'app</button>
             </div>

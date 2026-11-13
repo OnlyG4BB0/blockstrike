@@ -4,6 +4,8 @@ import { DEFAULT_CROSSHAIR, type CrosshairSettings, type Settings } from '../set
 import type { Quality } from '../config.ts';
 import { nearestInDirection, padLabel, type DeviceKind, type NavDirection, type PadStyle } from '../input/devices.ts';
 import type { PadMenuHandler } from '../input/Gamepad.ts';
+import { normalizeServerAddress } from '../net/address.ts';
+import { ANDROID_APP } from '../target.ts';
 import { byId } from './dom.ts';
 import { PROMPT_ACTIONS, promptHtml, type PromptContext } from './prompts.ts';
 
@@ -161,6 +163,21 @@ export class Menu implements PadMenuHandler {
     const code = byId<HTMLInputElement>('online-code');
     name.value = this.settings.playerName;
     mode.value = this.settings.onlineMode;
+    // Nell'app Android il gioco è dentro l'app: il server si sceglie qui.
+    const server = byId<HTMLInputElement>('online-server');
+    byId('online-server-row').hidden = !ANDROID_APP;
+    server.value = this.settings.serverAddress;
+    server.addEventListener('change', () => {
+      const address = normalizeServerAddress(server.value);
+      if (address === null) {
+        this.setOnlineStatus('Indirizzo del server non valido: scrivi per esempio gioco.example.com o 192.168.1.10:2567.');
+        return;
+      }
+      server.value = address;
+      this.settings.serverAddress = address;
+      this.setOnlineStatus(address ? `Server: ${address}` : 'Server predefinito.');
+      this.emit();
+    });
     name.addEventListener('change', () => {
       this.settings.playerName = name.value.trim().slice(0, 16);
       this.emit();

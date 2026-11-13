@@ -4,3 +4,6 @@ client/dist
 .git
 .claude
 *.log
+client/dist-android
+android/build
+android/keystore

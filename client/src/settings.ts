@@ -2,6 +2,7 @@
 import { GORE_LEVELS, type BotMode, type GoreLevel } from '@blockstrike/shared';
 import { QUALITIES, type Quality } from './config.ts';
 import { KEY_ACTIONS, defaultBindings, type KeyBindings } from './input/Input.ts';
+import { normalizeServerAddress } from './net/address.ts';
 
 /** Mirino personalizzabile. */
 export interface CrosshairSettings {
@@ -66,6 +67,8 @@ export interface Settings {
   touchSensitivity: number;
   /** Vibrazione del controller o del telefono quando si viene colpiti. */
   vibration: boolean;
+  /** Server di gioco scelto dal giocatore (app Android); vuoto = quello predefinito. */
+  serverAddress: string;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -99,6 +102,7 @@ const DEFAULTS: Settings = {
   padInvertY: false,
   touchSensitivity: 1,
   vibration: true,
+  serverAddress: '',
 };
 
 /** Sui telefoni si parte con la qualità bassa (al primo avvio: poi vale la scelta del giocatore). */
@@ -185,6 +189,8 @@ export function loadSettings(): Settings {
     padInvertY: booleanOr(stored.padInvertY, DEFAULTS.padInvertY),
     touchSensitivity: numberIn(stored.touchSensitivity, 0.2, 3, DEFAULTS.touchSensitivity),
     vibration: booleanOr(stored.vibration, DEFAULTS.vibration),
+    serverAddress:
+      typeof stored.serverAddress === 'string' ? (normalizeServerAddress(stored.serverAddress) ?? '') : DEFAULTS.serverAddress,
   };
 }
 

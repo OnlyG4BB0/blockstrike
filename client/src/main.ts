@@ -4,6 +4,7 @@ import { loadGameContent } from './content.ts';
 import { Game } from './game/Game.ts';
 import { NetSession, serverUrl, type OnlineKind } from './net/NetSession.ts';
 import { setupInstall } from './pwa/install.ts';
+import { ANDROID_APP } from './target.ts';
 import { loadSettings } from './settings.ts';
 import { byId } from './ui/dom.ts';
 
@@ -44,6 +45,8 @@ declare global {
   interface Window {
     /** Accesso al gioco dalla console, solo in sviluppo. */
     blockstrike?: Game;
+    /** Chiamato dall'app Android per il tasto Indietro: true se ha messo in pausa la partita. */
+    blockstrikeBack?: () => boolean;
   }
 }
 
@@ -96,9 +99,11 @@ async function main(): Promise<void> {
     const modeParam = params.get('modalita') ?? settings.onlineMode;
     const mode: GameMode = GAME_MODES.includes(modeParam as GameMode) ? (modeParam as GameMode) : 'ffa';
     byId('online-status').textContent = 'Collegamento al server...';
+    const url = serverUrl(settings.serverAddress);
     try {
+      if (!url) throw new Error('scrivi l\'indirizzo nel campo Server qui sopra');
       session = await NetSession.connect(
-        serverUrl(),
+        url,
         {
           kind,
           mode,
@@ -140,7 +145,8 @@ async function main(): Promise<void> {
     navigate({});
   };
   game.start();
-  setupInstall(import.meta.env.PROD);
+  setupInstall(import.meta.env.PROD, ANDROID_APP);
+  window.blockstrikeBack = () => game.back();
   if (import.meta.env.DEV) window.blockstrike = game;
 }
 

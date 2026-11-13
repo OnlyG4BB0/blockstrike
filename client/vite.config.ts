@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
@@ -54,14 +54,37 @@ function serviceWorker(): Plugin {
   };
 }
 
+/** Build per l'app Android (scripts/build-android.mjs): il gioco va dentro l'APK, niente service worker. */
+const android = process.env.VITE_TARGET === 'android';
+const outDir = fileURLToPath(new URL(android ? './dist-android' : './dist', import.meta.url));
+
+/**
+ * Sul sito l'APK (fatto da scripts/build-android.mjs) si scarica da download/blockstrike.apk. Si
+ * copia alla fine, dopo il service worker: i visitatori del sito non lo salvano in automatico.
+ */
+function androidDownload(): Plugin {
+  const apk = fileURLToPath(new URL('../android/build/blockstrike.apk', import.meta.url));
+  return {
+    name: 'blockstrike-apk',
+    apply: 'build',
+    closeBundle() {
+      if (android || !existsSync(apk)) return;
+      mkdirSync(join(outDir, 'download'), { recursive: true });
+      copyFileSync(apk, join(outDir, 'download', 'blockstrike.apk'));
+    },
+  };
+}
+
 export default defineConfig({
   // Percorsi relativi: il client compilato funziona in qualunque cartella di un sito statico.
   base: './',
-  plugins: [watchContent(), serviceWorker()],
+  plugins: [watchContent(), ...(android ? [] : [serviceWorker(), androidDownload()])],
   server: {
     port: 5173,
   },
   build: {
+    outDir,
+    emptyOutDir: true,
     target: 'es2022',
     sourcemap: true,
     // Due pagine: il gioco e l'editor di mappe.

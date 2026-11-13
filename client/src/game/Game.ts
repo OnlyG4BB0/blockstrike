@@ -304,6 +304,13 @@ export class Game {
     this.onLocalRespawn();
   }
 
+  /** Tasto Indietro di Android: in partita mette in pausa (true); nel menu non fa niente (false). */
+  back(): boolean {
+    if (!this.input.active) return false;
+    this.input.pause();
+    return true;
+  }
+
   /** Mappe da mostrare nel menu ('' = mappa dell'editor). */
   setMaps(maps: readonly { id: string; name: string }[], current: string): void {
     const list = current === '' ? [{ id: '', name: `${this.match.map.name} (editor)` }, ...maps] : maps;

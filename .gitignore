@@ -7,3 +7,8 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Android: build, APK e chiave di firma (la chiave non va mai in git: tienine una copia a parte)
+client/dist-android/
+android/build/
+android/keystore/

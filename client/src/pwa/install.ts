@@ -10,11 +10,13 @@ interface InstallPromptEvent extends Event {
   readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export type InstallState = 'app' | 'installed' | 'ready' | 'insecure' | 'development' | 'manual';
+export type InstallState = 'android' | 'app' | 'installed' | 'ready' | 'insecure' | 'development' | 'manual';
 
 /** Cosa dire per ogni situazione (funzione pura). */
 export function installMessage(state: InstallState, platform: 'android' | 'ios' | 'desktop'): string {
   switch (state) {
+    case 'android':
+      return 'Stai usando l\'app per Android: per giocare online scrivi l\'indirizzo del server qui sopra.';
     case 'app':
       return 'Stai già giocando con l\'app installata.';
     case 'installed':
@@ -48,8 +50,8 @@ function runningAsApp(): boolean {
  * Registra il service worker (solo nella versione compilata e su un'origine sicura) e collega la
  * scheda dell'app nel menu.
  */
-export function setupInstall(production: boolean): void {
-  if (production && window.isSecureContext && 'serviceWorker' in navigator) {
+export function setupInstall(production: boolean, androidApp: boolean): void {
+  if (production && !androidApp && window.isSecureContext && 'serviceWorker' in navigator) {
     void navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 
@@ -63,6 +65,7 @@ export function setupInstall(production: boolean): void {
   let installed = false;
 
   const state = (): InstallState => {
+    if (androidApp) return 'android';
     if (runningAsApp()) return 'app';
     if (installed) return 'installed';
     if (deferred) return 'ready';
@@ -102,4 +105,20 @@ export function setupInstall(production: boolean): void {
   button.addEventListener('click', () => void install());
   quick?.addEventListener('click', () => void install());
   render();
+  if (!androidApp) void offerApk();
 }
+
+/** Sul sito: link per scaricare l'APK, solo se il file c'è davvero (lo mette la build Android). */
+async function offerApk(): Promise<void> {
+  const link = document.getElementById('apk-link');
+  if (!link) return;
+  try {
+    const response = await fetch(APK_PATH, { method: 'HEAD', cache: 'no-cache' });
+    link.hidden = !response.ok;
+  } catch {
+    link.hidden = true;
+  }
+}
+
+/** Dove la build del sito mette l'APK (vedi client/vite.config.ts). */
+export const APK_PATH = './download/blockstrike.apk';

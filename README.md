@@ -90,6 +90,40 @@ Verificato con Chrome senza interfaccia contro il container: manifest senza erro
 all'installazione secondo Chrome (`Page.getInstallabilityErrors` vuoto), service worker attivo con
 14 file salvati, e con il server spento la pagina si apre e l'allenamento parte.
 
+### APK per Android
+
+Oltre all'app web c'è un APK vero, da installare anche senza un sito https: il gioco compilato è
+dentro l'APK e lo mostra una WebView (`android/`: Java semplice, senza Gradle né librerie).
+L'allenamento funziona senza rete; per giocare online si scrive l'indirizzo del server nel menu
+(scheda **Online**, campo **Server**: va bene `gioco.example.com`, `192.168.1.10:2567` o un
+indirizzo `wss://`).
+
+```bash
+npm run build:android
+```
+
+- Serve **Docker acceso**: la prima volta costruisce l'immagine `blockstrike-android-sdk` (circa
+  1,4 GB) con l'Android SDK; il pacchetto di Google si controlla con la sua impronta SHA-256.
+  Costruirla vuol dire **accettare le licenze dell'Android SDK**.
+- Il risultato è `android/build/blockstrike.apk`, firmato (schemi v2 e v3) e allineato. La build
+  del sito (`npm run build`) lo copia in `download/blockstrike.apk` e la scheda **App per il
+  telefono** mostra il link per scaricarlo. Sul telefono va permessa l'installazione di app da
+  quella fonte.
+- `VITE_SERVER_URL=wss://… npm run build:android` mette un server predefinito nell'app.
+- **Chiave di firma**: la prima build la crea in `android/keystore/` (fuori da git e da Docker).
+  **Tienine una copia**: gli aggiornamenti si installano sopra la versione vecchia solo se sono
+  firmati con la stessa chiave. Senza, bisogna disinstallare e reinstallare.
+- L'id dell'app è `app.blockstrike.gioco` e non va più cambiato (Android lo usa per gli
+  aggiornamenti).
+- Nell'app: schermo intero in orizzontale; il tasto Indietro mette in pausa la partita (nel menu
+  manda l'app in secondo piano); i tasti del controller vanno solo al gioco (B non fa «Indietro»).
+- **Verificato qui**: build, firma, allineamento, `resources.arsc` non compresso, pacchetto, SDK,
+  permessi e attività di avvio; tipi di tutti i file del gioco; la versione Android del gioco,
+  servita da un altro indirizzo, crea una stanza sul server scritto nel campo. **Non verificato**:
+  installazione e avvio su un telefono (qui non c'è un emulatore Android). Online con un indirizzo
+  `ws://` della rete di casa da una pagina https: la WebView è impostata per permetterlo, ma è da
+  provare; con `wss://` non ci sono dubbi.
+
 ### Client e server separati
 
 1. **Client come sito statico**: si compila indicando dove sarà il server di gioco, poi si pubblica la

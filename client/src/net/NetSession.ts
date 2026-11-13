@@ -3,6 +3,8 @@
  * trasporto, la scelta della stanza e il ritardo simulato per le prove (`?ping=150`: metà
  * all'andata, metà al ritorno).
  */
+import { ANDROID_APP } from '../target.ts';
+import { chooseServerUrl } from './address.ts';
 import { Client, type Room } from '@colyseus/sdk';
 import {
   ClientCore,
@@ -56,12 +58,17 @@ interface Welcome {
  * - in sviluppo, lo stesso host della pagina sulla porta 2567;
  * - nel client compilato, la stessa origine della pagina (il server serve anche il client).
  */
-export function serverUrl(): string {
-  const configured = import.meta.env.VITE_SERVER_URL as string | undefined;
-  if (configured) return configured;
-  const secure = location.protocol === 'https:';
-  const host = import.meta.env.DEV ? `${location.hostname}:2567` : location.host;
-  return `${secure ? 'wss' : 'ws'}://${host}`;
+/**
+ * Indirizzo del server: quello scelto nelle impostazioni, poi VITE_SERVER_URL, poi la pagina stessa
+ * (sito servito dal server di gioco). Nell'app Android la pagina non è un server: null se manca.
+ */
+export function serverUrl(userAddress: string): string | null {
+  return chooseServerUrl({
+    user: userAddress,
+    configured: (import.meta.env.VITE_SERVER_URL as string | undefined) ?? '',
+    page: ANDROID_APP ? null : location,
+    dev: import.meta.env.DEV,
+  });
 }
 
 export class NetSession {

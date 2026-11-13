@@ -106,6 +106,14 @@ const icons = [
   ['apple-touch-icon.png', 180, 0.6],
   ['favicon-32.png', 32, 0.75],
 ];
+// Icone dell'app Android (android/app/res/mipmap-*/ic_launcher.png).
+const ANDROID_RES = join(dirname(fileURLToPath(import.meta.url)), '..', 'android', 'app', 'res');
+for (const [density, size] of [['mdpi', 48], ['hdpi', 72], ['xhdpi', 96], ['xxhdpi', 144], ['xxxhdpi', 192]]) {
+  const dir = join(ANDROID_RES, `mipmap-${density}`);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'ic_launcher.png'), drawIcon(size, 0.62));
+  console.log(`android mipmap-${density} ${size}×${size}`);
+}
 for (const [name, size, content] of icons) {
   writeFileSync(join(OUT, name), drawIcon(size, content));
   console.log(`${name} ${size}×${size}`);
