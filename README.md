@@ -3,7 +3,7 @@
 Sparatutto in prima persona da browser, grafica low-poly a blocchi, movimento veloce.
 Nome provvisorio.
 
-**Stato: Fase 5 completata — splatter.**
+**Stato: Fase 6 completata — multiplayer online.**
 
 ## Avvio
 
@@ -12,15 +12,20 @@ npm install
 npm run dev
 ```
 
-Poi apri http://localhost:5173, scegli classe e aspetto e premi **Gioca**. Con il menu aperto la partita è in pausa.
+`npm run dev` avvia insieme il server di gioco (ws://localhost:2567) e il client (http://localhost:5173).
+Apri il client, scegli classe e aspetto e premi **Gioca** per l'allenamento contro i bot (con il menu
+aperto è in pausa), oppure usa la sezione **Online** del menu.
 
 | Comando | Cosa fa |
 |---|---|
-| `npm run dev` | Avvia il client in sviluppo |
+| `npm run dev` | Avvia server di gioco e client in sviluppo |
+| `npm run dev:client` / `npm run dev:server` | Solo il client / solo il server |
+| `npm start` | Solo il server di gioco (porta da `GAME_PORT` o `PORT`, predefinita 2567) |
 | `npm test` | Esegue i test (Vitest) |
 | `npm run typecheck` | Controlla i tipi di tutti i pacchetti |
 | `npm run build` | Build di produzione del client in `client/dist` |
 | `npm run smoke` | Controlla i contenuti e simula una partita tra bot in Node, senza browser |
+| `npm run smoke:net` | Avvia il server e collega due client veri (socket), controlla che si vedano |
 
 ## Comandi di gioco
 
@@ -35,6 +40,7 @@ Poi apri http://localhost:5173, scegli classe e aspetto e premi **Gioca**. Con i
 | 1 – 3, rotella | Armi della classe; Q torna all'arma precedente |
 | G | Lanciare una granata (2 per vita) |
 | Tab | Punteggi |
+| Invio | Chat (online): Invio di nuovo per mandare, Esc per chiudere |
 | K | Tornare a un punto di partenza |
 | Esc | Menu: classe, aspetto, impostazioni e skin delle armi |
 
@@ -73,6 +79,72 @@ I colpi necessari valgono contro 100 punti vita (Assaltatore).
 
 Granate: rimbalzano ed esplodono dopo 2,2 secondi. Dopo la rinascita si è protetti per 1,5 secondi,
 o finché non si spara.
+
+## Online
+
+Dal menu, sezione **Online** (il nome si sceglie lì):
+
+- **Partita veloce**: entra in una stanza pubblica della modalità scelta, o ne crea una.
+- **Crea stanza**: stanza privata con un codice di 5 caratteri (per esempio `K5EX3`); «Copia invito»
+  copia un link del tipo `http://localhost:5173/?stanza=K5EX3`.
+- **Entra**: con il codice di un amico.
+
+Modalità: **tutti contro tutti** (vince chi arriva a 25 uccisioni, 8 minuti), **deathmatch a squadre**
+(Rossi contro Blu, 50 uccisioni, 10 minuti, niente fuoco amico) e **cattura la bandiera** (3 catture,
+10 minuti; si prende la bandiera nemica e la si porta alla propria base mentre la propria è a casa; una
+bandiera persa torna alla base dopo 20 secondi o se la tocca un compagno). Le stanze hanno fino a 12
+giocatori; i bot del server riempiono i posti fino a 6. A fine partita c'è la classifica e dopo 10
+secondi ne riparte un'altra. Si rinasce lontano dai nemici (nelle squadre dalla propria parte), con
+1,5 secondi di protezione. La classe scelta nel menu vale dalla rinascita successiva.
+
+**Ritardo simulato**: aggiungendo `&ping=150` all'indirizzo (per esempio
+`?online=crea&modalita=ffa&ping=150`, oppure `?stanza=CODICE&ping=150`) il client ritarda di 75 ms
+ogni messaggio in uscita e ogni messaggio in arrivo. Due schede dello stesso browser possono giocare
+nella stessa stanza.
+
+### Come funziona la rete
+
+- **Server autoritativo** (Colyseus): simula la partita a 60 Hz e invia lo stato 30 volte al secondo.
+  Tutta la logica sta in `shared/src/net/server.ts` (`ServerCore`); la stanza Colyseus
+  (`server/src/GameRoom.ts`) fa solo da tramite.
+- **Il client manda solo comandi numerati** (tasti, mira, arma), mai posizioni o danni. Il server
+  esegue un passo di simulazione per ogni comando ricevuto (al massimo 3 per tick).
+- **Controlli lato server**:
+  - la cadenza di fuoco, le munizioni e la linea di tiro sono quelle della simulazione;
+  - i comandi accettati non possono superare il tempo passato più un piccolo margine: mandarne di più
+    non fa correre più veloci;
+  - i testi (nomi, chat) sono ripuliti e la chat ha un limite di frequenza.
+- **Predizione e riconciliazione** (`shared/src/net/client.ts`): il proprio giocatore si muove
+  subito. Per ogni comando si tiene lo stato previsto e, quando il server lo conferma, si confronta. Se
+  coincide non si fa nulla; se diverge (per esempio una spinta da un'esplosione) si riparte dallo stato
+  del server e si rieseguono i comandi non ancora confermati. Lo scarto ammesso è 0,000001 m:
+  browser e Node possono differire all'ultima cifra dei calcoli.
+- **Interpolazione**: gli altri giocatori si vedono 100 ms nel passato, tra due pacchetti di stato.
+  Gli eventi degli altri (spari, sangue, esplosioni) compaiono al loro tick, insieme ai corpi; quelli
+  che riguardano il giocatore (colpi dati e subiti, morte) subito.
+- **Compensazione del lag**: con ogni comando il client dice a quale tick del server stava vedendo
+  gli altri. Quando quel comando spara, il server riporta le hitbox degli altri a quel momento (dalla
+  storia delle pose di ogni tick) e poi le rimette a posto. Il limite di 200 ms vale per la latenza,
+  in aggiunta ai 100 ms di interpolazione: il riavvolgimento massimo è quindi 300 ms. Con 150 ms di
+  ping il server riavvolge circa 14 tick (230 ms).
+- **Splatter** solo nel client: il server invia l'evento di morte con parte colpita, direzione, arma
+  e numero di morti della vittima, che basta a dare lo stesso esito su tutti gli schermi.
+
+**Prove** (in `shared/tests/net.test.ts` server e client si parlano attraverso una coda con ritardo, a
+tempo finto, con 150 ms di ping):
+- nessun errore di predizione in 6 secondi di corsa, salti e spari;
+- una spinta decisa dal server viene corretta con un solo pacchetto;
+- contro un bersaglio che si sposta di lato, 27 colpi su 30 vanno a segno con la compensazione e 1 su
+  30 senza;
+- un riavvolgimento oltre il limite viene tagliato;
+- mandare tre comandi per tick non fa correre più veloci;
+- premere il grilletto a raffica non supera la cadenza dell'arma.
+
+Nel browser, con due schede e `&ping=150`, il server ha confermato 5 dei 6 colpi che il client
+vedeva a segno su un bersaglio in movimento, con un ping misurato di 163 ms e nessuna correzione
+della predizione.
+
+**Limiti noti**: in «cattura la bandiera» i bot combattono ma non vanno a prendere la bandiera.
 
 ## Splatter
 
@@ -206,7 +278,7 @@ e gli id duplicati.
 ```
 client/    rendering (Three.js), input, arma in prima persona, effetti, suoni, HUD, menu
 shared/    simulazione: movimento, collisioni, armi, colpi, proiettili, danni, bot, contenuti
-server/    per ora la prova in Node; il server di gioco arriva nella Fase 6
+server/    server di gioco (Colyseus), prove in Node
 content/   dati di gioco (vedi sopra)
 ```
 

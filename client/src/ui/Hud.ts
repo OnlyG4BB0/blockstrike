@@ -17,6 +17,8 @@ export interface LabelData {
   name: string;
   health: number;
   maxHealth: number;
+  /** Rapporto con il giocatore: compagno di squadra, nemico o nessuna squadra. */
+  side: 'ally' | 'enemy' | 'none';
   x: number;
   y: number;
   z: number;
@@ -28,6 +30,8 @@ export interface ScoreRow {
   kills: number;
   deaths: number;
   local: boolean;
+  /** Squadra (0 = nessuna). */
+  team?: number;
 }
 
 interface FloatingNumber {
@@ -365,11 +369,11 @@ export class Hud {
     this.scoreTimer -= dt;
     if (this.scoreTimer > 0) return;
     this.scoreTimer = 0.25;
-    const sorted = [...rows].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+    const sorted = [...rows].sort((a, b) => (a.team ?? 0) - (b.team ?? 0) || b.kills - a.kills || a.deaths - b.deaths);
     this.scoreRows.innerHTML = sorted
       .map(
         (row) =>
-          `<tr class="${row.local ? 'mine' : ''}"><td>${escapeHtml(row.name)}</td><td>${row.kills}</td><td>${row.deaths}</td></tr>`,
+          `<tr class="${row.local ? 'mine' : ''} team-${row.team ?? 0}"><td>${escapeHtml(row.name)}</td><td>${row.kills}</td><td>${row.deaths}</td></tr>`,
       )
       .join('');
   }
@@ -412,6 +416,8 @@ export class Hud {
         entry.name = label.name;
         (entry.root.firstElementChild as HTMLElement).textContent = label.name;
       }
+      const className = `label ${label.side}`;
+      if (entry.root.className !== className) entry.root.className = className;
       project(label.x, label.y, label.z, this.point);
       const visible = label.visible && this.point.visible;
       entry.root.hidden = !visible;

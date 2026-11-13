@@ -42,13 +42,14 @@ import {
   type WeaponDef,
 } from '@blockstrike/shared';
 import { AudioSystem } from '../audio/AudioSystem.ts';
-import { AUDIO, CHARACTERS, EFFECTS, GORE, RENDER, VIEW, VIEWMODEL } from '../config.ts';
+import { AUDIO, CHARACTERS, EFFECTS, GORE, RENDER, TEAMS, VIEW, VIEWMODEL } from '../config.ts';
 import { Input } from '../input/Input.ts';
 import { createBlockTexture } from '../render/blockTexture.ts';
 import { CharacterPreview } from '../render/CharacterPreview.ts';
 import { CharacterRenderer, type CharacterLook } from '../render/CharacterRenderer.ts';
 import { Effects } from '../render/Effects.ts';
 import { Gore } from '../render/Gore.ts';
+import { Flags } from '../render/Flags.ts';
 import { createMapMesh } from '../render/mapMesh.ts';
 import { createSky } from '../render/sky.ts';
 import { Viewmodel } from '../render/Viewmodel.ts';
@@ -144,6 +145,9 @@ export class Game {
   private readonly drawnPoses = new Map<number, BodyPose>();
   private readonly hurt = new Map<number, number>();
   private readonly gore: Gore;
+  private readonly flags = new Flags();
+  private readonly teamColors = TEAMS.colors.map((color) => new Color(color));
+  private readonly carrier = new Vector3();
   private readonly looks = new Map<number, CharacterLook>();
   private readonly drawAnim = createAnimState();
   private readonly footsteps = new Map<number, number>();
@@ -200,7 +204,7 @@ export class Game {
     this.scene.add(this.characters.object);
     this.effects = new Effects(this.scene, this.match.world, map, this.library);
     this.gore = new Gore(this.match.world);
-    this.scene.add(this.gore.object);
+    this.scene.add(this.gore.object, this.flags.object);
 
     this.input = new Input(this.renderer.domElement);
 
@@ -649,6 +653,10 @@ export class Game {
     for (let i = 0; i < events.actions.count; i++) {
       const action = events.actions.get(i);
       const mine = action.combatant === localId;
+      if (action.type.startsWith('flag')) {
+        this.flagMessage(action.type, action.combatant);
+        continue;
+      }
       if (action.type === 'respawn') {
         const c = this.match.getCombatant(action.combatant);
         if (c) {
@@ -673,6 +681,27 @@ export class Game {
       if (mine && action.type !== 'bounce') this.audio.play(sound, { volume: 0.6 });
       else this.audio.play(sound, { x: action.x, y: action.y + 1, z: action.z, volume: 0.6 });
     }
+  }
+
+  /** Bandiere: riga in chat e, per le catture, annuncio e suono. */
+  private flagMessage(type: string, id: number): void {
+    const who = id === this.local.id ? 'Tu' : (this.match.getCombatant(id)?.name ?? '');
+    const c = this.match.getCombatant(id);
+    // La bandiera presa o catturata è dell'altra squadra; quella persa o riportata no.
+    const enemyTeam = c && c.team > 0 ? (c.team === 1 ? 2 : 1) : 0;
+    const enemy = TEAMS.names[enemyTeam]?.toLowerCase() ?? '';
+    const own = c ? (TEAMS.names[c.team]?.toLowerCase() ?? '') : '';
+    let text = '';
+    if (type === 'flagTaken') text = `${who} ha preso la bandiera dei ${enemy}`;
+    else if (type === 'flagDropped') text = who ? `${who} ha perso la bandiera dei ${enemy}` : 'Bandiera a terra';
+    else if (type === 'flagReturned') text = who ? `${who} ha riportato la bandiera dei ${own}` : 'Una bandiera è tornata alla base';
+    else if (type === 'flagCaptured') {
+      text = `${who} ha catturato la bandiera dei ${enemy}!`;
+      const ours = c !== undefined && c.team === this.local.team;
+      this.hud.announce(ours ? 'BANDIERA CATTURATA' : 'BANDIERA PERSA', text);
+      this.audio.play(ours ? 'announce_streak' : 'announce', { volume: 0.7 });
+    }
+    if (text) this.hud.chat('', text, true);
   }
 
   /** Splatter della morte di un altro combattente: manichino, parte staccata, pezzi o niente. */
@@ -786,6 +815,13 @@ export class Game {
     this.sky.position.copy(this.camera.position);
 
     this.updateCharacters(dt, alpha);
+    if (this.session) {
+      this.flags.update(dt, this.session.core.info.flags, this.match.map.flags ?? [], (id) => {
+        if (id === this.local.id) return null;
+        const pose = this.drawnPoses.get(id);
+        return pose ? CharacterRenderer.labelPoint(pose, this.carrier) : null;
+      });
+    }
     this.effects.syncProjectiles(this.match.projectiles, alpha, dt);
     this.effects.update(dt);
 
@@ -824,7 +860,12 @@ export class Game {
       poseBody(pose, this.drawAnim, this.match.grips);
       const hurt = Math.max(0, (this.hurt.get(c.id) ?? 0) - dt * CHARACTERS.hurtDecay);
       this.hurt.set(c.id, hurt);
-      this.characters.add(pose, this.lookFor(c), c.anim.weapon, { hurt, fall: 0, sink: 0 });
+      this.characters.add(pose, this.lookFor(c), c.anim.weapon, {
+        hurt,
+        fall: 0,
+        sink: 0,
+        team: c.team > 0 ? this.teamColors[c.team] : null,
+      });
     }
     this.gore.update(dt);
     this.gore.draw(this.characters);
@@ -888,6 +929,7 @@ export class Game {
         kills: c.kills,
         deaths: c.deaths,
         local: c === local,
+        team: c.team,
       }));
     }
     this.hud.scores(rows, dt);
@@ -904,7 +946,8 @@ export class Game {
       const visible =
         distance < CHARACTERS.labelRange &&
         lineOfSight(this.match.world, camera.x, camera.y, camera.z, point.x, point.y - 0.3, point.z);
-      this.labels.push({ id, name: c.name, health: c.health, maxHealth: c.maxHealth, x: point.x, y: point.y, z: point.z, visible });
+      const side = c.team > 0 && local.team > 0 ? (c.team === local.team ? 'ally' : 'enemy') : 'none';
+      this.labels.push({ id, name: c.name, health: c.health, maxHealth: c.maxHealth, side, x: point.x, y: point.y, z: point.z, visible });
     }
     this.hud.updateOverlays(dt, this.labels, this.project);
   }
@@ -919,22 +962,40 @@ export class Game {
     const info = session.core.info;
     const seconds = Math.max(0, Math.ceil(info.timeLeft));
     const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    const teams = session.mode !== 'ffa';
     let leader = this.local;
     for (const c of this.match.combatants) if (c.kills > leader.kills) leader = c;
     const leaderName = leader === this.local ? LOCAL_NAME : leader.name;
     if (info.phase === 0) {
-      this.hud.matchBar(`${clock} · prima a ${info.scoreLimit}: ${leaderName} ${leader.kills}`);
+      if (teams) {
+        const mine = this.local.team > 0 ? ` · sei nei ${TEAMS.names[this.local.team]}` : '';
+        const unit = session.mode === 'ctf' ? 'catture' : 'uccisioni';
+        this.hud.matchBar(`${clock} · Rossi ${info.scoreA} – ${info.scoreB} Blu (a ${info.scoreLimit} ${unit})${mine}`);
+      } else {
+        this.hud.matchBar(`${clock} · prima a ${info.scoreLimit}: ${leaderName} ${leader.kills}`);
+      }
       this.hud.endScreen(false);
       return;
     }
     this.hud.matchBar(null);
-    const winner = this.match.getCombatant(info.winner);
-    const title = winner ? (winner === this.local ? 'Hai vinto!' : `Vince ${winner.name}`) : 'Partita finita';
+    let title = 'Partita finita';
+    if (teams) {
+      if (info.winner === 1 || info.winner === 2) {
+        title = `Vincono i ${TEAMS.names[info.winner]} ${Math.max(info.scoreA, info.scoreB)} a ${Math.min(info.scoreA, info.scoreB)}`;
+        if (info.winner === this.local.team) title += ' · avete vinto!';
+      } else {
+        title = 'Pareggio';
+      }
+    } else {
+      const winner = this.match.getCombatant(info.winner);
+      if (winner) title = winner === this.local ? 'Hai vinto!' : `Vince ${winner.name}`;
+    }
     const rows = this.match.combatants.map((c) => ({
       name: c === this.local ? LOCAL_NAME : c.name,
       kills: c.kills,
       deaths: c.deaths,
       local: c === this.local,
+      team: c.team,
     }));
     this.hud.endScreen(true, title, rows, info.timeLeft);
   }

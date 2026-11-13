@@ -670,6 +670,22 @@ body {
   font-weight: 600;
 }
 
+/* Squadre: nomi colorati e righe dei punteggi. */
+.label.ally .label-name {
+  color: #7fc4ff;
+}
+.label.enemy .label-name {
+  color: #ff8a7a;
+}
+#scoreboard tr.team-1 td:first-child,
+#end-screen tr.team-1 td:first-child {
+  border-left: 3px solid #e2483d;
+}
+#scoreboard tr.team-2 td:first-child,
+#end-screen tr.team-2 td:first-child {
+  border-left: 3px solid #3d7be2;
+}
+
 /* Partita online: tempo e punteggi, chat, schermata finale. */
 #match-bar {
   position: absolute;

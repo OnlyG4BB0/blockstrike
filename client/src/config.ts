@@ -88,6 +88,12 @@ export const EFFECTS = {
   shakeRange: 16,
 } as const;
 
+/** Squadre: nomi e colori (indice = squadra; 0 = nessuna). */
+export const TEAMS = {
+  names: ['', 'Rossi', 'Blu'],
+  colors: ['#ffffff', '#e2483d', '#3d7be2'],
+} as const;
+
 /** Personaggi: disegno e scritte. */
 export const CHARACTERS = {
   /** Personaggi disegnabili insieme (giocatori, bot e anteprime). */

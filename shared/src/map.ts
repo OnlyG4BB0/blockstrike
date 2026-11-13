@@ -27,6 +27,15 @@ export interface SpawnPoint {
   pos: Vec3Tuple;
   /** Direzione dello sguardo in gradi. 0 = verso -z, 90 = verso -x. */
   yaw: number;
+  /** Squadra che nasce qui nelle modalità a squadre (1 = rossi, 2 = blu); 0 o assente = tutti. */
+  team?: number;
+}
+
+/** Base di una bandiera (cattura la bandiera). */
+export interface FlagPoint {
+  team: number;
+  /** Posizione della base, all'altezza del pavimento. */
+  pos: Vec3Tuple;
 }
 
 export interface MapData {
@@ -38,6 +47,8 @@ export interface MapData {
   blocks: MapBlock[];
   /** Punti di navigazione dei bot (all'altezza dei piedi). Facoltativi. */
   waypoints: Vec3Tuple[];
+  /** Basi delle bandiere: una per squadra, solo nelle mappe che hanno "cattura la bandiera". */
+  flags?: FlagPoint[];
   sky: { top: string; horizon: string; bottom: string };
   fog: { color: string; near: number; far: number };
   /** Luce del sole. `direction` è la direzione in cui viaggia la luce. */
@@ -69,8 +80,25 @@ export function parseMap(raw: unknown, source = 'mappa'): MapData {
 
   const spawns = v.array(root.spawns, 'spawns', 1).map((item, i): SpawnPoint => {
     const spawn = v.object(item, `spawns[${i}]`);
-    return { pos: v.vec3(spawn.pos, `spawns[${i}].pos`), yaw: v.number(spawn.yaw, `spawns[${i}].yaw`) };
+    return {
+      pos: v.vec3(spawn.pos, `spawns[${i}].pos`),
+      yaw: v.number(spawn.yaw, `spawns[${i}].yaw`),
+      team: v.optionalNumber(spawn.team, `spawns[${i}].team`, 0, { min: 0, max: 2, integer: true }),
+    };
   });
+  const flags =
+    root.flags === undefined
+      ? []
+      : v.array(root.flags, 'flags', 0).map((item, i): FlagPoint => {
+          const flag = v.object(item, `flags[${i}]`);
+          return {
+            team: v.number(flag.team, `flags[${i}].team`, { min: 1, max: 2, integer: true }),
+            pos: v.vec3(flag.pos, `flags[${i}].pos`),
+          };
+        });
+  if (flags.length > 0 && (flags.length !== 2 || flags[0]!.team === flags[1]!.team)) {
+    v.fail('flags', 'servono due basi, una per la squadra 1 e una per la squadra 2');
+  }
 
   const blocks = v.array(root.blocks, 'blocks', 1).map((item, i): MapBlock => {
     const path = `blocks[${i}]`;
@@ -118,6 +146,7 @@ export function parseMap(raw: unknown, source = 'mappa'): MapData {
     spawns,
     blocks,
     waypoints,
+    flags,
     sky: {
       top: v.color(sky.top, 'sky.top'),
       horizon: v.color(sky.horizon, 'sky.horizon'),

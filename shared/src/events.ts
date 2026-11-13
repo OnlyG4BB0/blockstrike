@@ -91,7 +91,18 @@ export interface ExplosionEvent {
   radius: number;
 }
 
-export type ActionType = 'reload' | 'reloadEnd' | 'switch' | 'dryFire' | 'throw' | 'bounce' | 'respawn';
+export type ActionType =
+  | 'reload'
+  | 'reloadEnd'
+  | 'switch'
+  | 'dryFire'
+  | 'throw'
+  | 'bounce'
+  | 'respawn'
+  | 'flagTaken'
+  | 'flagDropped'
+  | 'flagReturned'
+  | 'flagCaptured';
 
 export interface ActionEvent {
   combatant: number;

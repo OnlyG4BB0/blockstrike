@@ -23,7 +23,19 @@ export const MSG_CLASS = 'class';
 
 const TWO_PI = Math.PI * 2;
 const REGIONS: readonly HitRegion[] = ['head', 'torso', 'arm', 'leg'];
-const ACTIONS: readonly ActionType[] = ['reload', 'reloadEnd', 'switch', 'dryFire', 'throw', 'bounce', 'respawn'];
+const ACTIONS: readonly ActionType[] = [
+  'reload',
+  'reloadEnd',
+  'switch',
+  'dryFire',
+  'throw',
+  'bounce',
+  'respawn',
+  'flagTaken',
+  'flagDropped',
+  'flagReturned',
+  'flagCaptured',
+];
 
 // -----------------------------------------------------------------------------------------------
 // Comandi

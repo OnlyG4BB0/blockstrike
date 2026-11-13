@@ -137,7 +137,7 @@ function perceive(c: Combatant, match: Match): void {
   let bestScore = Infinity;
   if (match.botMode === 'fight') {
     for (const other of match.combatants) {
-      if (other === c || !other.alive) continue;
+      if (other === c || !other.alive || (c.team > 0 && other.team === c.team)) continue;
       const o = other.player;
       const dx = o.x - p.x;
       const dz = o.z - p.z;

@@ -69,6 +69,24 @@ interface History {
   anims: AnimState[];
 }
 
+/** Bandiera di una squadra (cattura la bandiera). */
+interface FlagState {
+  team: number;
+  homeX: number;
+  homeY: number;
+  homeZ: number;
+  /** 0 = alla base, 1 = portata, 2 = a terra. */
+  state: number;
+  carrier: number;
+  x: number;
+  y: number;
+  z: number;
+  returnTimer: number;
+}
+
+/** Altezza a cui si porta la bandiera sopra i piedi. */
+const FLAG_CARRY_HEIGHT = 2.2;
+
 /** Pulisce un testo arrivato dalla rete: niente caratteri di controllo, lunghezza massima. */
 export function cleanText(value: unknown, max: number): string {
   if (typeof value !== 'string') return '';
@@ -99,13 +117,51 @@ export class ServerCore implements FireHooks {
   private endTimer = 0;
 
   constructor(map: MapData, content: CombatContent, options: ServerOptions = {}) {
-    this.mode = options.mode ?? 'ffa';
+    // Cattura la bandiera solo sulle mappe con le basi; altrimenti si gioca a squadre.
+    const flags = map.flags ?? [];
+    const requested = options.mode ?? 'ffa';
+    this.mode = requested === 'ctf' && flags.length !== 2 ? 'tdm' : requested;
     this.fillTo = options.fillTo ?? MATCH_RULES.fillTo;
     this.lagCompensation = options.lagCompensation ?? true;
     this.match = new Match(map, content, { seed: options.seed ?? 1 });
     this.match.fireHooks = this;
+    if (this.mode === 'ctf') {
+      for (const flag of flags) {
+        const [x, y, z] = flag.pos;
+        this.flags.push({ team: flag.team, homeX: x, homeY: y, homeZ: z, state: 0, carrier: -1, x, y, z, returnTimer: 0 });
+      }
+    }
     this.resetInfo();
     this.fillBots();
+  }
+
+  private readonly flags: FlagState[] = [];
+  /** Punti delle squadre (indice = squadra). */
+  private readonly teamScores = [0, 0, 0];
+
+  /** Modalità a squadre: chi non ha squadra va in quella con meno giocatori; i bot riequilibrano. */
+  private assignTeams(): void {
+    const combatants = this.match.combatants;
+    if (this.mode === 'ffa') {
+      for (const c of combatants) c.team = 0;
+      return;
+    }
+    const count = (team: number) => combatants.filter((c) => c.team === team).length;
+    let changed = false;
+    for (const c of combatants) {
+      if (c.team === 1 || c.team === 2) continue;
+      c.team = count(1) <= count(2) ? 1 : 2;
+      changed = true;
+    }
+    for (let guard = 0; guard < combatants.length; guard++) {
+      const big = count(1) - count(2) >= 2 ? 1 : count(2) - count(1) >= 2 ? 2 : 0;
+      if (big === 0) break;
+      const bot = combatants.find((c) => c.bot && c.team === big);
+      if (!bot) break;
+      bot.team = big === 1 ? 2 : 1;
+      changed = true;
+    }
+    if (changed) this.rosterVersion++;
   }
 
   get tick(): number {
@@ -141,6 +197,7 @@ export class ServerCore implements FireHooks {
       lastChat: -Infinity,
     });
     this.fillBots();
+    this.assignTeams();
     this.rosterVersion++;
     return c;
   }
@@ -152,6 +209,7 @@ export class ServerCore implements FireHooks {
     this.history.delete(slot.c.id);
     this.slots.delete(session);
     this.fillBots();
+    this.assignTeams();
     this.rosterVersion++;
   }
 
@@ -197,6 +255,7 @@ export class ServerCore implements FireHooks {
     const before = this.match.combatants.length;
     this.match.setBotCount(wanted);
     if (this.match.combatants.length !== before) this.rosterVersion++;
+    this.assignTeams();
   }
 
   // -------------------------------------------------------------------------------------------
@@ -381,25 +440,131 @@ export class ServerCore implements FireHooks {
   private updateRules(): void {
     const info = this.info;
     if (info.phase === 1) {
+      // Durante la schermata finale il tempo che resta è quello della pausa.
       this.endTimer -= TICK_DT;
+      info.timeLeft = Math.max(0, this.endTimer);
       if (this.endTimer <= 0) this.restart();
       return;
     }
     info.timeLeft = Math.max(0, info.timeLeft - TICK_DT);
-    let best: Combatant | null = null;
-    for (const c of this.match.combatants) if (!best || c.kills > best.kills) best = c;
-    const top = best?.kills ?? 0;
-    info.scoreA = top;
-    if (top >= info.scoreLimit || info.timeLeft <= 0) {
-      info.phase = 1;
-      info.winner = best ? best.id : -1;
-      this.endTimer = MATCH_RULES.endScreen;
+    if (this.mode === 'ffa') {
+      let best: Combatant | null = null;
+      for (const c of this.match.combatants) if (!best || c.kills > best.kills) best = c;
+      const top = best?.kills ?? 0;
+      info.scoreA = top;
+      if (top >= info.scoreLimit || info.timeLeft <= 0) this.finish(best ? best.id : -1);
+      return;
     }
+    if (this.mode === 'tdm') {
+      // Un punto alla squadra per ogni nemico ucciso.
+      const kills = this.match.events.kills;
+      for (let i = 0; i < kills.count; i++) {
+        const k = kills.get(i);
+        const killer = this.match.getCombatant(k.killer);
+        const victim = this.match.getCombatant(k.victim);
+        if (killer && victim && killer.team > 0 && killer.team !== victim.team) this.teamScores[killer.team]!++;
+      }
+    } else {
+      this.updateFlags();
+    }
+    info.scoreA = this.teamScores[1]!;
+    info.scoreB = this.teamScores[2]!;
+    if (info.scoreA >= info.scoreLimit || info.scoreB >= info.scoreLimit || info.timeLeft <= 0) {
+      this.finish(info.scoreA > info.scoreB ? 1 : info.scoreB > info.scoreA ? 2 : -1);
+    }
+  }
+
+  private finish(winner: number): void {
+    this.info.phase = 1;
+    this.info.winner = winner;
+    this.endTimer = MATCH_RULES.endScreen;
+  }
+
+  /** Cattura la bandiera: prendere, perdere, riportare e catturare. */
+  private updateFlags(): void {
+    const match = this.match;
+    const reach = MATCH_RULES.flagReach;
+    for (const f of this.flags) {
+      if (f.state === 1) {
+        const carrier = match.getCombatant(f.carrier);
+        if (!carrier || !carrier.alive) {
+          f.state = 2;
+          f.returnTimer = MATCH_RULES.flagReturnTime;
+          match.addAction(f.carrier, 'flagDropped', f.x, f.y, f.z);
+          f.carrier = -1;
+          // Cade a terra dove stava il portatore.
+          f.y = Math.max(f.homeY, f.y - FLAG_CARRY_HEIGHT);
+        } else {
+          f.x = carrier.player.x;
+          f.y = carrier.player.y + FLAG_CARRY_HEIGHT;
+          f.z = carrier.player.z;
+        }
+      } else if (f.state === 2) {
+        f.returnTimer -= TICK_DT;
+        if (f.returnTimer <= 0) this.flagHome(f, -1);
+      }
+    }
+    for (const c of match.combatants) {
+      if (!c.alive || c.team === 0) continue;
+      const p = c.player;
+      for (const f of this.flags) {
+        if (f.state === 1) continue;
+        const near = Math.hypot(p.x - f.x, p.y - f.y, p.z - f.z) < reach + 1;
+        if (!near) continue;
+        if (f.team !== c.team) {
+          f.state = 1;
+          f.carrier = c.id;
+          match.addAction(c.id, 'flagTaken', f.x, f.y, f.z);
+        } else if (f.state === 2) {
+          this.flagHome(f, c.id);
+        }
+      }
+      // Cattura: la bandiera nemica portata alla propria base, con la propria bandiera a casa.
+      const carried = this.flags.find((f) => f.state === 1 && f.carrier === c.id);
+      const own = this.flags.find((f) => f.team === c.team);
+      if (carried && own && own.state === 0 && Math.hypot(p.x - own.homeX, p.y - own.homeY, p.z - own.homeZ) < reach + 1) {
+        this.teamScores[c.team]!++;
+        match.addAction(c.id, 'flagCaptured', own.homeX, own.homeY, own.homeZ);
+        carried.state = 0;
+        carried.carrier = -1;
+        carried.x = carried.homeX;
+        carried.y = carried.homeY;
+        carried.z = carried.homeZ;
+      }
+    }
+    const flags = this.info.flags;
+    flags.length = this.flags.length;
+    for (let i = 0; i < this.flags.length; i++) {
+      const f = this.flags[i]!;
+      const out = (flags[i] ??= { state: 0, carrier: -1, x: 0, y: 0, z: 0 });
+      out.state = f.state;
+      out.carrier = f.carrier;
+      out.x = f.x;
+      out.y = f.y;
+      out.z = f.z;
+    }
+  }
+
+  private flagHome(f: FlagState, by: number): void {
+    f.state = 0;
+    f.carrier = -1;
+    f.x = f.homeX;
+    f.y = f.homeY;
+    f.z = f.homeZ;
+    this.match.addAction(by, 'flagReturned', f.x, f.y, f.z);
   }
 
   /** Nuova partita: punteggi azzerati, tutti rinascono. */
   private restart(): void {
     this.resetInfo();
+    this.teamScores.fill(0);
+    for (const f of this.flags) {
+      f.state = 0;
+      f.carrier = -1;
+      f.x = f.homeX;
+      f.y = f.homeY;
+      f.z = f.homeZ;
+    }
     for (const c of this.match.combatants) {
       c.kills = 0;
       c.deaths = 0;

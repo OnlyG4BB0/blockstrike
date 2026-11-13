@@ -55,6 +55,8 @@ export interface CharacterEffects {
   sink: number;
   /** Parti da non disegnare (bit 1 << parte): quelle staccate, o tutte tranne una per un pezzo. */
   hidden?: number;
+  /** Colore della squadra: una fascia sul busto (null = nessuna squadra). */
+  team?: Color | null;
 }
 
 /** Box per personaggio: sei parti, nove dettagli e gli accessori. */
@@ -191,6 +193,10 @@ export class CharacterRenderer {
     }
     if (visible(hidden, PART_TORSO)) {
       this.detail(pose, PART_TORSO, 0, 0.03, 0, BODY.torsoHalfWidth * 2 + 0.02, 0.06, BODY.torsoHalfDepth * 2 + 0.02, prepared.belt, hurt);
+      if (effects.team) {
+        const height = parts[PART_TORSO * PART_STRIDE + POSE_HALF + 1]! * 2;
+        this.detail(pose, PART_TORSO, 0, height * 0.72, 0, BODY.torsoHalfWidth * 2 + 0.03, 0.1, BODY.torsoHalfDepth * 2 + 0.03, effects.team, 0);
+      }
     }
     for (let arm = PART_ARM_LEFT; arm <= PART_ARM_RIGHT; arm++) {
       if (!visible(hidden, arm)) continue;

@@ -1135,6 +1135,8 @@ export class Match implements CombatContent {
 
   private applyDamage(target: Combatant, attackerId: number, amount: number, info: DamageInfo): void {
     if (!this.authoritative || !target.alive || amount <= 0 || target.protection > 0) return;
+    // Niente fuoco amico nelle modalità a squadre (i propri razzi feriscono comunque chi spara).
+    if (target.team > 0 && attackerId !== target.id && this.getCombatant(attackerId)?.team === target.team) return;
     const dealt = Math.min(amount, target.health);
     target.health -= amount;
     target.anim.flinch = 1;
@@ -1234,11 +1236,16 @@ export class Match implements CombatContent {
   private chooseSpawn(c: Combatant): number {
     let best = 0;
     let bestScore = -Infinity;
+    // In squadra si nasce sui punti della propria squadra, se la mappa ne ha.
+    const teamSpawns = c.team > 0 && this.map.spawns.some((s) => (s.team ?? 0) === c.team);
     for (let i = 0; i < this.map.spawns.length; i++) {
-      const [x, y, z] = this.map.spawns[i]!.pos;
+      const spawn = this.map.spawns[i]!;
+      if (teamSpawns && (spawn.team ?? 0) !== c.team) continue;
+      const [x, y, z] = spawn.pos;
       let nearest = Infinity;
       for (const other of this.combatants) {
-        if (other === c || !other.alive) continue;
+        // Lontano dai nemici: i compagni non contano.
+        if (other === c || !other.alive || (c.team > 0 && other.team === c.team)) continue;
         nearest = Math.min(nearest, Math.hypot(other.player.x - x, other.player.y - y, other.player.z - z));
       }
       const score = (nearest === Infinity ? 0 : nearest) + random(this.random) * 2;
@@ -1248,6 +1255,11 @@ export class Match implements CombatContent {
       }
     }
     return best;
+  }
+
+  /** Evento di azione aggiunto da fuori (regole della modalità: bandiere). */
+  addAction(combatant: number, type: ActionType, x: number, y: number, z: number): void {
+    this.actionAt(combatant, type, x, y, z);
   }
 
   private action(c: Combatant, type: ActionType): void {
