@@ -136,7 +136,7 @@ export class TouchControls {
   private roleAt(event: PointerEvent): Role {
     const button = (event.target as HTMLElement).closest<HTMLElement>('.tbtn');
     if (button?.dataset.role) return button.dataset.role as Role;
-    return event.clientX < window.innerWidth * 0.45 ? 'move' : 'look';
+    return event.clientX < window.innerWidth * TOUCH.moveZone ? 'move' : 'look';
   }
 
   private readonly handleDown = (event: PointerEvent): void => {
@@ -187,12 +187,6 @@ export class TouchControls {
         break;
       case 'score':
         this.scoreboard = true;
-        break;
-      case 'pause':
-        this.onPause();
-        break;
-      case 'chat':
-        this.onChat();
         break;
       case 'respawn':
         this.respawnLatch = true;
@@ -250,8 +244,33 @@ export class TouchControls {
         if ((performance.now() - finger.startTime) / 1000 >= TOUCH.longPress) this.lastWeaponLatch = true;
         else this.nextWeaponLatch = true;
         break;
+      // Pausa e chat al rilascio: per il browser il rilascio di un tocco è un gesto dell'utente (serve
+      // ad aprire la tastiera del telefono), la pressione no.
+      case 'pause':
+        if (event.type === 'pointerup') {
+          this.swallowNextClick();
+          this.onPause();
+        }
+        break;
+      case 'chat':
+        if (event.type === 'pointerup') this.onChat();
+        break;
       default:
         break;
     }
   };
+
+  /** Il tocco sulla pausa genera poi un clic: il menu appena aperto non deve riceverlo. */
+  private swallowNextClick(): void {
+    const until = performance.now() + TOUCH.clickGuardMs;
+    const guard = (event: MouseEvent) => {
+      window.removeEventListener('click', guard, true);
+      if (performance.now() <= until) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener('click', guard, true);
+    window.setTimeout(() => window.removeEventListener('click', guard, true), TOUCH.clickGuardMs);
+  }
 }

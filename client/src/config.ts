@@ -301,6 +301,8 @@ export const GAMEPAD = {
   activity: 0.55,
   /** Grilletti: premuti oltre questo valore. */
   trigger: 0.3,
+  /** Gli altri tasti (e la croce) contano come premuti oltre questo valore. */
+  button: 0.5,
   /** Navigazione nel menu: prima ripetizione e ripetizioni successive (secondi). */
   navDelay: 0.35,
   navRepeat: 0.12,
@@ -323,4 +325,8 @@ export const TOUCH = {
   vibrateHitMs: 35,
   /** Tenere premuto il tasto delle armi così a lungo torna all'arma di prima (secondi). */
   longPress: 0.4,
+  /** Frazione sinistra dello schermo dove compare la levetta (a destra si guarda intorno). */
+  moveZone: 0.45,
+  /** Dopo la pausa dal tasto touch si ignora il clic che segue il tocco (ms). */
+  clickGuardMs: 450,
 };

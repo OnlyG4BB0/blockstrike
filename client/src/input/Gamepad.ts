@@ -88,12 +88,14 @@ export class GamepadInput {
       this.style = padStyleOf(pad.id);
       this.onConnectionChange(true);
     }
-    if (padActivity(pad, GAMEPAD.activity)) this.onActivity(this.style);
+    // Le levette contano solo con la disposizione standard: su controller strani un asse può
+    // restare lontano dallo zero e far credere che il controller sia sempre in uso.
+    if (padActivity(pad, pad.mapping === 'standard' ? GAMEPAD.activity : Infinity)) this.onActivity(this.style);
 
     for (let i = 0; i < BUTTONS; i++) {
       this.previous[i] = this.current[i]!;
       const trigger = i === PAD.lt || i === PAD.rt;
-      this.current[i] = buttonValue(pad.buttons, i) > (trigger ? GAMEPAD.trigger : 0.5);
+      this.current[i] = buttonValue(pad.buttons, i) > (trigger ? GAMEPAD.trigger : GAMEPAD.button);
     }
 
     if (menu) {
@@ -200,7 +202,7 @@ export class GamepadInput {
     const dpadX = (this.current[PAD.right] ? 1 : 0) - (this.current[PAD.left] ? 1 : 0);
     const dpadY = (this.current[PAD.down] ? 1 : 0) - (this.current[PAD.up] ? 1 : 0);
     const direction =
-      navDirection(dpadX, dpadY, 0.5) ?? navDirection(pad.axes[0] ?? 0, pad.axes[1] ?? 0, GAMEPAD.navThreshold);
+      navDirection(dpadX, dpadY, GAMEPAD.button) ?? navDirection(pad.axes[0] ?? 0, pad.axes[1] ?? 0, GAMEPAD.navThreshold);
     if (!direction) {
       this.navHeld = null;
       return;

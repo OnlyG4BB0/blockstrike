@@ -723,9 +723,10 @@ export class Game {
       if (hit.target === localId) {
         this.showDamageDirection(hit.attacker);
         this.hud.hurt(hit.damage);
-        if (this.settings.vibration) {
+        // Solo giocando; il telefono vibra solo dopo un tocco vero (prima il browser lo vieta).
+        if (this.settings.vibration && this.input.active) {
           this.input.pad.rumble(GAMEPAD.rumbleHitMs, GAMEPAD.rumbleHitWeak, GAMEPAD.rumbleHitStrong);
-          if (this.input.device === 'touch') navigator.vibrate?.(TOUCH.vibrateHitMs);
+          if (this.input.device === 'touch' && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(TOUCH.vibrateHitMs);
         }
         this.rig.addShake(0.25 + hit.damage / 150);
         this.audio.play('hurt', { volume: 0.8 });

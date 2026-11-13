@@ -464,7 +464,8 @@ export class Input {
 /** Schermo intero e orizzontale sui telefoni (dove il browser lo permette; altrimenti niente). */
 function enterFullscreen(): void {
   const root = document.documentElement;
-  if (document.fullscreenElement || !root.requestFullscreen) return;
+  // Il browser lo concede solo durante un gesto vero (un tocco): senza, non si chiede nemmeno.
+  if (document.fullscreenElement || !root.requestFullscreen || navigator.userActivation?.isActive === false) return;
   root
     .requestFullscreen({ navigationUI: 'hide' })
     .then(() => {
