@@ -50,12 +50,18 @@ interface Welcome {
   roster: RosterEntry[];
 }
 
-/** Indirizzo del server: VITE_SERVER_URL, oppure lo stesso host della pagina sulla porta 2567. */
+/**
+ * Indirizzo del server di gioco:
+ * - VITE_SERVER_URL, se impostato quando si compila il client (client ospitato altrove);
+ * - in sviluppo, lo stesso host della pagina sulla porta 2567;
+ * - nel client compilato, la stessa origine della pagina (il server serve anche il client).
+ */
 export function serverUrl(): string {
   const configured = import.meta.env.VITE_SERVER_URL as string | undefined;
   if (configured) return configured;
   const secure = location.protocol === 'https:';
-  return `${secure ? 'wss' : 'ws'}://${location.hostname}:2567`;
+  const host = import.meta.env.DEV ? `${location.hostname}:2567` : location.host;
+  return `${secure ? 'wss' : 'ws'}://${host}`;
 }
 
 export class NetSession {

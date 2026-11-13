@@ -22,6 +22,8 @@ function watchContent(): Plugin {
 }
 
 export default defineConfig({
+  // Percorsi relativi: il client compilato funziona in qualunque cartella di un sito statico.
+  base: './',
   plugins: [watchContent()],
   server: {
     port: 5173,

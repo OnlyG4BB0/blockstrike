@@ -17,6 +17,7 @@
     "express": "^5.1.0"
   },
   "devDependencies": {
-    "@colyseus/sdk": "^0.18.10"
+    "@colyseus/sdk": "^0.18.10",
+    "@types/express": "^5.0.3"
   }
 }

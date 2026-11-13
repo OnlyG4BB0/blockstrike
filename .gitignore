@@ -2,3 +2,8 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# Variabili locali (l esempio resta in client/.env.example)
+.env
+.env.*
+!.env.example

@@ -1,6 +1,7 @@
 /** Avvio del server di gioco, riusato dal programma principale e dalla prova di rete. */
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { Server } from '@colyseus/core';
+import express from 'express';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { CollisionWorld, navGraphFor, parseMap, type MapData, type NavGraph } from '@blockstrike/shared';
 import { loadContentFromDisk } from './content.ts';
@@ -17,8 +18,15 @@ export function loadMaps(): Map<string, MapData> {
   return maps;
 }
 
+export interface StartOptions {
+  /** Cartella del client compilato (client/dist) da servire sulla stessa porta; facoltativa. */
+  clientDir?: string;
+}
+
 /** Carica contenuti e mappe (lancia ContentError se non sono validi) e avvia il server. */
-export async function startServer(port: number): Promise<Server> {
+export async function startServer(port: number, options: StartOptions = {}): Promise<Server> {
+  const clientDir = options.clientDir;
+  if (clientDir && !existsSync(clientDir)) throw new Error(`CLIENT_DIR: la cartella ${clientDir} non esiste`);
   const content = loadContentFromDisk();
   const maps = loadMaps();
   // I grafi dei bot si calcolano qui una volta: creare una stanza non blocca le altre.
@@ -34,7 +42,12 @@ export async function startServer(port: number): Promise<Server> {
     );
   }
   setResources({ content, maps, navs, defaultMap: maps.has('arena-prova') ? 'arena-prova' : [...maps.keys()][0]! });
-  const server = new Server({ transport: new WebSocketTransport(), gracefullyShutdown: false });
+  const server = new Server({
+    transport: new WebSocketTransport(),
+    gracefullyShutdown: false,
+    // Con CLIENT_DIR il server serve anche il gioco: un solo indirizzo per pagina e partite.
+    express: clientDir ? (app) => void app.use(express.static(clientDir)) : undefined,
+  });
   server.define('partita', GameRoom).filterBy(['mode']);
   server.define('privata', GameRoom);
   await server.listen(port);

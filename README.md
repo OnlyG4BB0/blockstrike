@@ -3,7 +3,7 @@
 Sparatutto in prima persona da browser, grafica low-poly a blocchi, movimento veloce.
 Nome provvisorio.
 
-**Stato: Fase 8 completata — interfaccia, audio e rifinitura.**
+**Stato: tutte le fasi completate (1–9).** Pronto per lo sviluppo locale e per la messa online.
 
 ## Avvio
 
@@ -26,6 +26,52 @@ aperto è in pausa), oppure usa la sezione **Online** del menu.
 | `npm run build` | Build di produzione del client in `client/dist` |
 | `npm run smoke` | Controlla i contenuti e simula una partita tra bot su ogni mappa, in Node |
 | `npm run smoke:net` | Avvia il server e collega due client veri (socket), controlla che si vedano |
+
+## Messa online
+
+### Un solo container (consigliato)
+
+Il server di gioco può servire anche il client compilato: pagina, editor e partite stanno allo stesso
+indirizzo. Il `Dockerfile` fa tutto:
+
+```bash
+docker build -t blockstrike .
+```
+
+```bash
+docker run -p 2567:2567 blockstrike
+```
+
+Poi si apre http://localhost:2567 (o l'indirizzo del server). In produzione si mette davanti un
+proxy con HTTPS (per esempio Caddy o nginx) che inoltri anche le connessioni WebSocket: la pagina in
+`https://` si collega da sola in `wss://` allo stesso indirizzo.
+
+### Client e server separati
+
+1. **Client come sito statico**: si compila indicando dove sarà il server di gioco, poi si pubblica la
+   cartella `client/dist` su qualunque hosting statico (i percorsi sono relativi, va bene anche una
+   sottocartella).
+
+   ```bash
+   VITE_SERVER_URL=wss://gioco.example.com npm run build
+   ```
+
+   (Su Windows in PowerShell: `$env:VITE_SERVER_URL="wss://gioco.example.com"; npm run build`.)
+   Si può anche scrivere la variabile in `client/.env.production` (vedi `client/.env.example`).
+2. **Server** con Docker (`docker run -e CLIENT_DIR= -p 2567:2567 blockstrike` per servire solo le
+   partite) o direttamente con Node 24: `npm ci --omit=dev --workspace @blockstrike/server` e
+   `npm start`.
+
+### Variabili d'ambiente
+
+| Variabile | Dove | Cosa fa |
+|---|---|---|
+| `VITE_SERVER_URL` | build del client | indirizzo del server (`ws://…` o `wss://…`). Se manca: in sviluppo stesso host sulla porta 2567, nel client compilato la stessa origine della pagina |
+| `PORT` | server | porta di ascolto (predefinita 2567); `GAME_PORT` ha la precedenza |
+| `CLIENT_DIR` | server | cartella del client compilato da servire (nel container `/app/client/dist`); vuota = solo partite |
+
+Il server non salva niente su disco: le stanze vivono in memoria. Con più istanze servirebbe un
+presence condiviso di Colyseus (per esempio Redis), non incluso.
 
 ## Comandi di gioco
 
