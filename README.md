@@ -45,11 +45,14 @@ curl -fsSL https://raw.githubusercontent.com/OnlyG4BB0/blockstrike/main/deploy/v
 
 - Mette solo due container suoi, `blockstrike-game` (server) e `blockstrike-caddy` (https/wss con
   certificato Let's Encrypt per `IP-CON-TRATTINI.sslip.io`, un nome gratuito che punta all'IP).
-- **Non tocca nient'altro** (per esempio bobertbot): niente container fermati o cancellati. Se le
-  porte 80 o 443 sono già usate da un altro programma si ferma prima di cambiare qualcosa.
-- Aggiunge solo due regole al firewall della macchina (porte 80 e 443). Nella **console Oracle**
-  bisogna aprirle anche lì: Networking → Virtual Cloud Network → Security List → Ingress rule TCP 80
-  e 443 da 0.0.0.0/0.
+- Usa **solo la porta 443**: la 80 resta a chi la usa già (sulla VPS di questo progetto c'è nginx).
+  Il certificato si ottiene sulla 443 stessa (sfida TLS-ALPN), senza passare dalla 80.
+- **Non tocca nient'altro** (per esempio bobertbot o nginx): niente container fermati o cancellati,
+  nessuna configurazione cambiata. Se la porta 443 è già usata da un altro programma si ferma prima
+  di cambiare qualcosa.
+- Aggiunge solo una regola al firewall della macchina (porta 443). Nella **console Oracle** va
+  aperta anche lì: Networking → Virtual Cloud Network → Security List → Ingress rule TCP 443 da
+  0.0.0.0/0.
 - Rilanciare lo stesso comando aggiorna il server all'ultima versione del repository.
 - Provato qui con Docker: Caddy con certificato locale e la prova di rete con due client attraverso
   `wss://` (`SMOKE_URL=wss://… npm run smoke:net`), tutto a posto.

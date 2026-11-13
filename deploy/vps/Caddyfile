@@ -1,5 +1,15 @@
-# Certificato Let's Encrypt automatico per {$DOMAIN}; le connessioni WebSocket (wss://) passano da sole.
-{$DOMAIN} {
+# Solo porta 443: la porta 80 può essere di un altro programma (sulla VPS c'è già nginx) e non si
+# tocca. Il certificato Let's Encrypt si ottiene sulla 443 stessa (sfida TLS-ALPN), senza la 80.
+{
+	auto_https disable_redirects
+}
+
+https://{$DOMAIN} {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
 	@root path /
 	respond @root "Server di BLOCKSTRIKE attivo. Si gioca da {$SITE}" 200
 	reverse_proxy blockstrike-game:2567

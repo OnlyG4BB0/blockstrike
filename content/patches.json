@@ -1,6 +1,15 @@
 {
   "patches": [
     {
+      "version": "0.2.1",
+      "date": "2026-11-13",
+      "title": "Online pronto",
+      "notes": [
+        "Il server di gioco è già impostato: «Partita veloce», «Crea stanza» ed «Entra» funzionano senza scrivere niente.",
+        "Il campo Server resta per chi vuole giocare su un altro server."
+      ]
+    },
+    {
       "version": "0.2.0",
       "date": "2026-11-13",
       "title": "Telefono, controller e automira",

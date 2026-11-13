@@ -20,8 +20,8 @@ services:
     restart: unless-stopped
     depends_on:
       - game
+    # Solo la 443: la 80 resta a chi la usa già (nginx).
     ports:
-      - '80:80'
       - '443:443'
     environment:
       # Scritto da install.sh in .env: <ip-con-trattini>.sslip.io

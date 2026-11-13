@@ -4,9 +4,10 @@
 #   curl -fsSL https://raw.githubusercontent.com/OnlyG4BB0/blockstrike/main/deploy/vps/install.sh | bash -s -- <IP pubblico>
 #
 # Cosa fa: Docker se manca, il codice in ~/blockstrike, due container (blockstrike-game e
-# blockstrike-caddy) e due regole del firewall per le porte 80 e 443.
+# blockstrike-caddy) e una regola del firewall per la porta 443.
 # Cosa NON fa: non ferma, non cancella e non riconfigura altri container o servizi (per esempio
-# bobertbot). Se le porte 80 o 443 sono già usate da altro, si ferma prima di cambiare qualcosa.
+# bobertbot, o nginx sulla porta 80: la 80 non si usa). Se la porta 443 è già usata da altro, si
+# ferma prima di cambiare qualcosa.
 set -euo pipefail
 
 IP="${1:-}"
@@ -22,8 +23,8 @@ if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
 
 ours_running() { $SUDO docker ps --format '{{.Names}}' 2>/dev/null | grep -qx blockstrike-caddy; }
 
-echo "== 1. Porte 80 e 443"
-for port in 80 443; do
+echo "== 1. Porta 443 (la 80 non serve: resta a chi la usa già)"
+for port in 443; do
   if $SUDO ss -ltnH "sport = :$port" | grep -q . && ! ours_running; then
     echo "La porta $port è già usata da un altro programma: mi fermo senza cambiare niente."
     $SUDO ss -ltnp "sport = :$port" || true
@@ -31,7 +32,7 @@ for port in 80 443; do
     exit 1
   fi
 done
-echo "libere (o già di BLOCKSTRIKE)"
+echo "libera (o già di BLOCKSTRIKE)"
 
 echo "== 2. Programmi necessari"
 if ! command -v git >/dev/null 2>&1; then
@@ -44,12 +45,12 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 $SUDO docker compose version >/dev/null 2>&1 || { echo "Manca il plugin 'docker compose': installalo e rilancia."; exit 1; }
 
-echo "== 3. Firewall della macchina (Oracle chiude le porte anche dentro la VPS): apro solo 80 e 443"
+echo "== 3. Firewall della macchina (Oracle chiude le porte anche dentro la VPS): apro solo la 443"
 if command -v firewall-cmd >/dev/null 2>&1 && $SUDO firewall-cmd --state >/dev/null 2>&1; then
-  $SUDO firewall-cmd --permanent --add-service=http --add-service=https >/dev/null
+  $SUDO firewall-cmd --permanent --add-service=https >/dev/null
   $SUDO firewall-cmd --reload >/dev/null
 elif command -v iptables >/dev/null 2>&1; then
-  for port in 80 443; do
+  for port in 443; do
     $SUDO iptables -C INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT 2>/dev/null \
       || $SUDO iptables -I INPUT 1 -p tcp --dport "$port" -m state --state NEW -j ACCEPT
   done
@@ -75,6 +76,6 @@ for _ in $(seq 1 40); do
   sleep 3
 done
 echo "Il certificato non è ancora arrivato. Di solito manca la regola nella console Oracle:"
-echo "  Networking → Virtual Cloud Network → Security List → Ingress: TCP 80 e 443 da 0.0.0.0/0"
+echo "  Networking → Virtual Cloud Network → Security List → Ingress: TCP 443 da 0.0.0.0/0"
 echo "Poi rilancia lo stesso comando. Registro di Caddy: $SUDO docker logs blockstrike-caddy"
 exit 1
