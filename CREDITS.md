@@ -19,6 +19,10 @@ Modelli, mappe, personaggi, skin e texture sono costruiti in codice o descritti 
 `content/`: blocchi colorati, nessuna immagine esterna. Le texture dei blocchi e delle macchie di
 sangue sono disegnate al volo su un canvas.
 
+Le icone dell'app (`client/public/icons`) sono generate da `scripts/icons.mjs`: una «B» fatta di
+blocchi, disegnata pixel per pixel. Anche i simboli dei comandi touch e dei tasti del controller
+sono caratteri di testo, nessuna immagine esterna.
+
 ## Caratteri
 
 Il gioco usa i caratteri di sistema (Segoe UI, system-ui, Roboto, Arial): nessun carattere incluso.

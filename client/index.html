@@ -5,7 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#11151f" />
     <title>BLOCKSTRIKE</title>
-    <link rel="icon" href="data:," />
+    <link rel="icon" type="image/png" href="./icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BLOCKSTRIKE" />
   </head>
   <body>
     <div id="app">
@@ -104,6 +110,7 @@
               <select id="set-map"></select>
             </label>
             <a class="editor-link" href="./editor.html" target="_blank" rel="noopener">Editor di mappe</a>
+            <button id="install-quick" class="install-quick" type="button" hidden>📲 Installa l'app</button>
           </div>
           </header>
           <p id="lock-error" class="lock-error" hidden>
@@ -148,6 +155,15 @@
               <button id="online-leave" type="button">Esci</button>
             </div>
             <p id="online-status" class="online-status"></p>
+
+            <div id="install-card" class="install-card">
+              <img src="./icons/icon-192.png" alt="" width="56" height="56" />
+              <div>
+                <h3>App per il telefono</h3>
+                <p id="install-status" class="setting-note"></p>
+              </div>
+              <button id="install-button" type="button" hidden>Installa l'app</button>
+            </div>
           </section>
 
           <section id="loadout" class="loadout tab-panel" data-panel="personaggio" aria-label="Classe e aspetto">

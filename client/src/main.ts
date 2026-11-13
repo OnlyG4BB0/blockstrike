@@ -3,6 +3,7 @@ import { ContentError, GAME_MODES, parseMap, type GameMode, type MapData } from 
 import { loadGameContent } from './content.ts';
 import { Game } from './game/Game.ts';
 import { NetSession, serverUrl, type OnlineKind } from './net/NetSession.ts';
+import { setupInstall } from './pwa/install.ts';
 import { loadSettings } from './settings.ts';
 import { byId } from './ui/dom.ts';
 
@@ -139,6 +140,7 @@ async function main(): Promise<void> {
     navigate({});
   };
   game.start();
+  setupInstall(import.meta.env.PROD);
   if (import.meta.env.DEV) window.blockstrike = game;
 }
 

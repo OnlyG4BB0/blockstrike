@@ -3,7 +3,8 @@
 Sparatutto in prima persona da browser, grafica low-poly a blocchi, movimento veloce.
 Nome provvisorio.
 
-**Stato: tutte le fasi completate (1–9).** Pronto per lo sviluppo locale e per la messa online.
+**Stato: fasi 1–10 completate.** Si gioca da computer (tastiera e mouse o controller) e da
+telefono (comandi touch), e su Android si installa come app direttamente dal sito.
 
 ## Avvio
 
@@ -59,6 +60,36 @@ SMOKE_URL=ws://localhost:2567 npm run smoke:net
 npm 11 avvisa che lo script di installazione di `msgpackr-extract` (accelerazione nativa facoltativa
 usata da Colyseus) non è approvato: senza, Colyseus funziona lo stesso.
 
+### App per Android (installabile dal sito)
+
+Il gioco è anche un'app da installare (PWA): su Android con Chrome diventa un'app vera, con la sua
+icona, a schermo intero e in orizzontale. Nel menu, scheda **Online**, la sezione **App per il
+telefono** ha il pulsante **Installa l'app** (compare anche accanto a «Gioca» quando il browser è
+pronto). Se il browser non propone l'installazione, la sezione spiega cosa fare:
+Chrome su Android: menu ⋮ → «Installa app»; Safari su iPhone: Condividi → «Aggiungi alla schermata
+Home»; Chrome o Edge sul computer: icona nella barra degli indirizzi.
+
+- **Serve HTTPS**: i browser installano le app e attivano il service worker solo da un indirizzo
+  `https://` (o da `localhost`). Con il container dietro un proxy HTTPS va tutto da sé. Da un
+  telefono che apre `http://192.168.x.x:2567` il gioco funziona, ma non si installa: la scheda lo
+  dice.
+- **Senza rete** l'app si apre lo stesso e l'allenamento contro i bot funziona: il service worker
+  (`client/pwa/sw.template.js`, scritto in `dist/sw.js` a ogni build con l'elenco dei file) tiene
+  una copia di pagina, codice, mappe e icone. Le pagine si chiedono prima alla rete, così una nuova
+  versione arriva subito; le partite online e il matchmaking non passano mai dalla copia.
+- **Nella versione di sviluppo** (`npm run dev`) il service worker è spento, per non tenere copie
+  vecchie dei moduli di Vite.
+- **Provare sul telefono senza un sito https**: collegare il telefono con il cavo USB, aprire
+  `chrome://inspect` sul computer, attivare «Port forwarding» da 2567 a `localhost:2567` e aprire
+  `http://localhost:2567` sul telefono: per il browser è `localhost`, quindi si installa. (Non
+  provato qui: serve un telefono vero.)
+- **Le icone** (`client/public/icons`) sono disegnate da `scripts/icons.mjs`: `node scripts/icons.mjs`
+  le rigenera.
+
+Verificato con Chrome senza interfaccia contro il container: manifest senza errori, nessun ostacolo
+all'installazione secondo Chrome (`Page.getInstallabilityErrors` vuoto), service worker attivo con
+14 file salvati, e con il server spento la pagina si apre e l'allenamento parte.
+
 ### Client e server separati
 
 1. **Client come sito statico**: si compila indicando dove sarà il server di gioco, poi si pubblica la
@@ -106,6 +137,55 @@ presence condiviso di Colyseus (per esempio Redis), non incluso.
 I tasti di movimento, salto, accovacciamento, ricarica, granata, arma precedente, ricomincia e
 punteggi si cambiano nel menu (**Impostazioni → Tasti**: clic sull'azione, poi il tasto nuovo; Esc
 annulla). I numeri restano per le armi.
+
+### Controller
+
+Qualunque controller che il browser riconosce con la disposizione standard (Xbox, PlayStation,
+Nintendo e la maggior parte di quelli USB o Bluetooth). Basta collegarlo e premere un tasto.
+
+| Controller (Xbox · PlayStation) | Azione |
+|---|---|
+| Levetta sinistra | Muoversi (8 direzioni, come la tastiera) |
+| Levetta destra | Guardarsi intorno |
+| RT · R2 | Sparare |
+| LT · L2 | Mirare |
+| A · ✕ | Saltare |
+| B · ○ (o premere la levetta sinistra) | Accovacciarsi / scivolare |
+| X · □ | Ricaricare |
+| Y · △ | Arma successiva |
+| ← ↑ → sulla croce | Armi 1, 2, 3 |
+| LB · L1 | Arma precedente |
+| RB · R1 | Granata |
+| View · Create (tenuto) | Punteggi |
+| ↓ sulla croce | Ricominciare (allenamento) |
+| Menu · Options | Pausa e menu |
+
+**Nel menu** si usa solo il controller: croce o levetta per spostarsi, A · ✕ per scegliere (sui
+cursori e sugli elenchi ← e → cambiano il valore), LB · RB per cambiare scheda, B · ○ o Start per
+tornare a giocare. La chat online si scrive solo da tastiera o telefono.
+
+### Telefono e tablet (touch)
+
+Si gioca in orizzontale; con il telefono in verticale compare l'avviso per ruotarlo.
+
+- **Metà sinistra**: la levetta compare dove si appoggia il pollice.
+- **Metà destra**: si trascina per guardarsi intorno.
+- **✹ Fuoco**: tenuto, spara; si può trascinare anche lui per mirare mentre si spara.
+- **◎ Mirino** e **⤓ Giù** restano attivi finché non si toccano di nuovo.
+- **⤒ Salto**, **⟳ Ricarica**, **● Granata**, **⇄ Arma** (tenuto premuto: l'arma di prima).
+- In alto a destra: **❚❚ Menu**, **☰ Punteggi** (tenuto), **💬 Chat** (online) o **↺ Ricomincia**
+  (allenamento).
+
+### Tasti mostrati automaticamente
+
+Il gioco mostra i tasti del dispositivo usato per ultimo: tastiera (con i tasti scelti nelle
+impostazioni), touch o controller, disegnati come sul modello collegato (A B X Y colorati per Xbox,
+✕ ○ □ △ per PlayStation, B A Y X per Nintendo). Cambiano da soli appena si usa un altro dispositivo:
+scheda **Comandi**, «Gioca», schede del menu, suggerimenti in alto e tasti delle armi. Un
+controller collegato a un telefono nasconde i comandi touch; se si scollega, tornano.
+
+**Impostazioni → Controller e touch**: velocità della visuale con la levetta e con il dito, asse
+verticale invertito, vibrazione quando si viene colpiti (controller o telefono).
 
 ## Menu, HUD e impostazioni
 
@@ -432,7 +512,7 @@ e gli id duplicati.
 ## Struttura del codice
 
 ```
-client/    rendering (Three.js), input, arma in prima persona, effetti, suoni, HUD, menu
+client/    rendering (Three.js), input (tastiera, touch, controller), effetti, suoni, HUD, menu, app (PWA)
 shared/    simulazione: movimento, collisioni, armi, colpi, proiettili, danni, bot, contenuti
 server/    server di gioco (Colyseus), prove in Node
 content/   dati di gioco (vedi sopra)
@@ -455,6 +535,11 @@ content/   dati di gioco (vedi sopra)
   terza persona è posizionata dalla stessa posa.
 - **Bot** (`shared/src/bots.ts`): navigano sui punti della mappa, reagiscono con ritardo, mirano
   con un errore che si riduce, sparano a raffiche.
+- **Input** (`client/src/input/`): `Input.ts` unisce tastiera e mouse, `Touch.ts` (comandi sullo
+  schermo, Pointer Events) e `Gamepad.ts` (Gamepad API, letta a ogni fotogramma); le parti pure
+  (zona morta, modello del controller, navigazione del menu) sono in `devices.ts` e i tasti da
+  mostrare in `client/src/ui/prompts.ts`, con i test in `client/tests`. Il movimento resta a
+  -1, 0, 1 come lo vuole il server: levette e levetta touch scelgono una delle 8 direzioni.
 
 ## Note sull'ambiente
 

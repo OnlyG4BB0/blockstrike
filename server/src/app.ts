@@ -24,6 +24,15 @@ export interface StartOptions {
 }
 
 /** Carica contenuti e mappe (lancia ContentError se non sono validi) e avvia il server. */
+/**
+ * File con l'hash nel nome (assets/…) non cambiano mai: si tengono un anno. Pagine, manifest e
+ * service worker si ricontrollano sempre, così una nuova versione arriva subito.
+ */
+function cacheHeaders(res: { setHeader(name: string, value: string): unknown }, file: string): void {
+  const hashed = /[\\/]assets[\\/]/.test(file);
+  res.setHeader('Cache-Control', hashed ? 'public, max-age=31536000, immutable' : 'no-cache');
+}
+
 export async function startServer(port: number, options: StartOptions = {}): Promise<Server> {
   const clientDir = options.clientDir;
   if (clientDir && !existsSync(clientDir)) throw new Error(`CLIENT_DIR: la cartella ${clientDir} non esiste`);
@@ -46,7 +55,7 @@ export async function startServer(port: number, options: StartOptions = {}): Pro
     transport: new WebSocketTransport(),
     gracefullyShutdown: false,
     // Con CLIENT_DIR il server serve anche il gioco: un solo indirizzo per pagina e partite.
-    express: clientDir ? (app) => void app.use(express.static(clientDir)) : undefined,
+    express: clientDir ? (app) => void app.use(express.static(clientDir, { setHeaders: cacheHeaders })) : undefined,
   });
   server.define('partita', GameRoom).filterBy(['mode']);
   server.define('privata', GameRoom);
