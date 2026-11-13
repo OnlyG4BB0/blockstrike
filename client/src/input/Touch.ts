@@ -44,6 +44,8 @@ export class TouchControls {
   readonly root: HTMLElement;
   /** Moltiplicatore della velocità della visuale (impostazioni). */
   sensitivity = 1;
+  /** Rallentamento dell'automira vicino a un nemico (1 = nessuno), deciso a ogni fotogramma. */
+  friction = 1;
 
   forward = 0;
   right = 0;
@@ -67,6 +69,7 @@ export class TouchControls {
   onActivity: () => void = () => {};
 
   private readonly fingers = new Map<number, Finger>();
+  private lastLook = -Infinity;
   private readonly stick: HTMLElement;
   private readonly knob: HTMLElement;
   private readonly buttons = new Map<TouchButton, HTMLElement>();
@@ -130,6 +133,11 @@ export class TouchControls {
 
   get visible(): boolean {
     return !this.root.hidden;
+  }
+
+  /** Un dito sta muovendo la visuale proprio ora (per l'automira). */
+  get looking(): boolean {
+    return performance.now() - this.lastLook < TOUCH.lookingWindowMs;
   }
 
   releaseAll(): void {
@@ -332,8 +340,9 @@ export class TouchControls {
         const dx = event.clientX - finger.lastX;
         const dy = event.clientY - finger.lastY;
         const speed = Math.hypot(dx, dy) / Math.max(1, event.timeStamp - finger.lastTime);
-        const scale = TOUCH.lookRadiansPerPixel * this.sensitivity * lookGain(speed);
+        const scale = TOUCH.lookRadiansPerPixel * this.sensitivity * lookGain(speed) * this.friction;
         this.onLook(dx * scale, dy * scale);
+        this.lastLook = event.timeStamp;
       }
     }
     finger.lastX = event.clientX;

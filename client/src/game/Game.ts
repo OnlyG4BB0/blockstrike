@@ -14,6 +14,10 @@ import {
 } from 'three';
 import {
   BodyPose,
+  PART_STRIDE,
+  PART_TORSO,
+  PLAYER,
+  POSE_CENTER,
   KILLED_BY_FALL,
   KILLED_BY_GRENADE,
   MOVE,
@@ -43,7 +47,7 @@ import {
   type WeaponDef,
 } from '@blockstrike/shared';
 import { AudioSystem } from '../audio/AudioSystem.ts';
-import { AUDIO, CHARACTERS, EFFECTS, GAMEPAD, GORE, MINIMAP, QUALITY, TEAMS, TOUCH, VIEW, VIEWMODEL, type Quality } from '../config.ts';
+import { AIM_ASSIST, AUDIO, CHARACTERS, EFFECTS, GAMEPAD, GORE, MINIMAP, QUALITY, TEAMS, TOUCH, VIEW, VIEWMODEL, type Quality } from '../config.ts';
 import { Input } from '../input/Input.ts';
 import { createBlockTexture } from '../render/blockTexture.ts';
 import { CharacterPreview } from '../render/CharacterPreview.ts';
@@ -59,6 +63,12 @@ import { SENSITIVITY_SCALE, loadSettings, saveSettings, type Settings } from '..
 import { Hud, type LabelData, type ScoreRow, type ScreenPoint } from '../ui/Hud.ts';
 import { Menu, applyCrosshair, type OnlineAction } from '../ui/Menu.ts';
 import { promptHtml, promptLabels, weaponSlotLabels, type PromptContext } from '../ui/prompts.ts';
+import { angularDistance, friction, lookAt, pull } from './aimAssist.ts';
+import { PATCHES } from '../patchNotes.ts';
+import { unseenPatches } from '../ui/patches.ts';
+
+/** Versioni mostrate dal pulsante «Novità». */
+const PATCH_HISTORY = 5;
 import { Minimap, type MinimapDot } from '../ui/Minimap.ts';
 import type { NetSession } from '../net/NetSession.ts';
 import { CameraRig } from './CameraRig.ts';
@@ -250,6 +260,11 @@ export class Game {
     this.applyDevice();
     this.input.onDeviceChange = () => this.applyDevice();
     this.input.touch.onChat = () => this.openChat();
+    // Novità: dopo un aggiornamento la finestra si apre da sola; dal menu quando si vuole.
+    this.menu.onOpenPatches = () => this.menu.showPatches(PATCHES.slice(0, PATCH_HISTORY), 'Novità');
+    this.menu.onPatchesClosed = () => this.menu.markSeen(__APP_VERSION__);
+    const unseen = unseenPatches(PATCHES, this.settings.lastSeenVersion);
+    if (unseen.length > 0) this.menu.showPatches(unseen, `Novità della versione ${__APP_VERSION__}`);
     this.menu.onEditTouch = () => {
       this.menu.hide();
       this.input.touch.edit((layout) => {
@@ -311,8 +326,65 @@ export class Game {
     this.onLocalRespawn();
   }
 
-  /** Tasto Indietro di Android: in partita mette in pausa (true); nel menu non fa niente (false). */
+  private readonly aimLook = { yaw: 0, pitch: 0 };
+  private readonly aimTarget = { yaw: 0, pitch: 0 };
+  private readonly aimStep = { yaw: 0, pitch: 0 };
+
+  /**
+   * Automira, solo con i comandi touch: rallenta la visuale vicino a un nemico e, mentre si spara,
+   * si mira o si muove la visuale, porta piano il mirino sul busto del nemico più vicino al centro
+   * (dentro un cono, entro una distanza, solo se si vede). Con tastiera o controller non fa niente.
+   */
+  private updateAimAssist(dt: number): void {
+    const touch = this.input.touch;
+    touch.friction = 1;
+    const local = this.local;
+    if (!this.settings.aimAssist || this.input.device !== 'touch' || !this.input.active || !local.alive || dt <= 0) return;
+    const p = local.player;
+    const eyeY = p.y + (p.crouched ? PLAYER.crouchEyeHeight : PLAYER.eyeHeight);
+    const yaw = this.input.yaw;
+    const pitch = this.input.pitch;
+    let best = AIM_ASSIST.cone;
+    let found = false;
+    for (const c of this.match.combatants) {
+      if (c === local || !c.alive) continue;
+      if (local.team > 0 && c.team === local.team) continue;
+      const parts = c.pose.parts;
+      const base = PART_TORSO * PART_STRIDE + POSE_CENTER;
+      const tx = parts[base]!;
+      const ty = parts[base + 1]!;
+      const tz = parts[base + 2]!;
+      if (Math.hypot(tx - p.x, ty - eyeY, tz - p.z) > AIM_ASSIST.range) continue;
+      lookAt(p.x, eyeY, p.z, tx, ty, tz, this.aimLook);
+      const distance = angularDistance(yaw, pitch, this.aimLook);
+      if (distance >= best) continue;
+      if (!lineOfSight(this.match.world, p.x, eyeY, p.z, tx, ty, tz)) continue;
+      best = distance;
+      found = true;
+      this.aimTarget.yaw = this.aimLook.yaw;
+      this.aimTarget.pitch = this.aimLook.pitch;
+    }
+    if (!found) return;
+    const strength = this.settings.aimAssistStrength;
+    touch.friction = friction(best, AIM_ASSIST.cone, AIM_ASSIST.friction * strength);
+    const engaged = touch.fire || touch.ads;
+    if (!engaged && !touch.looking) return;
+    const rate = AIM_ASSIST.pullRate * strength * (engaged ? 1 : AIM_ASSIST.lookingScale);
+    pull(yaw, pitch, this.aimTarget, rate, AIM_ASSIST.maxSpeed * strength, dt, this.aimStep);
+    this.input.nudge(this.aimStep.yaw, this.aimStep.pitch);
+  }
+
+  /** Avviso di nuova versione (dal service worker o, nell'app, dal sito). */
+  notifyUpdate(text: string, label: string, action: () => void): void {
+    this.menu.showUpdate(text, label, action);
+  }
+
+  /** Tasto Indietro di Android: in partita mette in pausa (true); nel menu chiude le novità o niente. */
   back(): boolean {
+    if (this.menu.patchesOpen) {
+      this.menu.closePatches();
+      return true;
+    }
     if (!this.input.active) return false;
     this.input.pause();
     return true;
@@ -590,6 +662,7 @@ export class Game {
 
     // Controller: letto a ogni fotogramma, anche con il menu aperto (per navigarlo).
     this.input.update(dt, this.menu.visible ? this.menu : null);
+    this.updateAimAssist(dt);
     // Con il menu aperto la partita è in pausa (solo in allenamento: online va avanti a tempo).
     if (!this.session && (this.input.active || this.forceRun)) {
       this.accumulator += dt;

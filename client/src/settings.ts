@@ -74,6 +74,12 @@ export interface Settings {
   touchLayout: TouchLayout;
   /** Opacità dei tasti touch, da 0,2 a 1. */
   touchOpacity: number;
+  /** Automira con i comandi touch (mai con tastiera o controller). */
+  aimAssist: boolean;
+  /** Forza dell'automira, da 0,1 a 1. */
+  aimAssistStrength: number;
+  /** Ultima versione di cui si sono viste le novità ('' = mai). */
+  lastSeenVersion: string;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -110,6 +116,9 @@ const DEFAULTS: Settings = {
   serverAddress: '',
   touchLayout: defaultTouchLayout(),
   touchOpacity: 0.85,
+  aimAssist: true,
+  aimAssistStrength: 0.6,
+  lastSeenVersion: '',
 };
 
 /** Sui telefoni si parte con la qualità bassa (al primo avvio: poi vale la scelta del giocatore). */
@@ -200,6 +209,9 @@ export function loadSettings(): Settings {
       typeof stored.serverAddress === 'string' ? (normalizeServerAddress(stored.serverAddress) ?? '') : DEFAULTS.serverAddress,
     touchLayout: touchLayoutFrom(stored.touchLayout),
     touchOpacity: numberIn(stored.touchOpacity, 0.2, 1, DEFAULTS.touchOpacity),
+    aimAssist: booleanOr(stored.aimAssist, DEFAULTS.aimAssist),
+    aimAssistStrength: numberIn(stored.aimAssistStrength, 0.1, 1, DEFAULTS.aimAssistStrength),
+    lastSeenVersion: typeof stored.lastSeenVersion === 'string' ? stored.lastSeenVersion.slice(0, 20) : DEFAULTS.lastSeenVersion,
   };
 }
 

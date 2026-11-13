@@ -260,6 +260,11 @@ export class Input {
     }
   }
 
+  /** Piccola rotazione decisa dal gioco (automira), con gli stessi limiti del dito e del mouse. */
+  nudge(yaw: number, pitch: number): void {
+    this.turn(yaw, pitch);
+  }
+
   /** Riempie i comandi per il prossimo tick di simulazione (tranne l'arma: vedi consumeWeaponRequest). */
   sample(out: PlayerInput): void {
     const pad = this.pad;

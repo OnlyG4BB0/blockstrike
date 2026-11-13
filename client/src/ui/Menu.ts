@@ -9,9 +9,14 @@ import { normalizeServerAddress } from '../net/address.ts';
 import { SEPARATE_SERVER } from '../target.ts';
 import { byId } from './dom.ts';
 import { PROMPT_ACTIONS, promptHtml, type PromptContext } from './prompts.ts';
+import type { PatchNote } from './patches.ts';
 
-type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount' | 'musicVolume' | 'padSensitivity' | 'touchSensitivity' | 'touchOpacity';
-type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers' | 'minimap' | 'padInvertY' | 'vibration';
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
+type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount' | 'musicVolume' | 'padSensitivity' | 'touchSensitivity' | 'touchOpacity' | 'aimAssistStrength';
+type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers' | 'minimap' | 'padInvertY' | 'vibration' | 'aimAssist';
 
 const PAD_STYLE_NAMES: Record<PadStyle, string> = {
   xbox: 'Xbox',
@@ -78,6 +83,12 @@ export class Menu implements PadMenuHandler {
   onLeaveRoom: () => void = () => {};
   /** Apre l'editor della disposizione dei tasti touch. */
   onEditTouch: () => void = () => {};
+  /** Pulsante «Novità» del menu. */
+  onOpenPatches: () => void = () => {};
+  /** Chiusa la finestra delle novità. */
+  onPatchesClosed: () => void = () => {};
+
+  private readonly popup = byId('patch-popup');
   /** Mappa scelta (in allenamento si riparte con quella). */
   onMapChange: (mapId: string) => void = () => {};
 
@@ -120,6 +131,18 @@ export class Menu implements PadMenuHandler {
     this.bindCheck('set-pad-invert', 'padInvertY');
     this.bindRange('set-touch-opacity', 'out-touch-opacity', 'touchOpacity', (v) => `${Math.round(v * 100)}%`);
     byId('touch-edit').addEventListener('click', () => this.onEditTouch());
+    byId('patch-open').addEventListener('click', () => this.onOpenPatches());
+    byId('patch-close').addEventListener('click', () => this.closePatches());
+    // Tocco o clic fuori dalla finestra, o Esc: si chiude.
+    this.popup.addEventListener('click', (event) => {
+      if (event.target === this.popup) this.closePatches();
+    });
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !this.popup.hidden) this.closePatches();
+    });
+    byId('update-dismiss').addEventListener('click', () => (byId('update-toast').hidden = true));
+    this.bindCheck('set-aim-assist', 'aimAssist');
+    this.bindRange('set-aim-assist-strength', 'out-aim-assist-strength', 'aimAssistStrength', (v) => `${Math.round(v * 100)}%`);
     this.bindCheck('set-vibration', 'vibration');
     for (const button of document.querySelectorAll<HTMLButtonElement>('.device-tabs button')) {
       button.addEventListener('click', () => {
@@ -248,6 +271,48 @@ export class Menu implements PadMenuHandler {
     this.renderControls();
   }
 
+  /** Finestra con le note delle patch (dopo un aggiornamento, o dal pulsante «Novità»). */
+  showPatches(patches: readonly PatchNote[], heading: string): void {
+    byId('patch-title').textContent = heading;
+    byId('patch-list').innerHTML = patches
+      .map((p) => {
+        const title = `Versione ${escapeHtml(p.version)}${p.title ? ` · ${escapeHtml(p.title)}` : ''}`;
+        const date = p.date ? `<p class="patch-date">${escapeHtml(p.date)}</p>` : '';
+        return `<section class="patch"><h3>${title}</h3>${date}<ul>${p.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}</ul></section>`;
+      })
+      .join('');
+    this.popup.hidden = false;
+    byId('patch-list').scrollTop = 0;
+    if (this.prompt.device === 'gamepad') this.setPadFocus(byId('patch-close'));
+  }
+
+  get patchesOpen(): boolean {
+    return !this.popup.hidden;
+  }
+
+  closePatches(): void {
+    if (this.popup.hidden) return;
+    this.popup.hidden = true;
+    this.clearPadFocus();
+    this.onPatchesClosed();
+  }
+
+  /** Novità viste fino a questa versione (non si mostrano più all'avvio). */
+  markSeen(version: string): void {
+    if (this.settings.lastSeenVersion === version) return;
+    this.settings.lastSeenVersion = version;
+    this.emit();
+  }
+
+  /** Avviso in cima al menu (nuova versione pronta o da scaricare), con un pulsante. */
+  showUpdate(text: string, label: string, action: () => void): void {
+    byId('update-text').textContent = text;
+    const button = byId<HTMLButtonElement>('update-action');
+    button.textContent = label;
+    button.onclick = action;
+    byId('update-toast').hidden = false;
+  }
+
   /** Nuova disposizione dei tasti touch (dall'editor): si salva come le altre impostazioni. */
   setTouchLayout(layout: TouchLayout): void {
     this.settings.touchLayout = layout;
@@ -335,11 +400,13 @@ export class Menu implements PadMenuHandler {
   }
 
   back(): void {
-    this.onPlay();
+    if (this.patchesOpen) this.closePatches();
+    else this.onPlay();
   }
 
   start(): void {
-    this.onPlay();
+    if (this.patchesOpen) this.closePatches();
+    else this.onPlay();
   }
 
   switchTab(delta: number): void {
@@ -353,11 +420,13 @@ export class Menu implements PadMenuHandler {
 
   private focused(): HTMLElement | null {
     const active = document.activeElement;
-    return active instanceof HTMLElement && this.root.contains(active) && active.classList.contains('pad-focus') ? active : null;
+    const scope = this.patchesOpen ? this.popup : this.root;
+    return active instanceof HTMLElement && scope.contains(active) && active.classList.contains('pad-focus') ? active : null;
   }
 
   private focusables(): HTMLElement[] {
-    return [...this.root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((e) => {
+    const scope = this.patchesOpen ? this.popup : this.root;
+    return [...scope.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((e) => {
       if ((e as HTMLButtonElement).disabled) return false;
       const r = e.getBoundingClientRect();
       return r.width > 0 && r.height > 0 && e.closest('[hidden]') === null;
@@ -372,7 +441,7 @@ export class Menu implements PadMenuHandler {
   }
 
   private clearPadFocus(): void {
-    for (const e of this.root.querySelectorAll('.pad-focus')) e.classList.remove('pad-focus');
+    for (const e of document.querySelectorAll('.pad-focus')) e.classList.remove('pad-focus');
   }
 
   /** In una stanza: codice e modalità al posto dei pulsanti per entrare. */

@@ -25,7 +25,9 @@ const run = (cmd, args, env = process.env) => execFileSync(cmd, args, { cwd: ROO
 const work = `${ROOT.replace(/\\/g, '/')}:/work`;
 
 console.log('== gioco per l\'app');
-run('npm', ['run', 'build', '--workspace', '@blockstrike/client'], { ...process.env, VITE_TARGET: 'android' });
+// L'app chiede al sito se c'è un APK più nuovo (version.json).
+const site = process.env.VITE_UPDATE_URL ?? 'https://onlyg4bb0.github.io/blockstrike/';
+run('npm', ['run', 'build', '--workspace', '@blockstrike/client'], { ...process.env, VITE_TARGET: 'android', VITE_UPDATE_URL: site });
 
 console.log('== immagine con l\'Android SDK');
 // Il Dockerfile arriva da stdin, senza contesto: la cartella con la chiave non va mai a Docker.

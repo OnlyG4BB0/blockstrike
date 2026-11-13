@@ -327,6 +327,8 @@ export const TOUCH = {
   lookAccel: 0.8,
   /** ...fino a questo in più (guadagno massimo 2,2). */
   lookAccelMax: 1.2,
+  /** Per l'automira il dito «sta guardando» se ha mosso la visuale da meno di così (ms). */
+  lookingWindowMs: 120,
   /** Spostamento del dito (px) oltre il quale un tasto diventa anche visuale. */
   lookFromButton: 10,
   /** Diametro dei tasti (px) consentito nell'editor della disposizione. */
@@ -340,4 +342,20 @@ export const TOUCH = {
   moveZone: 0.45,
   /** Dopo la pausa dal tasto touch si ignora il clic che segue il tocco (ms). */
   clickGuardMs: 450,
+};
+
+/** Automira (solo con i comandi touch). Forza 0..1 dalle impostazioni. */
+export const AIM_ASSIST = {
+  /** Cono attorno al mirino in cui un nemico attira (radianti, ~8°). */
+  cone: 0.14,
+  /** Oltre questa distanza (m) niente automira. */
+  range: 45,
+  /** Velocità dell'attrazione a forza piena (1/s, legge esponenziale)... */
+  pullRate: 7,
+  /** ...e massima rotazione che può dare (radianti al secondo). */
+  maxSpeed: 1.6,
+  /** Muovendo solo la visuale (senza sparare né mirare) l'attrazione è più leggera. */
+  lookingScale: 0.45,
+  /** Rallentamento della visuale sopra il bersaglio a forza piena (0..1). */
+  friction: 0.55,
 };

@@ -1,3 +1,5 @@
+import { compareVersions } from '../ui/patches.ts';
+
 /**
  * Il gioco come app da installare (PWA): su Android Chrome la installa come un'app vera, con
  * icona, schermo intero e orientamento orizzontale. Qui: registrazione del service worker e
@@ -50,10 +52,18 @@ function runningAsApp(): boolean {
  * Registra il service worker (solo nella versione compilata e su un'origine sicura) e collega la
  * scheda dell'app nel menu.
  */
-export function setupInstall(production: boolean, androidApp: boolean): void {
+export type UpdateNotifier = (text: string, label: string, action: () => void) => void;
+
+export function setupInstall(production: boolean, androidApp: boolean, notify: UpdateNotifier): void {
   if (production && !androidApp && window.isSecureContext && 'serviceWorker' in navigator) {
+    // C'era già un service worker e ne arriva uno nuovo: la versione nuova è pronta, basta ricaricare.
+    const hadController = navigator.serviceWorker.controller !== null;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) notify('È pronta una nuova versione del gioco.', 'Aggiorna', () => location.reload());
+    });
     void navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+  if (androidApp) void checkApkUpdate(notify);
 
   const card = document.getElementById('install-card');
   const button = document.getElementById('install-button') as HTMLButtonElement | null;
@@ -117,6 +127,29 @@ async function offerApk(): Promise<void> {
     link.hidden = !response.ok;
   } catch {
     link.hidden = true;
+  }
+}
+
+/**
+ * App Android: il sito pubblica version.json con l'ultima versione; se è più nuova di questa app,
+ * si avvisa con il link all'APK nuovo (si apre nel browser, che lo scarica).
+ */
+async function checkApkUpdate(notify: UpdateNotifier): Promise<void> {
+  const site = (import.meta.env.VITE_UPDATE_URL as string | undefined) ?? '';
+  if (!site) return;
+  try {
+    const response = await fetch(new URL('version.json', site), { cache: 'no-store' });
+    if (!response.ok) return;
+    const info = (await response.json()) as { version?: unknown; title?: unknown; apk?: unknown };
+    if (typeof info.version !== 'string' || typeof info.apk !== 'string') return;
+    if (compareVersions(info.version, __APP_VERSION__) <= 0) return;
+    const title = typeof info.title === 'string' && info.title ? `: ${info.title}` : '';
+    const apk = new URL(info.apk, site).href;
+    notify(`È uscita la versione ${info.version}${title}.`, 'Scarica', () => {
+      location.href = apk;
+    });
+  } catch {
+    // Senza rete o sito irraggiungibile: niente avviso.
   }
 }
 

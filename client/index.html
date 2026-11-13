@@ -111,11 +111,18 @@
             </label>
             <a class="editor-link" href="./editor.html" target="_blank" rel="noopener">Editor di mappe</a>
             <button id="install-quick" class="install-quick" type="button" hidden>📲 Installa l'app</button>
+            <button id="patch-open" class="patch-open" type="button">✦ Novità</button>
           </div>
           </header>
           <p id="lock-error" class="lock-error" hidden>
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
           </p>
+
+          <div id="update-toast" class="update-toast" role="status" hidden>
+            <span id="update-text"></span>
+            <button id="update-action" type="button"></button>
+            <button id="update-dismiss" type="button" aria-label="Chiudi">✕</button>
+          </div>
 
           <nav class="tabs" role="tablist" aria-label="Sezioni del menu">
             <kbd class="prompt pad tab-prompt" id="tab-prev" hidden></kbd>
@@ -289,6 +296,12 @@
                 <output id="out-touch-opacity"></output>
               </label>
               <button id="touch-edit" type="button" class="small-button">Disponi i comandi touch</button>
+              <label class="check"><input id="set-aim-assist" type="checkbox" /><span>Automira (solo con i comandi touch)</span></label>
+              <label class="row">
+                <span>Forza dell'automira</span>
+                <input id="set-aim-assist-strength" type="range" min="0.1" max="1" step="0.05" />
+                <output id="out-aim-assist-strength"></output>
+              </label>
 
               <h2 class="subsection">Tasti</h2>
               <div id="key-list" class="key-list"></div>
@@ -317,6 +330,15 @@
               </p>
             </section>
           </div>
+          </div>
+        </div>
+      </div>
+      <div id="patch-popup" class="popup" role="dialog" aria-modal="true" aria-labelledby="patch-title" hidden>
+        <div class="popup-card">
+          <h2 id="patch-title">Novità</h2>
+          <div id="patch-list" class="patch-list"></div>
+          <div class="popup-actions">
+            <button id="patch-close" type="button" class="primary">Ho capito</button>
           </div>
         </div>
       </div>

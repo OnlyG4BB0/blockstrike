@@ -252,6 +252,23 @@ Si gioca in orizzontale; con il telefono in verticale compare l'avviso per ruota
 - **Disposizione**: Impostazioni → Controller e touch → **Disponi i comandi touch**. Si trascinano i
   tasti dove si vuole, toccandone uno se ne cambia la dimensione; **Ripristina** torna a quella
   predefinita. Lì accanto anche l'opacità dei tasti e la velocità della visuale.
+- **Automira** (solo con i comandi touch, mai con tastiera o controller, nemmeno sul telefono):
+  - vicino a un nemico la visuale col dito rallenta, così non si scavalca il bersaglio;
+  - mentre si spara, si mira o si muove la visuale, il mirino va piano sul busto del nemico più
+    vicino al centro (entro 8° circa e 45 m, solo se si vede); da fermi non si muove da solo;
+  - si spegne o se ne regola la forza in Impostazioni → Controller e touch. Cambia solo dove si
+    guarda, come farebbe il dito: i colpi li decide il server come sempre.
+
+### Novità e aggiornamenti
+
+- Dopo un aggiornamento, all'avvio compare la finestra **Novità** con le note della versione; il
+  pulsante **✦ Novità** del menu la riapre.
+- Sul sito, quando il service worker ha scaricato una versione nuova, nel menu compare **Aggiorna**.
+- Nell'app Android il gioco legge `version.json` dal sito: se c'è un APK più nuovo compare
+  **Scarica**, che lo apre nel browser.
+- **Per una nuova versione**: alzare `version` in `package.json` e aggiungere in cima a
+  `content/patches.json` la voce con le note (un test controlla che ci sia). Poi
+  `npm run build:android`, `npm run deploy:pages -- wss://…` e `npm run publish:repo`.
 
 ### Tasti mostrati automaticamente
 

@@ -1951,3 +1951,152 @@ body[data-device='touch'].playing #chat {
 body[data-device='touch'].playing #weapon-panel {
   left: 36%;
 }
+
+/* Novità (note delle patch) e avviso di nuova versione. */
+.patch-open {
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 178, 56, 0.55);
+  border-radius: 999px;
+  background: rgba(255, 178, 56, 0.1);
+  color: var(--accent);
+  font: 800 14px var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.popup {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px 12px;
+  background: rgba(6, 8, 14, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.popup-card {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 24px);
+  padding: 18px 20px 14px;
+  border: 1px solid rgba(255, 178, 56, 0.4);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(30, 36, 52, 0.98), rgba(16, 20, 30, 0.98));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  animation: popup-in 0.18s ease-out;
+}
+
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.popup-card h2 {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.patch-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.patch + .patch {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-line);
+}
+
+.patch h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.patch-date {
+  margin: 2px 0 0;
+  color: var(--ui-dim);
+  font-size: 12px;
+}
+
+.patch ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.45;
+}
+
+.patch li + li {
+  margin-top: 4px;
+}
+
+.popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.popup-actions button {
+  min-height: 40px;
+  padding: 8px 22px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #1b1408;
+  font: 800 15px var(--font);
+  cursor: pointer;
+}
+
+.update-toast {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid rgba(125, 220, 106, 0.5);
+  border-radius: 10px;
+  background: rgba(125, 220, 106, 0.12);
+  font-weight: 700;
+}
+
+.update-toast[hidden] {
+  display: none;
+}
+
+.update-toast span {
+  flex: 1 1 auto;
+}
+
+.update-toast button {
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--good);
+  color: #10200c;
+  font: 800 14px var(--font);
+  cursor: pointer;
+}
+
+.update-toast #update-dismiss {
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--ui-dim);
+}
+
+@media (max-height: 540px) {
+  .patch-open {
+    padding: 5px 10px;
+    font-size: 13px;
+  }
+
+  .popup-card {
+    padding: 12px 14px 10px;
+  }
+}

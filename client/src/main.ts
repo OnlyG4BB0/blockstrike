@@ -145,7 +145,7 @@ async function main(): Promise<void> {
     navigate({});
   };
   game.start();
-  setupInstall(import.meta.env.PROD, ANDROID_APP);
+  setupInstall(import.meta.env.PROD, ANDROID_APP, (text, label, action) => game.notifyUpdate(text, label, action));
   window.blockstrikeBack = () => game.back();
   if (import.meta.env.DEV) window.blockstrike = game;
 }

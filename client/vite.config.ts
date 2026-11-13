@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
@@ -56,6 +56,7 @@ function serviceWorker(): Plugin {
 
 /** Build per l'app Android (scripts/build-android.mjs): il gioco va dentro l'APK, niente service worker. */
 const android = process.env.VITE_TARGET === 'android';
+const version = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 const outDir = fileURLToPath(new URL(android ? './dist-android' : './dist', import.meta.url));
 
 /**
@@ -64,13 +65,23 @@ const outDir = fileURLToPath(new URL(android ? './dist-android' : './dist', impo
  */
 function androidDownload(): Plugin {
   const apk = fileURLToPath(new URL('../android/build/blockstrike.apk', import.meta.url));
+  const patches = fileURLToPath(new URL('../content/patches.json', import.meta.url));
   return {
     name: 'blockstrike-apk',
     apply: 'build',
     closeBundle() {
-      if (android || !existsSync(apk)) return;
-      mkdirSync(join(outDir, 'download'), { recursive: true });
-      copyFileSync(apk, join(outDir, 'download', 'blockstrike.apk'));
+      if (android) return;
+      const hasApk = existsSync(apk);
+      if (hasApk) {
+        mkdirSync(join(outDir, 'download'), { recursive: true });
+        copyFileSync(apk, join(outDir, 'download', 'blockstrike.apk'));
+      }
+      // version.json: l'app Android lo legge per sapere se c'è un APK più nuovo (sempre fresco:
+      // non è nell'elenco del service worker).
+      const latest = (JSON.parse(readFileSync(patches, 'utf8')) as { patches: { version: string; title?: string; notes?: string[] }[] })
+        .patches.find((p) => p.version === version);
+      const info = { version, title: latest?.title ?? '', notes: latest?.notes ?? [], apk: hasApk ? 'download/blockstrike.apk' : null };
+      writeFileSync(join(outDir, 'version.json'), `${JSON.stringify(info, null, 2)}\n`);
     },
   };
 }
@@ -78,6 +89,9 @@ function androidDownload(): Plugin {
 export default defineConfig({
   // Percorsi relativi: il client compilato funziona in qualunque cartella di un sito statico.
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [watchContent(), ...(android ? [] : [serviceWorker(), androidDownload()])],
   server: {
     port: 5173,

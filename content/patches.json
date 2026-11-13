@@ -1,0 +1,25 @@
+{
+  "patches": [
+    {
+      "version": "0.2.0",
+      "date": "2026-11-13",
+      "title": "Telefono, controller e automira",
+      "notes": [
+        "Automira con i comandi touch: vicino a un nemico la visuale rallenta e, mentre spari o miri, il mirino va piano sul bersaglio. Si regola o si spegne in Impostazioni → Controller e touch.",
+        "Visuale col dito più reattiva: più veloce di base e ancora più rapida con gli scatti; si guarda anche trascinando dai tasti.",
+        "Comandi touch più comodi, e in Impostazioni li disponi come vuoi: posizione, dimensione e trasparenza.",
+        "App per Android da scaricare dal sito; con il controller i tasti mostrati diventano quelli del controller.",
+        "Avvisi delle novità: dopo ogni aggiornamento compare questa finestra, e la riapri da «Novità» nel menu."
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-11-13",
+      "title": "Prima versione",
+      "notes": [
+        "Allenamento contro i bot e partite online fino a 12 giocatori: tutti contro tutti, a squadre, cattura la bandiera.",
+        "Classi, skin, armi, granate, gore regolabile, tre mappe ed editor di mappe."
+      ]
+    }
+  ]
+}
