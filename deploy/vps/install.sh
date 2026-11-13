@@ -18,14 +18,31 @@ fi
 DOMAIN="${IP//./-}.sslip.io"
 REPO="${BLOCKSTRIKE_REPO:-https://github.com/OnlyG4BB0/blockstrike.git}"
 DIR="${BLOCKSTRIKE_DIR:-$HOME/blockstrike}"
+
+# Oracle Cloud Shell (il terminale nel browser della console) non è la VPS: lì non si installa niente.
+if [ "${OCI_CLI_CLOUD_SHELL:-}" = "True" ]; then
+  echo "Questo terminale è la Cloud Shell di Oracle, non la VPS: non installo niente qui."
+  echo "Entra prima nella VPS (per esempio: ssh ubuntu@$IP) e lancia lì lo stesso comando."
+  exit 1
+fi
+
 SUDO=""
-if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
+if [ "$(id -u)" -ne 0 ]; then
+  if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true 2>/dev/null && ! sudo -v 2>/dev/null; then
+    echo "Serve sudo (o l'utente root) per installare: su questa macchina non c'è o non è permesso."
+    echo "Se sei nella Cloud Shell di Oracle (il terminale nel browser) non sei sulla VPS: entra prima con ssh ubuntu@$IP."
+    exit 1
+  fi
+  SUDO="sudo"
+fi
+command -v ss >/dev/null 2>&1 || { echo "Manca il comando 'ss': non posso controllare la porta 443, mi fermo."; exit 1; }
 
 ours_running() { $SUDO docker ps --format '{{.Names}}' 2>/dev/null | grep -qx blockstrike-caddy; }
 
 echo "== 1. Porta 443 (la 80 non serve: resta a chi la usa già)"
 for port in 443; do
-  if $SUDO ss -ltnH "sport = :$port" | grep -q . && ! ours_running; then
+  listeners="$($SUDO ss -ltnH "sport = :$port")" || { echo "Non riesco a controllare la porta $port: mi fermo."; exit 1; }
+  if [ -n "$listeners" ] && ! ours_running; then
     echo "La porta $port è già usata da un altro programma: mi fermo senza cambiare niente."
     $SUDO ss -ltnp "sport = :$port" || true
     echo "Scrivimi cosa c'è su quella porta: si può usare un'altra strada senza toccarlo."
@@ -43,7 +60,16 @@ if ! command -v docker >/dev/null 2>&1; then
   echo "Docker non c'è: lo installo con lo script ufficiale (get.docker.com)."
   curl -fsSL https://get.docker.com | $SUDO sh
 fi
-$SUDO docker compose version >/dev/null 2>&1 || { echo "Manca il plugin 'docker compose': installalo e rilancia."; exit 1; }
+if ! $SUDO docker compose version >/dev/null 2>&1; then
+  echo "Manca il plugin 'docker compose': lo aggiungo (non cambia i container che ci sono già)."
+  if command -v apt-get >/dev/null 2>&1; then
+    $SUDO apt-get update -q
+    $SUDO apt-get install -y -q docker-compose-v2 || $SUDO apt-get install -y -q docker-compose-plugin || true
+  elif command -v dnf >/dev/null 2>&1; then
+    $SUDO dnf install -y -q docker-compose-plugin || true
+  fi
+  $SUDO docker compose version >/dev/null 2>&1 || { echo "Non sono riuscito a installare 'docker compose': scrivimi cosa c'è su questa macchina."; exit 1; }
+fi
 
 echo "== 3. Firewall della macchina (Oracle chiude le porte anche dentro la VPS): apro solo la 443"
 if command -v firewall-cmd >/dev/null 2>&1 && $SUDO firewall-cmd --state >/dev/null 2>&1; then
