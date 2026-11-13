@@ -20,7 +20,8 @@
     "typecheck": "tsc -p shared && tsc -p shared/tsconfig.test.json && tsc -p client && tsc -p client/tsconfig.test.json && tsc -p server",
     "smoke": "npm run smoke --workspace @blockstrike/server",
     "smoke:net": "npm run smoke:net --workspace @blockstrike/server",
-    "build:android": "node scripts/build-android.mjs"
+    "build:android": "node scripts/build-android.mjs",
+    "deploy:pages": "node scripts/deploy-pages.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

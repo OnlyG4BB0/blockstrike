@@ -1,0 +1,37 @@
+# BLOCKSTRIKE sulla VPS: server di gioco + Caddy (https e wss con certificato automatico).
+# Progetto Docker "blockstrike": i comandi di docker compose in questa cartella toccano solo questi
+# due container, mai altri programmi della macchina (per esempio bobertbot).
+name: blockstrike
+
+services:
+  game:
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile.server
+    image: blockstrike-server:latest
+    container_name: blockstrike-game
+    restart: unless-stopped
+    expose:
+      - '2567'
+
+  caddy:
+    image: caddy:2.10
+    container_name: blockstrike-caddy
+    restart: unless-stopped
+    depends_on:
+      - game
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      # Scritto da install.sh in .env: <ip-con-trattini>.sslip.io
+      DOMAIN: '${DOMAIN:?manca DOMAIN, lancia install.sh}'
+      SITE: '${SITE:-https://onlyg4bb0.github.io/blockstrike/}'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

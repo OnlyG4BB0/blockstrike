@@ -5,7 +5,7 @@ import type { Quality } from '../config.ts';
 import { nearestInDirection, padLabel, type DeviceKind, type NavDirection, type PadStyle } from '../input/devices.ts';
 import type { PadMenuHandler } from '../input/Gamepad.ts';
 import { normalizeServerAddress } from '../net/address.ts';
-import { ANDROID_APP } from '../target.ts';
+import { SEPARATE_SERVER } from '../target.ts';
 import { byId } from './dom.ts';
 import { PROMPT_ACTIONS, promptHtml, type PromptContext } from './prompts.ts';
 
@@ -163,9 +163,9 @@ export class Menu implements PadMenuHandler {
     const code = byId<HTMLInputElement>('online-code');
     name.value = this.settings.playerName;
     mode.value = this.settings.onlineMode;
-    // Nell'app Android il gioco è dentro l'app: il server si sceglie qui.
+    // App Android e sito statico: la pagina non è il server, lo si sceglie qui (se la build non lo dice).
     const server = byId<HTMLInputElement>('online-server');
-    byId('online-server-row').hidden = !ANDROID_APP;
+    byId('online-server-row').hidden = !SEPARATE_SERVER;
     server.value = this.settings.serverAddress;
     server.addEventListener('change', () => {
       const address = normalizeServerAddress(server.value);

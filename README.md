@@ -30,6 +30,40 @@ aperto è in pausa), oppure usa la sezione **Online** del menu.
 
 ## Messa online
 
+### Pagina su GitHub Pages, server su una VPS (la configurazione di questo progetto)
+
+La pagina sta su GitHub Pages (https://onlyg4bb0.github.io/blockstrike/) e il server di gioco su
+una VPS (Oracle), raggiungibile in `wss://` con un certificato automatico. Dalla pagina si scarica
+anche l'APK.
+
+**1. Server sulla VPS** (`deploy/vps/`): un comando, dato dalla console della VPS (SSH, oppure
+nella console Oracle: istanza → «Run command» o la console seriale). Serve l'IP pubblico della VPS.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/OnlyG4BB0/blockstrike/main/deploy/vps/install.sh | bash -s -- IP.DELLA.VPS
+```
+
+- Mette solo due container suoi, `blockstrike-game` (server) e `blockstrike-caddy` (https/wss con
+  certificato Let's Encrypt per `IP-CON-TRATTINI.sslip.io`, un nome gratuito che punta all'IP).
+- **Non tocca nient'altro** (per esempio bobertbot): niente container fermati o cancellati. Se le
+  porte 80 o 443 sono già usate da un altro programma si ferma prima di cambiare qualcosa.
+- Aggiunge solo due regole al firewall della macchina (porte 80 e 443). Nella **console Oracle**
+  bisogna aprirle anche lì: Networking → Virtual Cloud Network → Security List → Ingress rule TCP 80
+  e 443 da 0.0.0.0/0.
+- Rilanciare lo stesso comando aggiorna il server all'ultima versione del repository.
+- Provato qui con Docker: Caddy con certificato locale e la prova di rete con due client attraverso
+  `wss://` (`SMOKE_URL=wss://… npm run smoke:net`), tutto a posto.
+
+**2. Pagina** con il server già scelto:
+
+```bash
+npm run deploy:pages -- wss://IP-CON-TRATTINI.sslip.io
+```
+
+Compila il sito per un hosting statico, ci mette l'APK se c'è (`npm run build:android` prima, con
+`VITE_SERVER_URL=wss://…` per avere lo stesso server già impostato nell'app) e lo pubblica sul
+ramo `gh-pages`. Senza indirizzo, nel menu compare il campo **Server**.
+
 ### Un solo container (consigliato)
 
 Il server di gioco può servire anche il client compilato: pagina, editor e partite stanno allo stesso

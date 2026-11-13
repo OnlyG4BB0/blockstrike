@@ -1,0 +1,18 @@
+# Solo il server di gioco (la pagina sta su GitHub Pages). Leggero e senza la build del client:
+# va bene anche sulle macchine ARM di Oracle (Ampere).
+FROM node:24-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json package-lock.json .npmrc ./
+COPY shared/package.json shared/
+COPY client/package.json client/
+COPY server/package.json server/
+RUN npm ci --omit=dev --workspace @blockstrike/server && npm cache clean --force
+COPY shared/src shared/src
+COPY server/src server/src
+COPY content content
+# CLIENT_DIR vuota: solo partite, niente pagina.
+ENV PORT=2567 CLIENT_DIR=
+EXPOSE 2567
+USER node
+CMD ["node", "--experimental-strip-types", "--disable-warning=ExperimentalWarning", "server/src/index.ts"]

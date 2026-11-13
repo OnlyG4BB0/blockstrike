@@ -3,7 +3,7 @@
  * trasporto, la scelta della stanza e il ritardo simulato per le prove (`?ping=150`: metà
  * all'andata, metà al ritorno).
  */
-import { ANDROID_APP } from '../target.ts';
+import { SEPARATE_SERVER } from '../target.ts';
 import { chooseServerUrl } from './address.ts';
 import { Client, type Room } from '@colyseus/sdk';
 import {
@@ -66,7 +66,7 @@ export function serverUrl(userAddress: string): string | null {
   return chooseServerUrl({
     user: userAddress,
     configured: (import.meta.env.VITE_SERVER_URL as string | undefined) ?? '',
-    page: ANDROID_APP ? null : location,
+    page: SEPARATE_SERVER ? null : location,
     dev: import.meta.env.DEV,
   });
 }

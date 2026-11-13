@@ -1,0 +1,6 @@
+# Certificato Let's Encrypt automatico per {$DOMAIN}; le connessioni WebSocket (wss://) passano da sole.
+{$DOMAIN} {
+	@root path /
+	respond @root "Server di BLOCKSTRIKE attivo. Si gioca da {$SITE}" 200
+	reverse_proxy blockstrike-game:2567
+}
