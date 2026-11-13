@@ -19,6 +19,7 @@ export const REQUIRED_SOUNDS = [
   'gore_splat',
   'announce',
   'announce_streak',
+  'impact',
 ] as const;
 
 const weapons = import.meta.glob('../../content/weapons/*.json', { eager: true, import: 'default' });

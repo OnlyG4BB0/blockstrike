@@ -1,5 +1,28 @@
 /** Impostazioni del giocatore, salvate nel browser quando possibile. */
 import { GORE_LEVELS, type BotMode, type GoreLevel } from '@blockstrike/shared';
+import { QUALITIES, type Quality } from './config.ts';
+import { KEY_ACTIONS, defaultBindings, type KeyBindings } from './input/Input.ts';
+
+/** Mirino personalizzabile. */
+export interface CrosshairSettings {
+  color: string;
+  /** Lunghezza delle linee (px). */
+  length: number;
+  thickness: number;
+  /** Distanza minima dal centro (px), a cui si aggiunge la dispersione dell'arma. */
+  gap: number;
+  dot: boolean;
+  outline: boolean;
+}
+
+export const DEFAULT_CROSSHAIR: Readonly<CrosshairSettings> = {
+  color: '#ffffff',
+  length: 9,
+  thickness: 2,
+  gap: 3,
+  dot: true,
+  outline: true,
+};
 
 export interface Settings {
   /** Sensibilità del mouse (1 = 0,0008 radianti per pixel). */
@@ -28,6 +51,13 @@ export interface Settings {
   onlineMode: string;
   /** Mappa per l'allenamento e per le stanze create (id in content/maps). */
   mapId: string;
+  /** Volume della musica del menu, da 0 a 1. */
+  musicVolume: number;
+  quality: Quality;
+  crosshair: CrosshairSettings;
+  minimap: boolean;
+  /** Tasti per ogni azione. */
+  keys: KeyBindings;
 }
 
 /** Radianti di rotazione per pixel di movimento del mouse a sensibilità 1. */
@@ -52,7 +82,35 @@ const DEFAULTS: Settings = {
   playerName: '',
   onlineMode: 'ffa',
   mapId: 'cortile',
+  musicVolume: 0.5,
+  quality: 'media',
+  crosshair: { ...DEFAULT_CROSSHAIR },
+  minimap: true,
+  keys: defaultBindings(),
 };
+
+function crosshairFrom(value: unknown): CrosshairSettings {
+  const raw = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  return {
+    color: typeof raw.color === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color) ? raw.color : DEFAULT_CROSSHAIR.color,
+    length: numberIn(raw.length, 0, 30, DEFAULT_CROSSHAIR.length),
+    thickness: numberIn(raw.thickness, 1, 8, DEFAULT_CROSSHAIR.thickness),
+    gap: numberIn(raw.gap, 0, 30, DEFAULT_CROSSHAIR.gap),
+    dot: booleanOr(raw.dot, DEFAULT_CROSSHAIR.dot),
+    outline: booleanOr(raw.outline, DEFAULT_CROSSHAIR.outline),
+  };
+}
+
+function keysFrom(value: unknown): KeyBindings {
+  const keys = defaultBindings();
+  if (typeof value !== 'object' || value === null) return keys;
+  const raw = value as Record<string, unknown>;
+  for (const action of KEY_ACTIONS) {
+    const codes = raw[action];
+    if (Array.isArray(codes) && codes.length > 0 && codes.every((c) => typeof c === 'string')) keys[action] = [...(codes as string[])];
+  }
+  return keys;
+}
 
 const STORAGE_KEY = 'blockstrike.settings.v1';
 const BOT_MODES: readonly BotMode[] = ['fight', 'roam', 'idle'];
@@ -100,6 +158,11 @@ export function loadSettings(): Settings {
     playerName: typeof stored.playerName === 'string' ? stored.playerName.slice(0, 16) : DEFAULTS.playerName,
     onlineMode: typeof stored.onlineMode === 'string' ? stored.onlineMode : DEFAULTS.onlineMode,
     mapId: typeof stored.mapId === 'string' ? stored.mapId : DEFAULTS.mapId,
+    musicVolume: numberIn(stored.musicVolume, 0, 1, DEFAULTS.musicVolume),
+    quality: QUALITIES.includes(stored.quality as Quality) ? (stored.quality as Quality) : DEFAULTS.quality,
+    crosshair: crosshairFrom(stored.crosshair),
+    minimap: booleanOr(stored.minimap, DEFAULTS.minimap),
+    keys: keysFrom(stored.keys),
   };
 }
 

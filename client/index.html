@@ -31,6 +31,8 @@
         </div>
 
         <div id="fps"></div>
+        <canvas id="minimap" aria-label="Minimappa"></canvas>
+        <div id="damage-dir" aria-hidden="true"></div>
         <pre id="debug"></pre>
         <div id="hint">Esc · menu &nbsp; Tab · punteggi &nbsp; K · ricomincia</div>
         <div id="match-bar" hidden></div>
@@ -90,7 +92,7 @@
       <div id="menu">
         <div class="menu-panel">
           <h1 class="title">BLOCK<span>STRIKE</span></h1>
-          <p class="subtitle">Fase 7 · mappe ed editor</p>
+          <p class="subtitle">Sparatutto a blocchi · originale</p>
           <div class="play-row">
             <button id="play" class="play" type="button">Gioca</button>
             <label class="map-choice">
@@ -103,7 +105,14 @@
             Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
           </p>
 
-          <section id="online" class="online" aria-label="Online">
+          <nav class="tabs" role="tablist" aria-label="Sezioni del menu">
+            <button type="button" role="tab" data-tab="gioca">Online</button>
+            <button type="button" role="tab" data-tab="personaggio">Personaggio</button>
+            <button type="button" role="tab" data-tab="impostazioni">Impostazioni</button>
+            <button type="button" role="tab" data-tab="comandi">Comandi</button>
+          </nav>
+
+          <section id="online" class="online tab-panel" data-panel="gioca" aria-label="Online">
             <h2>Online</h2>
             <div id="online-lobby" class="online-grid">
               <label class="row"><span>Nome</span><input id="online-name" type="text" maxlength="16" autocomplete="off" /></label>
@@ -132,7 +141,7 @@
             <p id="online-status" class="online-status"></p>
           </section>
 
-          <section id="loadout" class="loadout" aria-label="Classe e aspetto">
+          <section id="loadout" class="loadout tab-panel" data-panel="personaggio" aria-label="Classe e aspetto">
             <div class="loadout-classes">
               <h2>Classe</h2>
               <div id="class-list" class="class-list"></div>
@@ -149,7 +158,7 @@
           </section>
 
           <div class="columns">
-            <section>
+            <section class="tab-panel" data-panel="impostazioni">
               <h2>Impostazioni</h2>
               <label class="row">
                 <span>Sensibilità</span>
@@ -167,12 +176,25 @@
                 <output id="out-volume"></output>
               </label>
               <label class="row">
+                <span>Musica del menu</span>
+                <input id="set-music" type="range" min="0" max="100" step="1" />
+                <output id="out-music"></output>
+              </label>
+              <label class="row select-row">
+                <span>Qualità grafica</span>
+                <select id="set-quality">
+                  <option value="bassa">bassa (niente ombre)</option>
+                  <option value="media">media</option>
+                  <option value="alta">alta</option>
+                </select>
+              </label>
+              <label class="row">
                 <span>Bot</span>
                 <input id="set-bot-count" type="range" min="0" max="11" step="1" />
                 <output id="out-bot-count"></output>
               </label>
               <label class="row select-row">
-                <span>Bot</span>
+                <span>Comportamento dei bot</span>
                 <select id="set-bot-mode">
                   <option value="fight">combattono</option>
                   <option value="roam">girano senza sparare</option>
@@ -188,9 +210,35 @@
                 </select>
               </label>
               <label class="check"><input id="set-damage-numbers" type="checkbox" /><span>Numeri di danno</span></label>
+              <label class="check"><input id="set-minimap" type="checkbox" /><span>Minimappa</span></label>
               <label class="check"><input id="set-dynamic-fov" type="checkbox" /><span>Allarga la visuale in velocità</span></label>
               <label class="check"><input id="set-show-fps" type="checkbox" /><span>Mostra FPS</span></label>
               <label class="check"><input id="set-show-debug" type="checkbox" /><span>Dati di debug</span></label>
+
+              <h2 class="subsection">Mirino</h2>
+              <div class="crosshair-editor">
+                <div class="crosshair-fields">
+                  <label class="row"><span>Colore</span><input id="ch-color" type="color" /></label>
+                  <label class="row"><span>Lunghezza</span><input id="ch-length" type="range" min="0" max="30" step="1" /></label>
+                  <label class="row"><span>Spessore</span><input id="ch-thickness" type="range" min="1" max="8" step="1" /></label>
+                  <label class="row"><span>Distanza</span><input id="ch-gap" type="range" min="0" max="30" step="1" /></label>
+                  <label class="check"><input id="ch-dot" type="checkbox" /><span>Punto al centro</span></label>
+                  <label class="check"><input id="ch-outline" type="checkbox" /><span>Bordo scuro</span></label>
+                </div>
+                <div class="crosshair-preview" aria-hidden="true">
+                  <div id="crosshair-preview">
+                    <span class="ch ch-top"></span>
+                    <span class="ch ch-bottom"></span>
+                    <span class="ch ch-left"></span>
+                    <span class="ch ch-right"></span>
+                    <span class="ch-dot"></span>
+                  </div>
+                </div>
+              </div>
+
+              <h2 class="subsection">Tasti</h2>
+              <div id="key-list" class="key-list"></div>
+              <button id="keys-reset" type="button" class="small-button">Ripristina i tasti</button>
 
               <div id="skins-section">
                 <h2 class="subsection">Skin delle armi</h2>
@@ -198,7 +246,7 @@
               </div>
             </section>
 
-            <section>
+            <section class="tab-panel" data-panel="comandi">
               <h2>Comandi</h2>
               <dl class="controls">
                 <dt>W A S D</dt>

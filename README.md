@@ -3,7 +3,7 @@
 Sparatutto in prima persona da browser, grafica low-poly a blocchi, movimento veloce.
 Nome provvisorio.
 
-**Stato: Fase 7 completata — mappe ed editor.**
+**Stato: Fase 8 completata — interfaccia, audio e rifinitura.**
 
 ## Avvio
 
@@ -42,7 +42,53 @@ aperto è in pausa), oppure usa la sezione **Online** del menu.
 | Tab | Punteggi |
 | Invio | Chat (online): Invio di nuovo per mandare, Esc per chiudere |
 | K | Tornare a un punto di partenza |
-| Esc | Menu: classe, aspetto, impostazioni e skin delle armi |
+| Esc | Menu: online, personaggio, impostazioni, comandi |
+
+I tasti di movimento, salto, accovacciamento, ricarica, granata, arma precedente, ricomincia e
+punteggi si cambiano nel menu (**Impostazioni → Tasti**: clic sull'azione, poi il tasto nuovo; Esc
+annulla). I numeri restano per le armi.
+
+## Menu, HUD e impostazioni
+
+Il menu ha quattro schede: **Online**, **Personaggio** (classe e aspetto con l'anteprima 3D),
+**Impostazioni** e **Comandi**; sopra ci sono sempre **Gioca**, la scelta della mappa e il link
+all'editor.
+
+**Impostazioni**:
+- sensibilità e campo visivo;
+- volume generale e della musica del menu;
+- qualità grafica e livello di gore;
+- numeri di danno, minimappa, campo visivo che si allarga in velocità, FPS e dati di debug;
+- mirino personalizzabile, con anteprima: colore, lunghezza, spessore, distanza dal centro, punto e
+  bordo;
+- tasti;
+- bot dell'allenamento e skin delle armi.
+
+| Qualità | Pixel | Ombre | Particelle |
+|---|---|---|---|
+| bassa | 0,75 × | no | 600 |
+| media | fino a 1,25 × | mappa 1024 | 1200 |
+| alta | fino a 2 × | mappa 2048 | 2000 |
+
+L'antialiasing (spento in qualità bassa) cambia al successivo avvio della pagina; il resto subito.
+
+**HUD**:
+- vita e munizioni;
+- mirino che si allarga con la dispersione;
+- segnali di colpo e numeri di danno;
+- minimappa facoltativa, con il nord in alto: compagni sempre, nemici solo per 2,5 s dopo che hanno
+  sparato, bandiere;
+- segnale rosso attorno al mirino verso chi ha colpito;
+- elenco delle uccisioni, punteggi (Tab), annunci, chat, tempo e punteggi online.
+
+**Audio** con Howler.js:
+- spari, ricariche, passi, impatti sui muri, esplosioni e gore nello spazio;
+- colpi a segno, annunci e musica del menu, che sfuma quando si gioca.
+
+Tutti i suoni sono generati dal gioco: vedi [CREDITS.md](CREDITS.md).
+
+**Grafica**: nebbia, sole con ombre semplici (una mappa d'ombra per tutta la mappa), luce ambiente,
+cielo a gradiente e luci della mappa.
 
 ## Classi
 

@@ -43,7 +43,7 @@ import {
   type WeaponDef,
 } from '@blockstrike/shared';
 import { AudioSystem } from '../audio/AudioSystem.ts';
-import { AUDIO, CHARACTERS, EFFECTS, GORE, RENDER, TEAMS, VIEW, VIEWMODEL } from '../config.ts';
+import { AUDIO, CHARACTERS, EFFECTS, GORE, MINIMAP, QUALITY, TEAMS, VIEW, VIEWMODEL, type Quality } from '../config.ts';
 import { Input } from '../input/Input.ts';
 import { createBlockTexture } from '../render/blockTexture.ts';
 import { CharacterPreview } from '../render/CharacterPreview.ts';
@@ -57,7 +57,8 @@ import { Viewmodel } from '../render/Viewmodel.ts';
 import { ModelLibrary } from '../render/weaponModels.ts';
 import { SENSITIVITY_SCALE, loadSettings, saveSettings, type Settings } from '../settings.ts';
 import { Hud, type LabelData, type ScoreRow, type ScreenPoint } from '../ui/Hud.ts';
-import { Menu, type OnlineAction } from '../ui/Menu.ts';
+import { Menu, applyCrosshair, type OnlineAction } from '../ui/Menu.ts';
+import { Minimap, type MinimapDot } from '../ui/Minimap.ts';
 import type { NetSession } from '../net/NetSession.ts';
 import { CameraRig } from './CameraRig.ts';
 
@@ -160,6 +161,12 @@ export class Game {
   private appliedFov = 0;
   private appliedAspect = 0;
   private deathTime = 0;
+  private sun: DirectionalLight | null = null;
+  private appliedQuality: Quality | null = null;
+  private readonly minimap: Minimap;
+  private readonly minimapDots: MinimapDot[] = [];
+  /** Ultimo sparo di ogni combattente (per mostrarlo sulla minimappa). */
+  private readonly lastShot = new Map<number, number>();
   private lastPump = 0;
   private closed = false;
   private requestedClass = -1;
@@ -188,7 +195,8 @@ export class Game {
       this.match.botMode = this.settings.botMode;
     }
 
-    this.renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // L'antialiasing si sceglie alla creazione: cambia al prossimo avvio se si cambia qualità.
+    this.renderer = new WebGLRenderer({ antialias: QUALITY[this.settings.quality].antialias, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, VIEW.maxPixelRatio));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
@@ -201,6 +209,7 @@ export class Game {
     this.camera.rotation.order = 'YXZ';
     this.viewmodel = new Viewmodel(aspect, this.library, content.weapons, this.settings.skins);
 
+    this.minimap = new Minimap(document.getElementById('minimap') as HTMLCanvasElement, map);
     this.sky = createSky(map);
     this.buildScene();
     this.scene.add(this.characters.object);
@@ -247,7 +256,19 @@ export class Game {
       this.applySettings(settings);
       saveSettings(settings);
     };
-    this.input.onLockChange = (locked) => (locked ? this.menu.hide() : this.menu.show());
+    this.input.onLockChange = (locked) => {
+      if (locked) this.menu.hide();
+      else this.menu.show();
+      this.audio.setMusic(!locked);
+    };
+    // La musica del menu parte al primo clic (i browser non lasciano partire l'audio da soli).
+    const wake = () => {
+      void this.audio.start().then(() => this.audio.setMusic(this.menu.visible));
+      window.removeEventListener('pointerdown', wake);
+      window.removeEventListener('keydown', wake);
+    };
+    window.addEventListener('pointerdown', wake);
+    window.addEventListener('keydown', wake);
     this.input.onLockError = () => this.menu.showLockError();
 
     this.menu.onOnline = (action, mode, code) => this.onOnline(action, mode, code);
@@ -342,10 +363,11 @@ export class Game {
     const radius = max.clone().sub(min).length() * 0.5;
     const direction = new Vector3(...map.sun.direction).normalize();
     const sun = new DirectionalLight(new Color(map.sun.color), map.sun.intensity);
+    this.sun = sun;
     sun.position.copy(center).addScaledVector(direction, -radius * 1.5);
     sun.target.position.copy(center);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(RENDER.shadowMapSize, RENDER.shadowMapSize);
+    sun.shadow.mapSize.set(QUALITY[this.settings.quality].shadowMapSize, QUALITY[this.settings.quality].shadowMapSize);
     const shadowCamera = sun.shadow.camera;
     shadowCamera.left = -radius;
     shadowCamera.right = radius;
@@ -369,6 +391,11 @@ export class Game {
     this.settings = settings;
     this.input.radiansPerPixel = settings.sensitivity * SENSITIVITY_SCALE;
     this.audio.setVolume(settings.volume);
+    this.audio.setMusicVolume(settings.musicVolume);
+    this.input.setBindings(settings.keys);
+    applyCrosshair(document.getElementById('crosshair')!, settings.crosshair);
+    this.minimap.visible = settings.minimap;
+    this.applyQuality(settings.quality);
     if (!this.session) {
       this.match.botMode = settings.botMode;
       if (this.match.combatants.filter((c) => c.bot).length !== settings.botCount) {
@@ -596,6 +623,7 @@ export class Game {
       const def = this.match.weapons[shot.weapon]!;
       const melee = def.kind === 'melee';
       const mine = shot.shooter === localId;
+      if (!melee) this.lastShot.set(shot.shooter, performance.now() / 1000);
       let from: Vector3;
       if (mine) {
         this.viewmodel.onShot(shot.weapon);
@@ -618,6 +646,8 @@ export class Game {
         if (!melee) this.effects.tracer(from.x, from.y, from.z, ex, ey, ez);
         if (shot.results[k] === SHOT_WORLD) {
           this.effects.impact(ex, ey, ez, shot.normals[k * 3]!, shot.normals[k * 3 + 1]!, shot.normals[k * 3 + 2]!, shot.targets[k]!);
+          // Un solo suono d'impatto per colpo (i pallini del fucile a pompa sono tanti).
+          if (k === 0) this.audio.play('impact', { x: ex, y: ey, z: ez, volume: 0.35 });
         }
         if (melee && shot.results[k] === SHOT_BODY && def.sounds.hit) {
           this.audio.play(def.sounds.hit, { x: ex, y: ey, z: ez });
@@ -636,6 +666,7 @@ export class Game {
         this.audio.play(hit.killed ? 'kill' : hit.headshot ? 'headshot' : 'hit');
       }
       if (hit.target === localId) {
+        this.showDamageDirection(hit.attacker);
         this.hud.hurt(hit.damage);
         this.rig.addShake(0.25 + hit.damage / 150);
         this.audio.play('hurt', { volume: 0.8 });
@@ -719,6 +750,71 @@ export class Game {
       this.audio.play(ours ? 'announce_streak' : 'announce', { volume: 0.7 });
     }
     if (text) this.hud.chat('', text, true);
+  }
+
+  /** Segnale verso chi ha colpito il giocatore. */
+  private showDamageDirection(attackerId: number): void {
+    if (attackerId === this.local.id) return;
+    const attacker = this.match.getCombatant(attackerId);
+    if (!attacker) return;
+    const p = this.local.player;
+    const dx = attacker.player.x - p.x;
+    const dz = attacker.player.z - p.z;
+    const yaw = this.input.yaw;
+    const right = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+    const forward = -dx * Math.sin(yaw) - dz * Math.cos(yaw);
+    this.hud.damageFrom(Math.atan2(right, forward));
+  }
+
+  /** Qualità grafica: densità dei pixel, ombre e particelle. */
+  private applyQuality(quality: Quality): void {
+    if (this.appliedQuality === quality) return;
+    this.appliedQuality = quality;
+    const q = QUALITY[quality];
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.pixelRatio));
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    const sun = this.sun;
+    if (this.renderer.shadowMap.enabled !== q.shadows) {
+      this.renderer.shadowMap.enabled = q.shadows;
+      // I materiali vanno ricompilati quando le ombre si accendono o si spengono.
+      this.scene.traverse((object) => {
+        const material = (object as Partial<Mesh>).material;
+        if (Array.isArray(material)) for (const m of material) m.needsUpdate = true;
+        else if (material) material.needsUpdate = true;
+      });
+    }
+    if (sun) {
+      sun.castShadow = q.shadows;
+      if (sun.shadow.mapSize.x !== q.shadowMapSize) {
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+        sun.shadow.mapSize.set(q.shadowMapSize, q.shadowMapSize);
+      }
+    }
+    this.gore.particleLimit = q.particles;
+  }
+
+  /** Punti della minimappa: compagni sempre, nemici solo se hanno sparato da poco. */
+  private updateMinimap(dt: number): void {
+    if (!this.settings.minimap) return;
+    const dots = this.minimapDots;
+    dots.length = 0;
+    const local = this.local;
+    const now = performance.now() / 1000;
+    for (const c of this.match.combatants) {
+      if (c === local || !c.alive) continue;
+      const ally = c.team > 0 && c.team === local.team;
+      const revealed = now - (this.lastShot.get(c.id) ?? -Infinity) < MINIMAP.revealTime;
+      if (!ally && !revealed) continue;
+      dots.push({ x: c.player.x, z: c.player.z, color: ally ? '#7fc4ff' : '#ff5a4a' });
+    }
+    // Bandiere, del colore della loro squadra (stesso ordine delle basi nella mappa).
+    const flags = this.session?.core.info.flags ?? [];
+    flags.forEach((flag, i) => {
+      const team = this.match.map.flags?.[i]?.team ?? 0;
+      dots.push({ x: flag.x, z: flag.z, color: TEAMS.colors[team] ?? '#ffffff' });
+    });
+    this.minimap.render(dt, local.player.x, local.player.z, this.input.yaw, dots);
   }
 
   /** Splatter della morte di un altro combattente: manichino, parte staccata, pezzi o niente. */
@@ -928,7 +1024,7 @@ export class Game {
     // Mirino: la distanza delle linee corrisponde alla dispersione sullo schermo.
     const spread = MathUtils.degToRad(currentSpread(local, def));
     const halfFov = MathUtils.degToRad(this.camera.fov) / 2;
-    const gap = (Math.tan(spread) / Math.tan(halfFov)) * (window.innerHeight / 2) + 3;
+    const gap = (Math.tan(spread) / Math.tan(halfFov)) * (window.innerHeight / 2) + this.settings.crosshair.gap;
     this.hud.crosshairGap(gap, local.alive && !scoped);
     this.hud.scopeVisible(scoped);
 
@@ -951,6 +1047,7 @@ export class Game {
     }
     this.hud.scores(rows, dt);
     this.updateMatchInfo();
+    this.updateMinimap(dt);
 
     // Nome e vita sopra i bot vivi, vicini e visibili (niente scritte attraverso i muri).
     this.labels.length = 0;

@@ -1,5 +1,5 @@
 import { MOVE, horizontalSpeed, type PlayerState, type WeaponDef } from '@blockstrike/shared';
-import { HUD } from '../config.ts';
+import { DAMAGE_DIRECTION, HUD } from '../config.ts';
 import type { Settings } from '../settings.ts';
 import { byId } from './dom.ts';
 
@@ -87,6 +87,9 @@ export class Hud {
   private readonly announceSub = byId('announce-sub');
   private readonly splatterLayer = byId('splatter');
   private readonly matchBarElement = byId('match-bar');
+  private readonly damageLayer = byId('damage-dir');
+  private readonly wedges: HTMLDivElement[] = [];
+  private wedgeCursor = 0;
   private readonly chatLog = byId('chat-log');
   private readonly endScreenElement = byId('end-screen');
   private readonly endTitle = byId('end-title');
@@ -221,6 +224,27 @@ export class Hud {
       }
     });
     this.set('grenades', String(grenades), (text) => (this.grenades.textContent = `G · ${this.grenadeName} ×${text}`));
+  }
+
+  /**
+   * Segnale rosso sul bordo del mirino verso chi ha colpito. `angle`: 0 = davanti, positivo verso
+   * destra (radianti, rispetto a dove si guarda).
+   */
+  damageFrom(angle: number): void {
+    if (this.wedges.length === 0) {
+      for (let i = 0; i < DAMAGE_DIRECTION.count; i++) {
+        const wedge = document.createElement('div');
+        wedge.className = 'wedge';
+        this.damageLayer.append(wedge);
+        this.wedges.push(wedge);
+      }
+    }
+    const wedge = this.wedges[this.wedgeCursor]!;
+    this.wedgeCursor = (this.wedgeCursor + 1) % this.wedges.length;
+    wedge.style.transform = `rotate(${angle.toFixed(3)}rad)`;
+    wedge.classList.remove('show');
+    void wedge.offsetWidth;
+    wedge.classList.add('show');
   }
 
   /** Tempo e punteggi della partita online (null = nascosto). */

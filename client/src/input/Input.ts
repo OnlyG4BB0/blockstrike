@@ -1,31 +1,93 @@
 import { PLAYER, type PlayerInput } from '@blockstrike/shared';
 
-const FORWARD = ['KeyW', 'ArrowUp'];
-const BACK = ['KeyS', 'ArrowDown'];
-const LEFT = ['KeyA', 'ArrowLeft'];
-const RIGHT = ['KeyD', 'ArrowRight'];
-const JUMP = ['Space'];
-const CROUCH = ['ShiftLeft', 'ShiftRight', 'KeyC'];
-const RELOAD = ['KeyR'];
-const GRENADE = ['KeyG'];
-const LAST_WEAPON = ['KeyQ'];
-const RESPAWN = ['KeyK'];
-const SCOREBOARD = ['Tab'];
+/** Azioni assegnabili a un tasto dalle impostazioni. */
+export type KeyAction =
+  | 'forward'
+  | 'back'
+  | 'left'
+  | 'right'
+  | 'jump'
+  | 'crouch'
+  | 'reload'
+  | 'grenade'
+  | 'lastWeapon'
+  | 'respawn'
+  | 'scoreboard';
+
+export type KeyBindings = Record<KeyAction, string[]>;
+
+export const KEY_ACTIONS: readonly KeyAction[] = [
+  'forward',
+  'back',
+  'left',
+  'right',
+  'jump',
+  'crouch',
+  'reload',
+  'grenade',
+  'lastWeapon',
+  'respawn',
+  'scoreboard',
+];
+
+/** Nomi delle azioni nel menu dei tasti. */
+export const KEY_ACTION_NAMES: Readonly<Record<KeyAction, string>> = {
+  forward: 'Avanti',
+  back: 'Indietro',
+  left: 'Sinistra',
+  right: 'Destra',
+  jump: 'Salto',
+  crouch: 'Accovacciarsi / scivolare',
+  reload: 'Ricarica',
+  grenade: 'Granata',
+  lastWeapon: 'Arma precedente',
+  respawn: 'Ricomincia (allenamento)',
+  scoreboard: 'Punteggi',
+};
+
+export const DEFAULT_BINDINGS: Readonly<KeyBindings> = {
+  forward: ['KeyW', 'ArrowUp'],
+  back: ['KeyS', 'ArrowDown'],
+  left: ['KeyA', 'ArrowLeft'],
+  right: ['KeyD', 'ArrowRight'],
+  jump: ['Space'],
+  crouch: ['ShiftLeft', 'ShiftRight', 'KeyC'],
+  reload: ['KeyR'],
+  grenade: ['KeyG'],
+  lastWeapon: ['KeyQ'],
+  respawn: ['KeyK'],
+  scoreboard: ['Tab'],
+};
+
+/** Copia indipendente delle assegnazioni predefinite. */
+export function defaultBindings(): KeyBindings {
+  const copy = {} as KeyBindings;
+  for (const action of KEY_ACTIONS) copy[action] = [...DEFAULT_BINDINGS[action]];
+  return copy;
+}
+
+/** Nome leggibile di un tasto (dal codice fisico). */
+export function keyName(code: string): string {
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  const names: Record<string, string> = {
+    Space: 'Spazio',
+    ShiftLeft: 'Maiusc sx',
+    ShiftRight: 'Maiusc dx',
+    ControlLeft: 'Ctrl sx',
+    ControlRight: 'Ctrl dx',
+    AltLeft: 'Alt',
+    Tab: 'Tab',
+    ArrowUp: '↑',
+    ArrowDown: '↓',
+    ArrowLeft: '←',
+    ArrowRight: '→',
+    CapsLock: 'Bloc Maiusc',
+  };
+  return names[code] ?? code;
+}
+
 const SLOTS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
-const GAME_KEYS = new Set([
-  ...FORWARD,
-  ...BACK,
-  ...LEFT,
-  ...RIGHT,
-  ...JUMP,
-  ...CROUCH,
-  ...RELOAD,
-  ...GRENADE,
-  ...LAST_WEAPON,
-  ...RESPAWN,
-  ...SCOREBOARD,
-  ...SLOTS,
-]);
 
 const TWO_PI = Math.PI * 2;
 
@@ -50,6 +112,17 @@ export class Input {
 
   private readonly target: HTMLElement;
   private readonly pressed = new Set<string>();
+  private bindings: KeyBindings = defaultBindings();
+  private gameKeys = new Set<string>();
+
+  /** Tasti scelti nelle impostazioni (i numeri 1-9 restano per le armi). */
+  setBindings(bindings: Readonly<KeyBindings>): void {
+    const next = defaultBindings();
+    for (const action of KEY_ACTIONS) if (bindings[action]?.length) next[action] = [...bindings[action]];
+    this.bindings = next;
+    this.gameKeys = new Set([...KEY_ACTIONS.flatMap((action) => next[action]), ...SLOTS]);
+    this.pressed.clear();
+  }
   private fireHeld = false;
   private fireLatch = false;
   private adsHeld = false;
@@ -63,6 +136,7 @@ export class Input {
 
   constructor(target: HTMLElement) {
     this.target = target;
+    this.setBindings(this.bindings);
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
     window.addEventListener('blur', this.releaseAll);
@@ -102,15 +176,15 @@ export class Input {
   sample(out: PlayerInput): void {
     out.yaw = this.yaw;
     out.pitch = this.pitch;
-    out.forward = this.axis(FORWARD, BACK);
-    out.right = this.axis(RIGHT, LEFT);
+    out.forward = this.axis(this.bindings.forward, this.bindings.back);
+    out.right = this.axis(this.bindings.right, this.bindings.left);
     // Una pressione breve avvenuta tra due tick non va persa.
-    out.jump = this.any(JUMP) || this.jumpLatch;
-    out.crouch = this.any(CROUCH);
+    out.jump = this.any(this.bindings.jump) || this.jumpLatch;
+    out.crouch = this.any(this.bindings.crouch);
     out.fire = this.fireHeld || this.fireLatch;
     out.ads = this.adsHeld;
-    out.reload = this.any(RELOAD) || this.reloadLatch;
-    out.grenade = this.any(GRENADE) || this.grenadeLatch;
+    out.reload = this.any(this.bindings.reload) || this.reloadLatch;
+    out.grenade = this.any(this.bindings.grenade) || this.grenadeLatch;
     this.jumpLatch = false;
     this.fireLatch = false;
     this.reloadLatch = false;
@@ -148,16 +222,17 @@ export class Input {
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (this.typing || !this.locked || !GAME_KEYS.has(event.code)) return;
+    if (this.typing || !this.locked || !this.gameKeys.has(event.code)) return;
     event.preventDefault();
     if (event.repeat) return;
     this.pressed.add(event.code);
-    if (JUMP.includes(event.code)) this.jumpLatch = true;
-    if (RELOAD.includes(event.code)) this.reloadLatch = true;
-    if (GRENADE.includes(event.code)) this.grenadeLatch = true;
-    if (RESPAWN.includes(event.code)) this.respawnLatch = true;
-    if (LAST_WEAPON.includes(event.code)) this.lastWeaponLatch = true;
-    if (SCOREBOARD.includes(event.code)) this.scoreboard = true;
+    const b = this.bindings;
+    if (b.jump.includes(event.code)) this.jumpLatch = true;
+    if (b.reload.includes(event.code)) this.reloadLatch = true;
+    if (b.grenade.includes(event.code)) this.grenadeLatch = true;
+    if (b.respawn.includes(event.code)) this.respawnLatch = true;
+    if (b.lastWeapon.includes(event.code)) this.lastWeaponLatch = true;
+    if (b.scoreboard.includes(event.code)) this.scoreboard = true;
     const slot = SLOTS.indexOf(event.code);
     if (slot >= 0) this.requestedSlot = slot + 1;
   };
@@ -176,7 +251,7 @@ export class Input {
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
     this.pressed.delete(event.code);
-    if (SCOREBOARD.includes(event.code)) this.scoreboard = false;
+    if (this.bindings.scoreboard.includes(event.code)) this.scoreboard = false;
   };
 
   private readonly handleMouseDown = (event: MouseEvent): void => {

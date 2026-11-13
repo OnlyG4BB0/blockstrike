@@ -1,9 +1,21 @@
 import type { BotMode, GoreLevel } from '@blockstrike/shared';
-import type { Settings } from '../settings.ts';
+import { KEY_ACTIONS, KEY_ACTION_NAMES, defaultBindings, keyName, type KeyAction } from '../input/Input.ts';
+import { DEFAULT_CROSSHAIR, type CrosshairSettings, type Settings } from '../settings.ts';
+import type { Quality } from '../config.ts';
 import { byId } from './dom.ts';
 
-type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount';
-type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers';
+type NumberKey = 'sensitivity' | 'fov' | 'volume' | 'botCount' | 'musicVolume';
+type BooleanKey = 'dynamicFov' | 'showFps' | 'showDebug' | 'damageNumbers' | 'minimap';
+
+/** Applica le impostazioni del mirino a un elemento (quello del gioco o l'anteprima). */
+export function applyCrosshair(element: HTMLElement, c: Readonly<CrosshairSettings>): void {
+  element.style.setProperty('--ch-color', c.color);
+  element.style.setProperty('--ch-length', `${c.length}px`);
+  element.style.setProperty('--ch-thickness', `${c.thickness}px`);
+  element.style.setProperty('--ch-outline', c.outline ? 'rgba(0, 0, 0, 0.55)' : 'transparent');
+  const dot = element.querySelector<HTMLElement>('.ch-dot');
+  if (dot) dot.hidden = !c.dot;
+}
 
 /** Armi che hanno skin, con le skin disponibili. */
 export interface SkinChoice {
@@ -66,13 +78,29 @@ export class Menu {
     classes: readonly ClassChoice[],
     characterSkins: readonly CharacterSkinChoice[],
   ) {
-    this.settings = { ...settings, skins: { ...settings.skins } };
+    this.settings = {
+      ...settings,
+      skins: { ...settings.skins },
+      crosshair: { ...settings.crosshair },
+      keys: { ...settings.keys },
+    };
     byId<HTMLButtonElement>('play').addEventListener('click', () => this.onPlay());
 
     this.bindRange('set-sensitivity', 'out-sensitivity', 'sensitivity', (v) => v.toFixed(1));
     this.bindRange('set-fov', 'out-fov', 'fov', (v) => `${Math.round(v)}°`);
     this.bindRange('set-volume', 'out-volume', 'volume', (v) => `${Math.round(v * 100)}%`, 100);
     this.bindRange('set-bot-count', 'out-bot-count', 'botCount', (v) => String(Math.round(v)));
+    this.bindRange('set-music', 'out-music', 'musicVolume', (v) => `${Math.round(v * 100)}%`, 100);
+    this.bindCheck('set-minimap', 'minimap');
+    const quality = byId<HTMLSelectElement>('set-quality');
+    quality.value = this.settings.quality;
+    quality.addEventListener('change', () => {
+      this.settings.quality = quality.value as Quality;
+      this.emit();
+    });
+    this.bindCrosshair();
+    this.bindKeys();
+    this.bindTabs();
     this.bindCheck('set-dynamic-fov', 'dynamicFov');
     this.bindCheck('set-show-fps', 'showFps');
     this.bindCheck('set-show-debug', 'showDebug');
@@ -186,7 +214,120 @@ export class Menu {
   }
 
   private emit(): void {
-    this.onChange({ ...this.settings, skins: { ...this.settings.skins } });
+    this.onChange({
+      ...this.settings,
+      skins: { ...this.settings.skins },
+      crosshair: { ...this.settings.crosshair },
+      keys: { ...this.settings.keys },
+    });
+  }
+
+  /** Schede del menu: ricorda l'ultima aperta. */
+  private bindTabs(): void {
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>('.tabs button')];
+    const panels = [...document.querySelectorAll<HTMLElement>('.tab-panel')];
+    const open = (tab: string) => {
+      for (const button of buttons) {
+        const active = button.dataset.tab === tab;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+      }
+      for (const panel of panels) panel.hidden = panel.dataset.panel !== tab;
+      try {
+        sessionStorage.setItem('blockstrike.tab', tab);
+      } catch {
+        // Niente memoria della scheda: pazienza.
+      }
+    };
+    for (const button of buttons) button.addEventListener('click', () => open(button.dataset.tab ?? 'gioca'));
+    let saved = 'personaggio';
+    try {
+      saved = sessionStorage.getItem('blockstrike.tab') ?? saved;
+    } catch {
+      // Archiviazione non disponibile.
+    }
+    open(buttons.some((b) => b.dataset.tab === saved) ? saved : 'personaggio');
+  }
+
+  /** Mirino: colore, misure, punto e bordo, con anteprima. */
+  private bindCrosshair(): void {
+    const c = this.settings.crosshair;
+    const preview = byId('crosshair-preview');
+    const refresh = () => {
+      applyCrosshair(preview, c);
+      preview.style.setProperty('--gap', `${c.gap}px`);
+    };
+    const color = byId<HTMLInputElement>('ch-color');
+    color.value = c.color;
+    color.addEventListener('input', () => {
+      c.color = color.value;
+      refresh();
+      this.emit();
+    });
+    for (const key of ['length', 'thickness', 'gap'] as const) {
+      const input = byId<HTMLInputElement>(`ch-${key}`);
+      input.value = String(c[key]);
+      input.addEventListener('input', () => {
+        c[key] = Number(input.value);
+        refresh();
+        this.emit();
+      });
+    }
+    for (const key of ['dot', 'outline'] as const) {
+      const input = byId<HTMLInputElement>(`ch-${key}`);
+      input.checked = c[key];
+      input.addEventListener('change', () => {
+        c[key] = input.checked;
+        refresh();
+        this.emit();
+      });
+    }
+    if (!c.color) Object.assign(c, DEFAULT_CROSSHAIR);
+    refresh();
+  }
+
+  /** Tasti: clic su un'azione, poi il tasto nuovo (Esc annulla). */
+  private bindKeys(): void {
+    const list = byId('key-list');
+    const render = () => {
+      list.replaceChildren();
+      for (const action of KEY_ACTIONS) {
+        const label = document.createElement('span');
+        label.textContent = KEY_ACTION_NAMES[action];
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = this.settings.keys[action].map(keyName).join(' · ');
+        button.addEventListener('click', () => this.captureKey(action, button, render));
+        list.append(label, button);
+      }
+    };
+    byId('keys-reset').addEventListener('click', () => {
+      this.settings.keys = defaultBindings();
+      render();
+      this.emit();
+    });
+    render();
+  }
+
+  private captureKey(action: KeyAction, button: HTMLButtonElement, render: () => void): void {
+    button.textContent = 'Premi un tasto…';
+    button.classList.add('waiting');
+    const onKey = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.removeEventListener('keydown', onKey, true);
+      if (event.code !== 'Escape') {
+        // Un tasto fa una cosa sola: lo si toglie dalle altre azioni.
+        for (const other of KEY_ACTIONS) {
+          this.settings.keys[other] = this.settings.keys[other].filter((code) => code !== event.code);
+          if (this.settings.keys[other].length === 0 && other !== action) this.settings.keys[other] = [...defaultBindings()[other]];
+        }
+        this.settings.keys[action] = [event.code];
+        this.emit();
+      }
+      render();
+    };
+    window.addEventListener('keydown', onKey, true);
   }
 
   /** Schede delle classi: statistiche a barre e armi. */

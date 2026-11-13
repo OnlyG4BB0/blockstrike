@@ -192,6 +192,8 @@ function createSplatTexture(): CanvasTexture {
 
 export class Gore {
   level: GoreLevel = 'full';
+  /** Particelle al massimo (dipende dalla qualità grafica; mai oltre GORE.maxParticles). */
+  particleLimit: number = GORE.maxParticles;
   readonly object = new Group();
   private readonly world: CollisionWorld;
 
@@ -452,6 +454,7 @@ export class Gore {
   }
 
   private spawnParticle(kind: number, x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number, life: number): void {
+    if (this.activeParticles >= this.particleLimit) return;
     const max = GORE.maxParticles;
     let slot = -1;
     for (let n = 0; n < max; n++) {

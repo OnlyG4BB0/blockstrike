@@ -1,11 +1,20 @@
+/**
+ * Audio del gioco con Howler.js. I suoni sono descritti nei file di /content/sounds (livelli di
+ * rumore filtrato e toni): all'avvio vengono sintetizzati con un OfflineAudioContext, convertiti
+ * in WAV in memoria e caricati in Howler, che li riproduce con la posizione nello spazio (plugin
+ * spaziale: si sente da dove arriva uno sparo). Anche la musica del menu è generata qui.
+ * Nessun file audio esterno: vedi CREDITS.md.
+ */
+import { Howl, Howler } from 'howler';
 import type { Camera } from 'three';
 import { Vector3 } from 'three';
 import type { SoundDef, SoundLayer } from '@blockstrike/shared';
 import { AUDIO } from '../config.ts';
+import { renderMusic } from './music.ts';
 
 const SAMPLE_RATE = 44100;
 
-function noiseBuffer(context: OfflineAudioContext, seconds: number): AudioBuffer {
+function noiseBuffer(context: BaseAudioContext, seconds: number): AudioBuffer {
   const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * seconds), context.sampleRate);
   const data = buffer.getChannelData(0);
   let seed = 12345;
@@ -46,17 +55,47 @@ function addLayer(context: OfflineAudioContext, layer: SoundLayer): void {
   osc.stop(layer.start + layer.attack + layer.duration + 0.05);
 }
 
-/**
- * Audio del gioco con la Web Audio API. I suoni sono descritti nei file di /content/sounds e
- * vengono sintetizzati una volta all'avvio; si riproducono con posizione nello spazio (si sente da
- * dove arriva uno sparo). Il contesto audio parte al primo clic su "Gioca", come richiedono i browser.
- */
+/** WAV a 16 bit, mono: Howler lo carica come un file qualsiasi. */
+export function encodeWav(buffer: AudioBuffer): ArrayBuffer {
+  const samples = buffer.getChannelData(0);
+  const bytes = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(bytes);
+  const text = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+  };
+  text(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  text(8, 'WAVE');
+  text(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, buffer.sampleRate, true);
+  view.setUint32(28, buffer.sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  text(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]!));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return bytes;
+}
+
+function howlFrom(buffer: AudioBuffer, options: { loop?: boolean; pool?: number } = {}): Howl {
+  const url = URL.createObjectURL(new Blob([encodeWav(buffer)], { type: 'audio/wav' }));
+  return new Howl({ src: [url], format: ['wav'], loop: options.loop ?? false, pool: options.pool ?? AUDIO.pool });
+}
+
 export class AudioSystem {
-  private context: AudioContext | null = null;
-  private master: GainNode | null = null;
-  private readonly buffers = new Map<string, AudioBuffer>();
   private readonly sounds: ReadonlyMap<string, SoundDef>;
-  private volume = 0.6;
+  private readonly howls = new Map<string, Howl>();
+  private music: Howl | null = null;
+  private musicId = 0;
+  private musicWanted = false;
+  private musicVolume: number = AUDIO.musicVolume;
+  private starting: Promise<void> | null = null;
   private readonly forward = new Vector3();
   private readonly up = new Vector3();
 
@@ -64,79 +103,85 @@ export class AudioSystem {
     this.sounds = sounds;
   }
 
-  /** Va chiamato da un gesto dell'utente (clic). */
-  async start(): Promise<void> {
-    if (this.context) {
-      if (this.context.state === 'suspended') await this.context.resume();
-      return;
-    }
-    const context = new AudioContext();
-    this.context = context;
-    this.master = context.createGain();
-    this.master.gain.value = this.volume;
-    this.master.connect(context.destination);
-    await Promise.all(
-      [...this.sounds.values()].map(async (sound) => {
-        const offline = new OfflineAudioContext(1, Math.ceil(SAMPLE_RATE * sound.seconds), SAMPLE_RATE);
-        for (const layer of sound.layers) addLayer(offline, layer);
-        this.buffers.set(sound.id, await offline.startRendering());
-      }),
-    );
+  /** Va chiamato da un gesto dell'utente (clic): prepara i suoni una volta sola. */
+  start(): Promise<void> {
+    void Howler.ctx?.resume();
+    this.starting ??= (async () => {
+      await Promise.all(
+        [...this.sounds.values()].map(async (sound) => {
+          const offline = new OfflineAudioContext(1, Math.ceil(SAMPLE_RATE * sound.seconds), SAMPLE_RATE);
+          for (const layer of sound.layers) addLayer(offline, layer);
+          this.howls.set(sound.id, howlFrom(await offline.startRendering()));
+        }),
+      );
+      this.music = howlFrom(await renderMusic(), { loop: true, pool: 1 });
+      this.applyMusic();
+    })();
+    return this.starting;
   }
 
   setVolume(volume: number): void {
-    this.volume = volume;
-    if (this.master) this.master.gain.value = volume;
+    Howler.volume(volume);
+  }
+
+  setMusicVolume(volume: number): void {
+    this.musicVolume = volume;
+    this.applyMusic();
+  }
+
+  /** Musica del menu: si sente con il menu aperto, sfuma quando si gioca. */
+  setMusic(playing: boolean): void {
+    this.musicWanted = playing;
+    this.applyMusic();
+  }
+
+  private applyMusic(): void {
+    const music = this.music;
+    if (!music) return;
+    const target = this.musicWanted ? this.musicVolume : 0;
+    if (target > 0 && !music.playing(this.musicId)) {
+      this.musicId = music.play();
+      music.volume(0, this.musicId);
+    }
+    if (!music.playing(this.musicId)) return;
+    music.fade(music.volume(this.musicId) as number, target, AUDIO.musicFade, this.musicId);
+    if (target === 0) {
+      const id = this.musicId;
+      window.setTimeout(() => {
+        if (!this.musicWanted) music.pause(id);
+      }, AUDIO.musicFade + 50);
+    }
   }
 
   /** Riproduce un suono per id. Con una posizione è spazializzato, altrimenti si sente "in testa". */
   play(id: string, options: { x?: number; y?: number; z?: number; volume?: number; rate?: number } = {}): void {
-    const context = this.context;
-    const buffer = this.buffers.get(id);
-    if (!context || !this.master || !buffer || context.state !== 'running') return;
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    source.playbackRate.value = (options.rate ?? 1) * (0.96 + Math.random() * 0.08);
-    const gain = context.createGain();
-    gain.gain.value = options.volume ?? 1;
+    const howl = this.howls.get(id);
+    if (!howl) return;
+    const sound = howl.play();
+    howl.volume(options.volume ?? 1, sound);
+    howl.rate((options.rate ?? 1) * (0.96 + Math.random() * 0.08), sound);
     if (options.x !== undefined && options.y !== undefined && options.z !== undefined) {
-      const panner = context.createPanner();
-      panner.panningModel = 'equalpower';
-      panner.distanceModel = 'inverse';
-      panner.refDistance = AUDIO.refDistance;
-      panner.maxDistance = AUDIO.maxDistance;
-      panner.rolloffFactor = AUDIO.rolloff;
-      panner.positionX.value = options.x;
-      panner.positionY.value = options.y;
-      panner.positionZ.value = options.z;
-      source.connect(gain).connect(panner).connect(this.master);
-    } else {
-      source.connect(gain).connect(this.master);
+      howl.pannerAttr(
+        {
+          panningModel: 'equalpower',
+          distanceModel: 'inverse',
+          refDistance: AUDIO.refDistance,
+          maxDistance: AUDIO.maxDistance,
+          rolloffFactor: AUDIO.rolloff,
+        },
+        sound,
+      );
+      howl.pos(options.x, options.y, options.z, sound);
     }
-    source.start();
   }
 
   /** L'ascoltatore segue la telecamera. */
   updateListener(camera: Camera): void {
-    const context = this.context;
-    if (!context) return;
-    const listener = context.listener;
+    if (!Howler.ctx) return;
     camera.getWorldDirection(this.forward);
     this.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
     const p = camera.position;
-    if (listener.positionX) {
-      listener.positionX.value = p.x;
-      listener.positionY.value = p.y;
-      listener.positionZ.value = p.z;
-      listener.forwardX.value = this.forward.x;
-      listener.forwardY.value = this.forward.y;
-      listener.forwardZ.value = this.forward.z;
-      listener.upX.value = this.up.x;
-      listener.upY.value = this.up.y;
-      listener.upZ.value = this.up.z;
-    } else {
-      listener.setPosition(p.x, p.y, p.z);
-      listener.setOrientation(this.forward.x, this.forward.y, this.forward.z, this.up.x, this.up.y, this.up.z);
-    }
+    Howler.pos(p.x, p.y, p.z);
+    Howler.orientation(this.forward.x, this.forward.y, this.forward.z, this.up.x, this.up.y, this.up.z);
   }
 }

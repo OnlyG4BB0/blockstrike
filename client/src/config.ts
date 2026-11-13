@@ -113,10 +113,46 @@ export const CHARACTERS = {
 export const AUDIO = {
   /** Distanza a cui un suono posizionale si sente a volume pieno. */
   refDistance: 3,
+  /** Istanze inattive tenute pronte per ogni suono (spari rapidi). */
+  pool: 12,
+  musicVolume: 0.5,
+  /** Dissolvenza della musica del menu (ms). */
+  musicFade: 900,
   maxDistance: 120,
   rolloff: 1.1,
   /** Passi: distanza percorsa tra un passo e l'altro. */
   stepDistance: 2.3,
+} as const;
+
+/** Livelli di qualità grafica. */
+export type Quality = 'bassa' | 'media' | 'alta';
+export const QUALITIES: readonly Quality[] = ['bassa', 'media', 'alta'];
+export const QUALITY: Readonly<
+  Record<Quality, { pixelRatio: number; shadows: boolean; shadowMapSize: number; antialias: boolean; particles: number }>
+> = {
+  bassa: { pixelRatio: 0.75, shadows: false, shadowMapSize: 512, antialias: false, particles: 600 },
+  media: { pixelRatio: 1.25, shadows: true, shadowMapSize: 1024, antialias: true, particles: 1200 },
+  alta: { pixelRatio: 2, shadows: true, shadowMapSize: 2048, antialias: true, particles: 2000 },
+};
+
+/** Minimappa. */
+export const MINIMAP = {
+  /** Lato in pixel. */
+  size: 170,
+  /** Metri mostrati dal centro al bordo. */
+  range: 34,
+  /** Aggiornamenti al secondo. */
+  rate: 15,
+  /** Un nemico resta sulla mappa per questo tempo dopo aver sparato (s). */
+  revealTime: 2.5,
+} as const;
+
+/** Indicatore della direzione dei colpi subiti. */
+export const DAMAGE_DIRECTION = {
+  /** Durata di ogni segnale (s). */
+  time: 1.3,
+  /** Segnali visibili insieme. */
+  count: 4,
 } as const;
 
 export const RENDER = {

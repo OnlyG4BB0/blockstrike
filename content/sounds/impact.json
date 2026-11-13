@@ -1,0 +1,23 @@
+{
+  "id": "impact",
+  "seconds": 0.2,
+  "layers": [
+    {
+      "type": "noise",
+      "filter": "bandpass",
+      "q": 1.6,
+      "from": 3200,
+      "to": 900,
+      "duration": 0.07,
+      "peak": 0.6
+    },
+    {
+      "type": "tone",
+      "wave": "triangle",
+      "from": 900,
+      "to": 300,
+      "duration": 0.05,
+      "peak": 0.25
+    }
+  ]
+}
