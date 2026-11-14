@@ -77,7 +77,8 @@ interface WeaponRig {
 /**
  * Arma in prima persona, disegnata in una scena a parte sopra il mondo: non entra nei muri e
  * non si deforma con il campo visivo. Animazioni procedurali: oscillazione camminando, ritardo
- * rispetto alla visuale, contraccolpo, mira, ricarica ed estrazione, più quelle delle parti
+ * rispetto alla visuale, contraccolpo, mira, ricarica ed estrazione, inerzia in salto e colpo
+ * all'atterraggio, inclinazione negli spostamenti di lato e respiro da fermi, più quelle delle parti
  * (caricatore, carrello, pompa, otturatore, tamburo) e il fendente del coltello.
  */
 export class Viewmodel {
@@ -100,6 +101,14 @@ export class Viewmodel {
   private slashTime = -1;
   private lastYaw = 0;
   private lastPitch = 0;
+  // Salto e atterraggio: l'arma resta indietro rispetto al corpo e poi rimbalza (molla).
+  private land = 0;
+  private landVelocity = 0;
+  private float = 0;
+  private wasGrounded = true;
+  private lastFall = 0;
+  private tilt = 0;
+  private breath = 0;
   private readonly temp = new Vector3();
 
   constructor(aspect: number, library: ModelLibrary, weapons: readonly WeaponDef[], skins: Readonly<Record<string, string>>) {
@@ -216,6 +225,24 @@ export class Viewmodel {
     const bobX = Math.sin(this.bobPhase) * VIEWMODEL.bobX * bob;
     const bobY = -Math.abs(Math.cos(this.bobPhase)) * VIEWMODEL.bobY * bob;
 
+    // Salto e caduta: l'arma sale o scende un po' in ritardo; atterrando prende un colpo verso il basso.
+    const hipWeight = 1 - ads * 0.75;
+    const floatTarget = p.grounded ? 0 : Math.max(-1, Math.min(1, -p.vy / VIEWMODEL.floatSpeed));
+    this.float += (floatTarget - this.float) * (1 - Math.exp(-VIEWMODEL.floatSmoothing * step));
+    if (p.grounded && !this.wasGrounded) this.landVelocity -= VIEWMODEL.landImpulse * Math.min(1, -this.lastFall / VIEWMODEL.landFullSpeed);
+    this.wasGrounded = p.grounded;
+    this.lastFall = Math.min(0, p.vy);
+    this.landVelocity += (-VIEWMODEL.landStiffness * this.land - VIEWMODEL.landDamping * this.landVelocity) * step;
+    this.land += this.landVelocity * step;
+    // Spostandosi di lato l'arma si inclina dalla parte opposta.
+    const lateral = (p.vx * Math.cos(yaw) - p.vz * Math.sin(yaw)) / MOVE.runSpeed;
+    this.tilt += (Math.max(-1, Math.min(1, lateral)) - this.tilt) * (1 - Math.exp(-VIEWMODEL.tiltSmoothing * step));
+    // Respiro da fermi.
+    this.breath += step;
+    const still = (1 - this.bobAmount) * (1 - ads * 0.6);
+    const breathY = Math.sin(this.breath * VIEWMODEL.breathRate) * VIEWMODEL.breath * still;
+    const breathX = Math.cos(this.breath * VIEWMODEL.breathRate * 0.5) * VIEWMODEL.breath * 0.6 * still;
+
     // Posizione: dal fianco al centro mirando.
     const hip = VIEWMODEL.hipPosition;
     const eased = easeInOut(ads);
@@ -251,14 +278,14 @@ export class Viewmodel {
     }
 
     group.position.set(
-      x + bobX + this.swayX + slashX,
-      y + bobY + this.swayY - drawOffset * 0.3 - dip * 0.12 + slashY,
+      x + bobX + this.swayX + slashX + breathX,
+      y + bobY + this.swayY - drawOffset * 0.3 - dip * 0.12 + slashY + breathY + (this.land + this.float * VIEWMODEL.floatAmount) * hipWeight,
       z + this.kick * 0.6,
     );
     group.rotation.set(
-      this.kick * 2.2 - drawOffset * 0.7 - dip * 0.55 + this.swayY * 2,
+      this.kick * 2.2 - drawOffset * 0.7 - dip * 0.55 + this.swayY * 2 + (this.land * 3 + this.float * VIEWMODEL.floatPitch) * hipWeight,
       this.swayX * 2 + slashYaw,
-      dip * 0.45 + slideTilt * 0.12 * (1 - ads) + slashRoll,
+      dip * 0.45 + slideTilt * 0.12 * (1 - ads) + slashRoll - this.tilt * VIEWMODEL.tilt * hipWeight,
     );
 
     this.animateParts(rig, c, def, reload, dt);

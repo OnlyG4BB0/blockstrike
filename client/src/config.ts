@@ -60,6 +60,22 @@ export const VIEWMODEL = {
   scopeThreshold: 0.85,
   /** Durata del fendente del coltello (s). */
   slashTime: 0.3,
+  /** In aria l'arma si sposta in verticale in ritardo (m e rad a piena velocità di caduta, m/s). */
+  floatAmount: 0.022,
+  floatPitch: 0.07,
+  floatSpeed: 9,
+  floatSmoothing: 9,
+  /** Colpo all'atterraggio: spinta (m/s), molla e velocità di caduta per il colpo pieno (m/s). */
+  landImpulse: 0.42,
+  landStiffness: 190,
+  landDamping: 17,
+  landFullSpeed: 11,
+  /** Inclinazione negli spostamenti di lato (rad a piena velocità). */
+  tilt: 0.07,
+  tiltSmoothing: 9,
+  /** Respiro da fermi: ampiezza (m) e ritmo (rad/s). */
+  breath: 0.0022,
+  breathRate: 1.9,
   /** Corsa delle parti animate, in metri del modello. */
   slideTravel: 0.035,
   pumpTravel: 0.1,
@@ -107,6 +123,11 @@ export const CHARACTERS = {
   labelHeight: 0.45,
   /** Distanza oltre la quale nome e vita non si mostrano. */
   labelRange: 60,
+  /** Durata della comparsa alla rinascita (s). */
+  spawnPop: 0.3,
+  /** Battito di ciglia: ogni quanti secondi (circa) e quanto dura. */
+  blinkEvery: 3.4,
+  blinkTime: 0.13,
 } as const;
 
 /** Suoni. */
@@ -189,8 +210,8 @@ export const PREVIEW = {
   stepTime: 2.2,
   /** Rotazione (radianti al secondo). */
   turnSpeed: 0.6,
-  /** Velocità del passo nella corsa (radianti al secondo). */
-  runCycle: 9,
+  /** Trascinando l'anteprima: radianti per pixel. */
+  dragTurn: 0.012,
   shotInterval: 0.22,
   /** Altezza del salto mostrato. */
   jumpLift: 0.5,

@@ -2,6 +2,8 @@
  * Personaggi a blocchi disegnati dalla posa condivisa (shared/src/pose.ts): le sei parti, i
  * dettagli (capelli, occhi, mani, scarpe, cintura) e gli accessori delle skin sono box di un'unica
  * InstancedMesh, così tutti i personaggi costano una chiamata di disegno (più una per l'ombra).
+ * Braccia e gambe si disegnano in due segmenti: gomito e ginocchio sporgono quanto il box della posa
+ * (che è anche la hitbox) è più profondo dell'arto disteso, quindi restano dentro ciò che si colpisce.
  * L'arma in mano è una mesh per personaggio, posizionata dalla stessa posa.
  */
 import {
@@ -57,11 +59,20 @@ export interface CharacterEffects {
   hidden?: number;
   /** Colore della squadra: una fascia sul busto (null = nessuna squadra). */
   team?: Color | null;
+  /** Occhi: 0 aperti, 1 chiusi (battito di ciglia, smorfia quando viene colpito). */
+  blink?: number;
+  /** Scala attorno ai piedi (comparsa alla rinascita); 1 = normale. */
+  scale?: number;
 }
 
-/** Box per personaggio: sei parti, nove dettagli e gli accessori. */
-const DETAIL_BOXES = 9;
-const MAX_BOXES_PER_CHARACTER = PART_COUNT + DETAIL_BOXES + 16;
+/** Box per personaggio: sei parti (gli arti in due segmenti), dieci dettagli e gli accessori. */
+const DETAIL_BOXES = 10;
+const LIMB_SEGMENTS = 4;
+const MAX_BOXES_PER_CHARACTER = PART_COUNT + LIMB_SEGMENTS + DETAIL_BOXES + 16;
+/** Sotto questa sporgenza (m) l'arto si disegna dritto, in un pezzo solo. */
+const MIN_BEND = 0.015;
+/** Quanto i due segmenti si sovrappongono al giunto, in frazioni dello spessore. */
+const JOINT_OVERLAP = 0.3;
 
 /** Accessorio già pronto: parte e trasformazione locale del box (posizione, rotazione, dimensioni). */
 interface PreparedBox {
@@ -179,8 +190,9 @@ export class CharacterRenderer {
         0,
         1,
       );
-      this.push(this.box, prepared.parts[i]!, hurt);
       if (this.showHitboxes && !this.hasDeath) this.hitboxes.setMatrixAt(this.hitboxCount++, this.box);
+      if (i >= PART_ARM_LEFT && this.limb(parts, i, prepared.parts[i]!, hurt)) continue;
+      this.push(this.box, prepared.parts[i]!, hurt);
     }
 
     // Dettagli, nello spazio delle parti (origine nel giunto).
@@ -188,8 +200,9 @@ export class CharacterRenderer {
     if (visible(hidden, PART_HEAD)) {
       this.detail(pose, PART_HEAD, 0, head + 0.03, 0.01, head + 0.02, 0.07, head + 0.02, prepared.hair, hurt);
       this.detail(pose, PART_HEAD, 0, head * 0.62, 0.11, head + 0.02, head * 0.5, 0.14, prepared.hair, hurt);
-      this.detail(pose, PART_HEAD, -0.075, head * 0.55, -head / 2 - 0.005, 0.06, 0.05, 0.02, prepared.eyes, hurt);
-      this.detail(pose, PART_HEAD, 0.075, head * 0.55, -head / 2 - 0.005, 0.06, 0.05, 0.02, prepared.eyes, hurt);
+      const eye = 0.05 * (1 - 0.82 * Math.min(1, Math.max(0, effects.blink ?? 0)));
+      this.detail(pose, PART_HEAD, -0.075, head * 0.55, -head / 2 - 0.005, 0.06, eye, 0.02, prepared.eyes, hurt);
+      this.detail(pose, PART_HEAD, 0.075, head * 0.55, -head / 2 - 0.005, 0.06, eye, 0.02, prepared.eyes, hurt);
     }
     if (visible(hidden, PART_TORSO)) {
       this.detail(pose, PART_TORSO, 0, 0.03, 0, BODY.torsoHalfWidth * 2 + 0.02, 0.06, BODY.torsoHalfDepth * 2 + 0.02, prepared.belt, hurt);
@@ -267,6 +280,85 @@ export class CharacterRenderer {
     this.count++;
   }
 
+  /**
+   * Arto in due segmenti, dal giunto al gomito o ginocchio e da lì all'estremità. Il giunto di mezzo
+   * sporge lungo l'asse Z della parte di quanto il box è più profondo dell'arto disteso.
+   * Restituisce false se l'arto è dritto (lo disegna chi chiama, in un pezzo solo).
+   */
+  private limb(p: Float64Array, index: number, color: Color, hurt: number): boolean {
+    const o = index * PART_STRIDE;
+    const leg = index >= PART_LEG_LEFT;
+    const nominal = leg ? BODY.legHalfDepth : BODY.armHalfDepth;
+    const hy = p[o + POSE_HALF + 1]!;
+    const hz = p[o + POSE_HALF + 2]!;
+    const yx = p[o + POSE_AXIS_Y]!;
+    const yy = p[o + POSE_AXIS_Y + 1]!;
+    const yz = p[o + POSE_AXIS_Y + 2]!;
+    const zx = p[o + POSE_AXIS_Z]!;
+    const zy = p[o + POSE_AXIS_Z + 1]!;
+    const zz = p[o + POSE_AXIS_Z + 2]!;
+    const ax = p[o + POSE_PIVOT]!;
+    const ay = p[o + POSE_PIVOT + 1]!;
+    const az = p[o + POSE_PIVOT + 2]!;
+    // Punto di mezzo dell'asse dell'arto e spostamento del centro del box rispetto a quello, lungo Z.
+    const mx = ax - yx * hy;
+    const my = ay - yy * hy;
+    const mz = az - yz * hy;
+    const off = (p[o + POSE_CENTER]! - mx) * zx + (p[o + POSE_CENTER + 1]! - my) * zy + (p[o + POSE_CENTER + 2]! - mz) * zz;
+    const size = Math.abs(off) + hz - nominal;
+    if (size < MIN_BEND) return false;
+    const bend = off >= 0 ? size : -size;
+    const kx = mx + zx * bend;
+    const ky = my + zy * bend;
+    const kz = mz + zz * bend;
+    const width = p[o + POSE_HALF]! * 2;
+    this.segment(p, o, ax, ay, az, kx, ky, kz, width, nominal * 2, 1, color, hurt);
+    this.segment(p, o, ax - yx * hy * 2, ay - yy * hy * 2, az - yz * hy * 2, kx, ky, kz, width * 0.94, nominal * 1.88, -1, color, hurt);
+    return true;
+  }
+
+  /** Segmento di un arto dall'estremità (ex, ey, ez) al giunto di mezzo (kx, ky, kz), allungato oltre il giunto. */
+  private segment(
+    p: Float64Array,
+    o: number,
+    ex: number,
+    ey: number,
+    ez: number,
+    kx: number,
+    ky: number,
+    kz: number,
+    width: number,
+    depth: number,
+    direction: number,
+    color: Color,
+    hurt: number,
+  ): void {
+    // Asse Y del segmento: verso il giunto principale (per il primo dal giunto di mezzo, per il secondo dall'estremità).
+    let yx = (ex - kx) * direction;
+    let yy = (ey - ky) * direction;
+    let yz = (ez - kz) * direction;
+    const length = Math.hypot(yx, yy, yz) || 1e-6;
+    yx /= length;
+    yy /= length;
+    yz /= length;
+    const xx = p[o + POSE_AXIS_X]!;
+    const xy = p[o + POSE_AXIS_X + 1]!;
+    const xz = p[o + POSE_AXIS_X + 2]!;
+    // Z = X × Y
+    const zx = xy * yz - xz * yy;
+    const zy = xz * yx - xx * yz;
+    const zz = xx * yy - xy * yx;
+    const extra = depth * JOINT_OVERLAP;
+    const full = length + extra;
+    // Centro: a metà tra estremità e giunto, spostato verso il giunto di metà dell'allungamento.
+    const t = 0.5 + extra / (2 * length);
+    const cx = ex + (kx - ex) * t;
+    const cy = ey + (ky - ey) * t;
+    const cz = ez + (kz - ez) * t;
+    this.temp.set(xx * width, yx * full, zx * depth, cx, xy * width, yy * full, zy * depth, cy, xz * width, yz * full, zz * depth, cz, 0, 0, 0, 1);
+    this.push(this.temp, color, hurt);
+  }
+
   /** Riferimento della parte: assi della posa e origine nel giunto. */
   private partFrame(pose: BodyPose, index: number): void {
     const p = pose.parts;
@@ -312,7 +404,8 @@ export class CharacterRenderer {
 
   /** Da morto il corpo cade all'indietro ruotando attorno ai piedi, poi affonda nel terreno. */
   private setupDeath(pose: BodyPose, effects: CharacterEffects): void {
-    this.hasDeath = effects.fall > 0 || effects.sink > 0;
+    const scale = effects.scale ?? 1;
+    this.hasDeath = effects.fall > 0 || effects.sink > 0 || scale !== 1;
     if (!this.hasDeath) return;
     // Piedi e destra del corpo dalla posa del bacino.
     const p = pose.parts;
@@ -325,6 +418,7 @@ export class CharacterRenderer {
     this.death.makeTranslation(fx, fy - effects.sink, fz);
     this.temp.makeRotationAxis(this.axis, (effects.fall * Math.PI) / 2);
     this.death.multiply(this.temp);
+    if (scale !== 1) this.death.multiply(this.temp.makeScale(scale, scale, scale));
     this.temp.makeTranslation(-fx, -fy, -fz);
     this.death.multiply(this.temp);
   }

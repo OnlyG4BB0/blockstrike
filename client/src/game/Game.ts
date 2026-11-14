@@ -166,6 +166,9 @@ export class Game {
   /** Skin chiesta quando è stato creato l'aspetto in memoria: si rifà solo se cambia. */
   private readonly lookRequests = new Map<number, string>();
   private readonly drawAnim = createAnimState();
+  /** Secondi da quando ogni personaggio è comparso, e orologio delle animazioni solo visive. */
+  private readonly spawnAge = new Map<number, number>();
+  private clock = 0;
   private readonly footsteps = new Map<number, number>();
   private settings: Settings;
   private accumulator = 0;
@@ -1120,9 +1123,19 @@ export class Game {
    */
   private updateCharacters(dt: number, alpha: number): void {
     this.characters.begin();
+    this.clock += dt;
     for (const c of this.match.combatants) {
       // I morti diventano manichini o pezzi (Gore); il giocatore è in prima persona.
-      if (c === this.local || !c.alive) continue;
+      if (c === this.local) continue;
+      if (!c.alive) {
+        this.spawnAge.delete(c.id);
+        continue;
+      }
+      // Comparsa: il personaggio cresce in un attimo, con un piccolo rimbalzo.
+      const age = (this.spawnAge.get(c.id) ?? 0) + dt;
+      this.spawnAge.set(c.id, age);
+      const grow = Math.min(1, age / CHARACTERS.spawnPop);
+      const scale = grow >= 1 ? 1 : 1 + 2.7 * (grow - 1) ** 3 + 1.7 * (grow - 1) ** 2;
       let pose = this.drawnPoses.get(c.id);
       if (!pose) {
         pose = new BodyPose();
@@ -1132,11 +1145,17 @@ export class Game {
       poseBody(pose, this.drawAnim, this.match.grips);
       const hurt = Math.max(0, (this.hurt.get(c.id) ?? 0) - dt * CHARACTERS.hurtDecay);
       this.hurt.set(c.id, hurt);
+      // Battito di ciglia sfalsato per ognuno; quando viene colpito strizza gli occhi.
+      const cycle = CHARACTERS.blinkEvery + (c.id % 5) * 0.37;
+      const sinceBlink = (this.clock + c.id * 1.31) % cycle;
+      const blink = sinceBlink < CHARACTERS.blinkTime ? Math.sin((sinceBlink / CHARACTERS.blinkTime) * Math.PI) : 0;
       this.characters.add(pose, this.lookFor(c), c.anim.weapon, {
         hurt,
         fall: 0,
         sink: 0,
         team: c.team > 0 ? this.teamColors[c.team] : null,
+        blink: Math.max(blink, Math.min(1, hurt * 1.5)),
+        scale,
       });
     }
     this.gore.update(dt);
@@ -1146,6 +1165,7 @@ export class Game {
     for (const id of this.drawnPoses.keys()) {
       if (this.match.getCombatant(id)) continue;
       this.drawnPoses.delete(id);
+      this.spawnAge.delete(id);
       this.prevAnim.delete(id);
       this.hurt.delete(id);
       this.looks.delete(id);

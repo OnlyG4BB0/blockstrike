@@ -163,6 +163,29 @@ export const BODY = {
   carryPump: 0.05,
   runBob: 0.025,
   breath: 0.008,
+
+  /** Metà lunghezza di braccio e avambraccio: se la mano è più vicina, il gomito sporge (e la hitbox con lui). */
+  armBone: 0.3,
+  /** Passo: metà ampiezza a terra (m) da fermi e in piena corsa, e quanto si alza il piede che avanza. */
+  stepReachWalk: 0.3,
+  stepReachRun: 0.39,
+  stepLiftWalk: 0.08,
+  stepLiftRun: 0.26,
+  /** Di lato i passi sono più corti, e un piede non passa mai dalla parte dell'altro. */
+  stepSideScale: 0.6,
+  stepMinSide: 0.05,
+  /** Accovacciati i passi si accorciano. */
+  crouchStepScale: 0.5,
+  /** In corsa le spalle ruotano con il passo (rad). */
+  runTwist: 0.14,
+  /** Atterrando il busto si piega in avanti e l'arma si abbassa. */
+  landLean: 0.3,
+  landLower: 0.35,
+  /** Piedi in aria rispetto al bacino: salita (uno avanti e in alto, uno indietro) e caduta. */
+  jumpFrontFoot: [0.34, 0.5],
+  jumpBackFoot: [0.3, 0.76],
+  fallFoot: [0.14, 0.72],
+  fallSpread: 0.09,
 } as const;
 
 /** Velocità con cui cambiano i pesi delle animazioni (1/s) e altri tempi delle animazioni. */
@@ -174,7 +197,7 @@ export const ANIM = {
   /** Sotto questa velocità verticale si passa dalla posa di salto a quella di caduta. */
   fallSpeed: -1.5,
   runRate: 10,
-  leanRate: 6,
+  leanRate: 10,
   readyRate: 8,
   /** Dopo un colpo l'arma resta alzata per questo tempo. */
   readyHold: 0.6,
@@ -182,8 +205,14 @@ export const ANIM = {
   swingDecay: 6,
   reloadRate: 10,
   flinchDecay: 5,
-  /** Metri percorsi per un ciclo completo del passo. */
-  strideLength: 2.4,
+  /** Metri percorsi per un ciclo completo del passo, in piena corsa e quasi da fermi. */
+  strideLength: 3,
+  walkStride: 1.2,
+  /** Frazione del ciclo in cui un piede sta a terra: metà camminando, meno in corsa (fasi di volo). */
+  stanceWalk: 0.5,
+  stanceRun: 0.26,
+  /** Sotto questa velocità in avanti (m/s, negativa) si sta camminando all'indietro. */
+  backSpeed: -0.6,
   breathPeriod: 3,
   /** L'orologio del respiro riparte da zero dopo questo tempo (multiplo del periodo). */
   clockWrap: 60,

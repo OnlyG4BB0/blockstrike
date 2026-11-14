@@ -9,6 +9,7 @@ import {
   PART_COUNT,
   PART_HEAD,
   PART_LEG_LEFT,
+  PART_LEG_RIGHT,
   PART_NAMES,
   PART_STRIDE,
   PART_TORSO,
@@ -111,16 +112,23 @@ describe('posa del corpo', () => {
     for (const crouch of [0, 1]) {
       for (const slide of [0, 1]) {
         for (const run of [0, 1]) {
-          for (let degrees = -limit; degrees <= limit; degrees += limit / 8) {
-            a.crouch = slide ? 1 : crouch;
-            a.slide = slide;
-            a.run = run;
-            a.phase = 1.3;
-            a.flinch = 1;
-            a.pitch = (degrees * Math.PI) / 180;
-            poseBody(pose, a, grips);
-            const eye = a.crouch ? PLAYER.crouchEyeHeight : PLAYER.eyeHeight;
-            expect(poseContains(pose, PART_HEAD, 0, eye, 0)).toBe(true);
+          // Anche in aria, in caduta, appena atterrati, all'indietro e in ogni momento del passo.
+          for (const [air, fall, back, phase] of [[0, 0, 0, 1.3], [1, 0, 0, 0], [1, 1, 0, 2], [0.2, 1, 0, 4], [0, 0, 1, 5.5]] as const) {
+            for (let degrees = -limit; degrees <= limit; degrees += limit / 8) {
+              a.crouch = slide ? 1 : crouch;
+              a.slide = slide;
+              a.run = run;
+              a.lean = run * 0.7;
+              a.air = air;
+              a.fall = fall;
+              a.back = back;
+              a.phase = phase;
+              a.flinch = 1;
+              a.pitch = (degrees * Math.PI) / 180;
+              poseBody(pose, a, grips);
+              const eye = a.crouch ? PLAYER.crouchEyeHeight : PLAYER.eyeHeight;
+              expect(poseContains(pose, PART_HEAD, 0, eye, 0)).toBe(true);
+            }
           }
         }
       }
@@ -157,18 +165,22 @@ describe('posa del corpo', () => {
     a.phase = (3 * Math.PI) / 2;
     poseBody(pose, a, grips);
     const back = centerOf(pose, PART_LEG_LEFT);
-    // Il corpo guarda verso -z: la gamba sinistra va avanti (z minore) e poi indietro.
-    expect(forward[2]).toBeLessThan(-0.15);
+    // Il corpo guarda verso -z: la gamba sinistra va avanti (z minore) e poi indietro. I passi sono
+    // veri (il piede appoggiato resta sul terreno), quindi più corti di un pendolo dall'anca.
+    expect(forward[2]).toBeLessThan(-0.1);
     expect(back[2]).toBeGreaterThan(0.15);
-    // Un raggio verso il piede in avanti colpisce la gamba solo in quella fase del passo.
+    // Un raggio rasoterra verso il piede in avanti colpisce quella gamba solo in quella fase del
+    // passo: mezzo ciclo dopo il piede sinistro è dietro e sollevato.
     const hit = createBodyHit();
     a.phase = Math.PI / 2;
     poseBody(pose, a, grips);
-    expect(raycastPose(pose, forward[0], forward[1], -5, 0, 0, 1, 100, hit).region).toBe('leg');
+    const low = raycastPose(pose, forward[0], 0.12, -5, 0, 0, 1, 100, hit);
+    expect(low.hit && low.part).toBe(PART_LEG_LEFT);
+    const reached = low.t;
     a.phase = (3 * Math.PI) / 2;
     poseBody(pose, a, grips);
-    const again = raycastPose(pose, forward[0], forward[1], -5, 0, 0, 1, 100, hit);
-    expect(again.hit && again.part === PART_LEG_LEFT && again.t < 5 + forward[2] + 0.2).toBe(false);
+    const again = raycastPose(pose, forward[0], 0.12, -5, 0, 0, 1, 100, hit);
+    expect(again.hit && again.part === PART_LEG_LEFT && again.t < reached + 0.2).toBe(false);
   });
 
   it('le braccia che reggono l\'arma davanti al petto non fanno da scudo', () => {
@@ -182,6 +194,41 @@ describe('posa del corpo', () => {
     expect(hit.part).toBe(PART_TORSO);
     // Il primo punto toccato è il braccio, davanti al busto.
     expect(-5 + hit.t).toBeLessThan(-0.14 - 0.01);
+  });
+
+  it('camminando il piede appoggiato resta sul terreno e quello che avanza si alza', () => {
+    const pose = new BodyPose();
+    const a = idle(false, weaponIndex('assault_rifle'));
+    a.run = 0.4;
+    const footY = (index: number): number => {
+      const o = index * PART_STRIDE;
+      // Estremità dell'arto: dal giunto lungo -Y per tutta la lunghezza.
+      return pose.parts[o + 15 + 1]! - pose.parts[o + 6 + 1]! * pose.parts[o + 12 + 1]! * 2;
+    };
+    // A metà ciclo la gamba sinistra è in appoggio, la destra sta tornando avanti.
+    a.phase = Math.PI;
+    poseBody(pose, a, grips);
+    expect(footY(PART_LEG_LEFT)).toBeCloseTo(0, 6);
+    expect(footY(PART_LEG_RIGHT)).toBeGreaterThan(0.03);
+    // Il ginocchio della gamba alzata sporge: il suo box è più profondo di quello della gamba distesa.
+    const depth = (index: number): number => pose.parts[index * PART_STRIDE + 12 + 2]!;
+    expect(depth(PART_LEG_RIGHT)).toBeGreaterThan(depth(PART_LEG_LEFT) + 0.02);
+  });
+
+  it('di lato i passi vanno di lato, senza incrociare le gambe', () => {
+    const pose = new BodyPose();
+    const a = idle(false, weaponIndex('assault_rifle'));
+    a.run = 1;
+    a.lean = 1;
+    for (let phase = 0; phase < Math.PI * 2; phase += 0.2) {
+      a.phase = phase;
+      poseBody(pose, a, grips);
+      const foot = (index: number): number => {
+        const o = index * PART_STRIDE;
+        return pose.parts[o + 15]! - pose.parts[o + 6]! * pose.parts[o + 12 + 1]! * 2;
+      };
+      expect(foot(PART_LEG_LEFT)).toBeLessThan(foot(PART_LEG_RIGHT));
+    }
   });
 
   it('stessi input, stessa posa (deterministica)', () => {

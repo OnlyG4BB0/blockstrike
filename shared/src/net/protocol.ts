@@ -433,7 +433,8 @@ function writeRemote(w: ByteWriter, c: Combatant): void {
       (c.protection > 0 ? 4 : 0) |
       (p.crouched ? 8 : 0) |
       (p.grounded ? 16 : 0) |
-      (p.sliding ? 32 : 0),
+      (p.sliding ? 32 : 0) |
+      (a.back >= 0.5 ? 64 : 0),
   );
   w.u8(c.team);
   w.i8(c.classIndex);
@@ -475,6 +476,7 @@ function readRemote(r: ByteReader, out: RemoteSnapshot): void {
   out.crouched = (flags & 8) !== 0;
   out.grounded = (flags & 16) !== 0;
   out.sliding = (flags & 32) !== 0;
+  out.anim.back = (flags & 64) !== 0 ? 1 : 0;
   out.team = r.u8();
   out.classIndex = r.i8();
   out.health = r.f32();

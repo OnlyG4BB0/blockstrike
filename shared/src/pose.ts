@@ -62,6 +62,8 @@ export interface AnimState {
   phase: number;
   /** Spostamento laterale: da -1 (verso sinistra) a 1 (verso destra). */
   lean: number;
+  /** 1 se si cammina all'indietro: i passi vanno al contrario e il busto non si piega in avanti. */
+  back: number;
   /** Arma pronta (mira, sparo recente, ricarica). Con 0, in corsa l'arma si abbassa. */
   ready: number;
   /** Contraccolpo dell'ultimo colpo: 1 appena sparato, poi cala. */
@@ -92,6 +94,7 @@ export function createAnimState(): AnimState {
     run: 0,
     phase: 0,
     lean: 0,
+    back: 0,
     ready: 0,
     fire: 0,
     reload: 0,
@@ -125,6 +128,7 @@ export function resetAnimState(a: AnimState, p: Readonly<PlayerState>, weapon: n
   a.fall = 0;
   a.run = 0;
   a.lean = 0;
+  a.back = 0;
   a.ready = 0;
   a.fire = 0;
   a.reload = 0;
@@ -170,6 +174,7 @@ export function lerpAnimState(out: AnimState, a: Readonly<AnimState>, b: Readonl
   out.run = lerp(a.run, b.run, t);
   out.phase = lerpWrapped(a.phase, b.phase, t, TWO_PI);
   out.lean = lerp(a.lean, b.lean, t);
+  out.back = t < 0.5 ? a.back : b.back;
   out.ready = lerp(a.ready, b.ready, t);
   out.fire = lerp(a.fire, b.fire, t);
   out.reload = b.reload >= a.reload ? lerp(a.reload, b.reload, t) : b.reload;
@@ -206,7 +211,10 @@ export function updateAnimState(
   a.air = approach(a.air, p.grounded ? 0 : 1, ANIM.airRate, dt);
   a.fall = approach(a.fall, !p.grounded && p.vy < ANIM.fallSpeed ? 1 : 0, ANIM.fallRate, dt);
   a.run = approach(a.run, onFoot ? Math.min(1, speed / MOVE.runSpeed) : 0, ANIM.runRate, dt);
-  if (onFoot) a.phase = wrap(a.phase + (speed * dt * TWO_PI) / ANIM.strideLength, TWO_PI);
+  // Passi più corti a bassa velocità, lunghi in corsa: la cadenza resta credibile a ogni andatura.
+  if (onFoot) a.phase = wrap(a.phase + (speed * dt * TWO_PI) / lerp(ANIM.walkStride, ANIM.strideLength, a.run), TWO_PI);
+  const ahead = -(p.vx * Math.sin(p.yaw) + p.vz * Math.cos(p.yaw));
+  a.back = onFoot && ahead < ANIM.backSpeed ? 1 : 0;
   const lateral = (p.vx * Math.cos(p.yaw) - p.vz * Math.sin(p.yaw)) / MOVE.runSpeed;
   a.lean = approach(a.lean, onFoot ? clamp(lateral, -1, 1) : 0, ANIM.leanRate, dt);
   const busy = w.adsAmount > 0 || w.sinceShot < ANIM.readyHold || w.reloadTimer > 0;
@@ -376,10 +384,14 @@ function writePart(
 }
 
 /**
- * Braccio dalla spalla alla mano: l'asse Y va dalla mano alla spalla, l'asse X resta il più
- * possibile parallelo a (rx, ry, rz) (la destra dell'arma).
+ * Arto dal giunto (spalla, anca) all'estremità (mano, piede): l'asse Y va dall'estremità al giunto,
+ * l'asse X resta il più possibile parallelo a (rx, ry, rz).
+ *
+ * Gomito e ginocchio: `bend` è di quanto sporgono lungo l'asse Z dell'arto (positivo verso +Z,
+ * negativo verso -Z). Il box si allarga da quella parte per contenerli, così chi disegna l'arto in
+ * due segmenti resta dentro la hitbox. `shift` sposta il centro lungo Z (gambe accovacciate).
  */
-function writeArm(
+function writeLimb(
   parts: Float64Array,
   index: number,
   sx: number,
@@ -391,6 +403,10 @@ function writeArm(
   rx: number,
   ry: number,
   rz: number,
+  halfWidth: number,
+  halfDepth: number,
+  bend: number,
+  shift: number,
 ): void {
   let yx = sx - hx;
   let yy = sy - hy;
@@ -431,7 +447,33 @@ function writeArm(
   arm[6] = xy * yz - xz * yy;
   arm[7] = xz * yx - xx * yz;
   arm[8] = xx * yy - xy * yx;
-  writePart(parts, index, sx, sy, sz, arm, BODY.armHalfWidth, length / 2, BODY.armHalfDepth, 0, -length / 2, 0);
+  writePart(parts, index, sx, sy, sz, arm, halfWidth, length / 2, halfDepth + Math.abs(bend) / 2, 0, -length / 2, shift + bend / 2);
+}
+
+/** Sporgenza del giunto di mezzo per un arto di due ossa lunghe `bone` con le estremità a distanza `length`. */
+function jointBend(bone: number, length: number): number {
+  return Math.sqrt(Math.max(0, bone * bone - (length * length) / 4));
+}
+
+function distance(ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
+  return Math.hypot(ax - bx, ay - by, az - bz);
+}
+
+/** Ruota attorno all'asse verticale una matrice per colonne (angolo > 0: la destra va in avanti). */
+function twistY(m: Float64Array, angle: number): void {
+  const c = Math.cos(angle);
+  const sn = Math.sin(angle);
+  for (let col = 0; col < 9; col += 3) {
+    const x = m[col]!;
+    const z = m[col + 2]!;
+    m[col] = x * c + z * sn;
+    m[col + 2] = -x * sn + z * c;
+  }
+}
+
+function smooth01(x: number): number {
+  const t = clamp(x, 0, 1);
+  return t * t * (3 - 2 * t);
 }
 
 /** Calcola la posa del corpo. Funzione pura dello stato dell'animazione e delle impugnature. */
@@ -448,10 +490,19 @@ export function poseBody(out: BodyPose, a: Readonly<AnimState>, grips: readonly 
   const neckY = eye - BODY.neckBelowEye;
 
   // Busto: pende dal collo, segue in parte la mira, si piega in corsa, all'indietro in scivolata.
+  // Appena atterrati (ancora un po' "in caduta", ma già a terra) il corpo ammortizza piegandosi in avanti.
+  const land = clamp((1 - a.air) * a.fall * 4, 0, 1);
+  const back = a.back >= 0.5;
   const torsoPitch =
-    a.pitch * BODY.torsoPitchFollow - BODY.runLean * a.run + BODY.slideLean * a.slide + BODY.flinchLean * a.flinch;
+    a.pitch * BODY.torsoPitchFollow -
+    BODY.runLean * a.run * (back ? -0.4 : 1) +
+    BODY.slideLean * a.slide +
+    BODY.flinchLean * a.flinch -
+    BODY.landLean * land;
   const torsoRoll = -a.lean * BODY.strafeLean;
   rotZX(torso, torsoRoll, torsoPitch);
+  // In corsa le spalle ruotano con il passo: la spalla opposta al piede che avanza va in avanti.
+  twistY(torso, Math.sin(a.phase) * BODY.runTwist * a.run);
   const torsoLength = lerp(BODY.torsoLength, BODY.crouchTorsoLength, crouchBody);
   const hipX = -torso[3]! * torsoLength;
   const hipY = neckY - torso[4]! * torsoLength;
@@ -463,32 +514,75 @@ export function poseBody(out: BodyPose, a: Readonly<AnimState>, grips: readonly 
   const h = BODY.headHalf;
   writePart(parts, PART_HEAD, 0, neckY, 0, head, h, h, h, 0, h, 0);
 
-  // Gambe: dal bacino; passo in corsa, una avanti e una indietro nel salto, aperte in caduta,
-  // in avanti nella scivolata (i piedi restano a terra).
+  // Gambe: dall'anca al piede. A terra i piedi fanno passi veri nella direzione in cui ci si muove:
+  // appoggiati restano fermi sul terreno mentre il corpo avanza, poi si alzano e tornano avanti. In
+  // aria una gamba sale e l'altra resta indietro (salto) o tutte e due si preparano all'urto
+  // (caduta); in scivolata vanno in avanti con i piedi a terra. Il ginocchio sporge in avanti quando
+  // il piede è più vicino all'anca della gamba distesa.
   const legLength = lerp(BODY.legLength, BODY.crouchLegLength, crouchBody);
   const legHalfDepth = lerp(BODY.legHalfDepth, BODY.crouchLegHalfDepth, crouchBody);
   const knee = -BODY.crouchKneeForward * crouchBody;
-  const step = Math.sin(a.phase) * BODY.runLegSwing * a.run;
-  const rising = a.air * (1 - a.fall);
-  const falling = a.air * a.fall;
-  const slideAngle = Math.acos(clamp(hipY / BODY.legLength, 0, 1)) * a.slide;
+  const moving = smooth01(a.run / 0.12) * (1 - a.air);
+  const reach = lerp(BODY.stepReachWalk, BODY.stepReachRun, a.run) * (1 - BODY.crouchStepScale * crouchBody) * moving;
+  const stepLift = lerp(BODY.stepLiftWalk, BODY.stepLiftRun, a.run) * (1 - 0.5 * crouchBody) * moving;
+  const stance = lerp(ANIM.stanceWalk, ANIM.stanceRun, a.run);
+  const sideways = clamp(a.lean / Math.max(a.run, 0.05), -1, 1);
+  const stepX = sideways * BODY.stepSideScale;
+  const stepZ = Math.sqrt(1 - sideways * sideways) * (back ? 1 : -1);
+  const slideReach = Math.sqrt(Math.max(0, BODY.legLength * BODY.legLength - hipY * hipY));
   for (let side = -1; side <= 1; side += 2) {
-    const jump = side < 0 ? BODY.jumpLegForward * rising : -BODY.jumpLegBack * rising;
-    const legPitch = side * -step + jump + BODY.fallLegForward * falling + slideAngle;
-    const legRoll = side * (BODY.fallLegSpread * falling + BODY.slideLegSpread * a.slide);
-    rotZX(limb, legRoll, legPitch);
-    writePart(
+    const jx = hipX + side * BODY.hipHalfWidth;
+    // Posizione nel ciclo: l'appoggio è centrato a metà ciclo per la gamba sinistra, mezzo ciclo dopo per la destra.
+    let u = a.phase / TWO_PI + (side < 0 ? 0 : 0.5);
+    u -= Math.floor(u);
+    const start = 0.5 - stance / 2;
+    let along: number;
+    let lift = 0;
+    if (u >= start && u < start + stance) {
+      along = 1 - (2 * (u - start)) / stance;
+    } else {
+      let t = u - start - stance;
+      if (t < 0) t += 1;
+      t /= 1 - stance;
+      along = 2 * smooth01(t) - 1;
+      lift = Math.sin(Math.PI * t);
+    }
+    let fx = jx + stepX * along * reach;
+    if (side * (fx - hipX) < BODY.stepMinSide) fx = hipX + side * BODY.stepMinSide;
+    let fy = lift * stepLift;
+    let fz = hipZ + stepZ * along * reach;
+    // In aria.
+    if (a.air > 0) {
+      const foot = side < 0 ? BODY.jumpFrontFoot : BODY.jumpBackFoot;
+      const ax = jx + side * BODY.fallSpread * a.fall;
+      const ay = hipY - lerp(foot[1], BODY.fallFoot[1], a.fall);
+      const az = hipZ + lerp(side < 0 ? -foot[0] : foot[0], -BODY.fallFoot[0], a.fall);
+      fx = lerp(fx, ax, a.air);
+      fy = lerp(fy, ay, a.air);
+      fz = lerp(fz, az, a.air);
+    }
+    // In scivolata.
+    if (a.slide > 0) {
+      fx = lerp(fx, jx + side * Math.sin(BODY.slideLegSpread) * BODY.legLength, a.slide);
+      fy = lerp(fy, 0, a.slide);
+      fz = lerp(fz, hipZ - slideReach, a.slide);
+    }
+    const bend = jointBend(legLength / 2, distance(jx, hipY, hipZ, fx, fy, fz));
+    writeLimb(
       parts,
       side < 0 ? PART_LEG_LEFT : PART_LEG_RIGHT,
-      hipX + side * BODY.hipHalfWidth,
+      jx,
       hipY,
       hipZ,
-      limb,
-      BODY.legHalfWidth,
-      legLength / 2,
-      legHalfDepth,
+      fx,
+      fy,
+      fz,
+      1,
       0,
-      -legLength / 2,
+      0,
+      BODY.legHalfWidth,
+      legHalfDepth,
+      -bend,
       knee,
     );
   }
@@ -524,7 +618,8 @@ export function poseBody(out: BodyPose, a: Readonly<AnimState>, grips: readonly 
 
   // Arma: nello spazio della mira, abbassata in estrazione, in corsa (se non si spara) e in ricarica.
   const carry = a.run * (1 - a.ready);
-  let weaponPitch = a.pitch - BODY.drawLower * a.draw - BODY.carryLower * carry - BODY.reloadLower * a.reloadWeight;
+  let weaponPitch =
+    a.pitch - BODY.drawLower * a.draw - BODY.carryLower * carry - BODY.reloadLower * a.reloadWeight - BODY.landLower * land;
   let push = 0;
   if (grip.melee) {
     weaponPitch -= BODY.meleeSwingPitch * a.fire;
@@ -589,7 +684,24 @@ export function poseBody(out: BodyPose, a: Readonly<AnimState>, grips: readonly 
         hz += (fz - hz) * carry;
       }
     }
-    writeArm(parts, side < 0 ? PART_ARM_LEFT : PART_ARM_RIGHT, sx, sy, sz, hx, hy, hz, aim[0]!, aim[1]!, aim[2]!);
+    // Il gomito sporge verso +Z dell'arto (in basso con l'arma in mano) quando la mano è vicina alla spalla.
+    writeLimb(
+      parts,
+      side < 0 ? PART_ARM_LEFT : PART_ARM_RIGHT,
+      sx,
+      sy,
+      sz,
+      hx,
+      hy,
+      hz,
+      aim[0]!,
+      aim[1]!,
+      aim[2]!,
+      BODY.armHalfWidth,
+      BODY.armHalfDepth,
+      jointBend(BODY.armBone, distance(sx, sy, sz, hx, hy, hz)),
+      0,
+    );
   }
   computeBounds(out);
   return out;
