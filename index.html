@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#11151f" />
+    <title>BLOCKSTRIKE · Sparatutto a blocchi online gratis</title>
+    <meta name="google-site-verification" content="lyymIbVzK7B49E-pzw095UFG74sf_Gn6T4G6rZdV860" />
+    <meta name="description" content="BLOCKSTRIKE: sparatutto a blocchi gratis nel browser. Allenamento contro i bot e partite online fino a 12 giocatori, classi, armi e mappe. Si gioca anche da telefono, con il controller e come app Android." />
+    <link rel="canonical" href="https://onlyg4bb0.github.io/blockstrike/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="BLOCKSTRIKE" />
+    <meta property="og:title" content="BLOCKSTRIKE · Sparatutto a blocchi online gratis" />
+    <meta property="og:description" content="BLOCKSTRIKE: sparatutto a blocchi gratis nel browser. Allenamento contro i bot e partite online fino a 12 giocatori, classi, armi e mappe. Si gioca anche da telefono, con il controller e come app Android." />
+    <meta property="og:url" content="https://onlyg4bb0.github.io/blockstrike/" />
+    <meta property="og:image" content="https://onlyg4bb0.github.io/blockstrike/anteprima.jpg" />
+    <meta property="og:image:width" content="800" />
+    <meta property="og:image:height" content="450" />
+    <meta property="og:locale" content="it_IT" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "BLOCKSTRIKE",
+        "url": "https://onlyg4bb0.github.io/blockstrike/",
+        "image": "https://onlyg4bb0.github.io/blockstrike/anteprima.jpg",
+        "description": "BLOCKSTRIKE: sparatutto a blocchi gratis nel browser. Allenamento contro i bot e partite online fino a 12 giocatori, classi, armi e mappe. Si gioca anche da telefono, con il controller e come app Android.",
+        "inLanguage": "it",
+        "genre": ["Sparatutto in prima persona", "Azione"],
+        "gamePlatform": ["Browser web", "Android"],
+        "playMode": ["SinglePlayer", "MultiPlayer"],
+        "applicationCategory": "Game",
+        "operatingSystem": "Windows, macOS, Linux, Android, iOS",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+      }
+    </script>
+    <link rel="icon" type="image/png" href="./icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BLOCKSTRIKE" />
+    <script type="module" crossorigin src="./assets/main-4VtNuWKj.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/sky-_eLpgwoE.js">
+    <link rel="stylesheet" crossorigin href="./assets/main-CcIGCESm.css">
+  </head>
+  <body>
+    <div id="app">
+      <div id="hud">
+        <div id="scope" hidden>
+          <div class="scope-lens"></div>
+        </div>
+        <div id="vignette"></div>
+        <div id="labels"></div>
+        <div id="damage-numbers"></div>
+
+        <div id="crosshair" aria-hidden="true">
+          <span class="ch ch-top"></span>
+          <span class="ch ch-bottom"></span>
+          <span class="ch ch-left"></span>
+          <span class="ch ch-right"></span>
+          <span class="ch-dot"></span>
+        </div>
+        <div id="hitmarker" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div id="splatter" aria-hidden="true" hidden></div>
+        <div id="announce" hidden>
+          <div id="announce-title"></div>
+          <div id="announce-sub"></div>
+        </div>
+
+        <div id="fps"></div>
+        <canvas id="minimap" aria-label="Minimappa"></canvas>
+        <div id="damage-dir" aria-hidden="true"></div>
+        <pre id="debug"></pre>
+        <div id="hint"></div>
+        <div id="match-bar" hidden></div>
+        <div id="chat">
+          <div id="chat-log" aria-live="polite"></div>
+          <input id="chat-input" type="text" maxlength="120" autocomplete="off" placeholder="Scrivi e premi Invio" hidden />
+        </div>
+        <div id="end-screen" hidden>
+          <div id="end-title"></div>
+          <table>
+            <thead>
+              <tr><th>Giocatore</th><th>Uccisioni</th><th>Morti</th></tr>
+            </thead>
+            <tbody id="end-rows"></tbody>
+          </table>
+          <div id="end-timer"></div>
+        </div>
+        <div id="killfeed"></div>
+        <div id="protection" hidden><i data-icon="shield"></i>PROTETTO</div>
+
+        <div id="health">
+          <i class="hud-icon" data-icon="health"></i>
+          <div id="health-value">100</div>
+          <div class="health-bar"><div id="health-fill"></div></div>
+        </div>
+
+        <div id="speedometer">
+          <div id="chips"></div>
+          <div class="speed-readout"><span id="speed-value">0.0</span><span class="speed-unit">m/s</span></div>
+          <div class="speed-bar"><div id="speed-fill"></div><div class="speed-mark" id="speed-mark"></div></div>
+          <div id="speed-peak">record 0.0</div>
+        </div>
+
+        <div id="weapon-panel">
+          <i class="hud-icon" data-icon="ammo"></i>
+          <div class="ammo"><span id="ammo-mag">30</span><span class="ammo-sep">/</span><span id="ammo-max">30</span></div>
+          <div id="weapon-name"></div>
+          <div class="reload-bar" id="reload-bar" hidden><div id="reload-fill"></div></div>
+          <div id="weapon-slots"></div>
+          <div id="grenades"></div>
+        </div>
+
+        <div id="death" hidden>
+          <i class="death-icon" data-icon="skull"></i>
+          <div class="death-title">ELIMINATO</div>
+          <div id="death-by"></div>
+          <div id="death-timer"></div>
+        </div>
+
+        <div id="scoreboard" hidden>
+          <table>
+            <thead>
+              <tr><th>Giocatore</th><th>Uccisioni</th><th>Morti</th></tr>
+            </thead>
+            <tbody id="score-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="menu">
+        <div class="menu-panel">
+          <header class="menu-head">
+          <div class="brand">
+            <h1 class="title">BLOCK<span>STRIKE</span></h1>
+            <p class="subtitle">Sparatutto a blocchi · originale</p>
+          </div>
+          <div class="play-row">
+            <button id="play" class="play" type="button"><i class="play-icon" data-icon="play"></i><span>Gioca</span><kbd id="play-prompt" class="prompt pad" hidden></kbd></button>
+            <label class="map-choice">
+              <span><i data-icon="map"></i>Mappa</span>
+              <select id="set-map"></select>
+            </label>
+            <a class="editor-link" href="./editor.html" target="_blank" rel="noopener">Editor di mappe</a>
+            <button id="install-quick" class="install-quick" type="button" hidden><i data-icon="install"></i>Installa l'app</button>
+            <button id="patch-open" class="patch-open" type="button"><i data-icon="news"></i>Novità</button>
+          </div>
+          </header>
+          <p id="lock-error" class="lock-error" hidden>
+            Il browser non ha concesso il controllo del mouse. Riprova tra un secondo.
+          </p>
+
+          <div id="update-toast" class="update-toast" role="status" hidden>
+            <span id="update-text"></span>
+            <button id="update-action" type="button"></button>
+            <button id="update-dismiss" type="button" aria-label="Chiudi">✕</button>
+          </div>
+
+          <nav class="tabs" role="tablist" aria-label="Sezioni del menu">
+            <kbd class="prompt pad tab-prompt" id="tab-prev" hidden></kbd>
+            <button type="button" role="tab" data-tab="gioca"><span class="tab-icon" data-icon="online"></span>Online</button>
+            <button type="button" role="tab" data-tab="personaggio"><span class="tab-icon" data-icon="character"></span>Personaggio</button>
+            <button type="button" role="tab" data-tab="impostazioni"><span class="tab-icon" data-icon="settings"></span>Impostazioni</button>
+            <button type="button" role="tab" data-tab="comandi"><span class="tab-icon" data-icon="controls"></span>Comandi</button>
+            <kbd class="prompt pad tab-prompt" id="tab-next" hidden></kbd>
+          </nav>
+
+          <div class="menu-body">
+
+          <section id="online" class="online tab-panel" data-panel="gioca" aria-label="Online">
+            <div class="online-head">
+              <h2>Online</h2>
+              <span id="online-server-state" class="server-pill" data-state="checking">Controllo il server…</span>
+            </div>
+            <div id="online-lobby" class="online-lobby">
+              <label class="online-name">
+                <span>Il tuo nome</span>
+                <input id="online-name" type="text" maxlength="16" autocomplete="off" placeholder="Giocatore" />
+              </label>
+
+              <div class="mode-cards" role="radiogroup" aria-label="Modalità">
+                <button type="button" role="radio" class="mode-card" data-mode="ffa">
+                  <span class="mode-icon" data-icon="ffa"></span>
+                  <b>Tutti contro tutti</b>
+                  <small>Ognuno per sé: vince chi fa più punti.</small>
+                </button>
+                <button type="button" role="radio" class="mode-card" data-mode="tdm">
+                  <span class="mode-icon" data-icon="tdm"></span>
+                  <b>A squadre</b>
+                  <small>Due squadre: conta il punteggio di squadra.</small>
+                </button>
+                <button type="button" role="radio" class="mode-card" data-mode="ctf">
+                  <span class="mode-icon" data-icon="ctf"></span>
+                  <b>Cattura la bandiera</b>
+                  <small>Prendi la bandiera nemica e portala alla base.</small>
+                </button>
+              </div>
+
+              <div class="online-actions">
+                <div class="online-card quick-card">
+                  <h3>Partita veloce</h3>
+                  <p>Entri subito in una partita pubblica. Se mancano giocatori, ci sono i bot.</p>
+                  <button id="online-quick" class="online-primary" type="button">Gioca online</button>
+                </div>
+                <div class="online-card friends-card">
+                  <h3>Con gli amici</h3>
+                  <p>Crea una stanza privata e manda il codice, o entra con quello di un amico.</p>
+                  <div class="friends-row">
+                    <button id="online-create" type="button">Crea stanza</button>
+                    <span class="or">oppure</span>
+                    <div class="online-join">
+                      <input id="online-code" type="text" maxlength="5" autocomplete="off" placeholder="CODICE" aria-label="Codice della stanza" />
+                      <button id="online-join" type="button">Entra</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <details id="online-server-row" class="online-server" hidden>
+                <summary>Server personalizzato</summary>
+                <label>
+                  <span>Indirizzo</span>
+                  <input id="online-server" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="vuoto = server ufficiale" />
+                </label>
+              </details>
+            </div>
+            <div id="online-room" class="online-room" hidden>
+              <div class="room-info">
+                <span class="room-label">Sei nella stanza</span>
+                <b id="online-room-code" class="room-code"></b>
+                <span id="online-room-mode" class="room-mode"></span>
+              </div>
+              <div class="room-buttons">
+                <button id="online-copy" class="online-primary" type="button">Copia invito</button>
+                <button id="online-leave" type="button">Esci dalla stanza</button>
+              </div>
+            </div>
+            <p id="online-status" class="online-status" role="status"></p>
+
+            <div id="install-card" class="install-card">
+              <img src="./icons/icon-192.png" alt="" width="56" height="56" />
+              <div>
+                <h3>App per il telefono</h3>
+                <p id="install-status" class="setting-note"></p>
+                <p id="apk-link" class="setting-note apk-link" hidden>
+                  Oppure <a href="./download/blockstrike.apk" download>scarica l'APK per Android</a> (va permessa
+                  l'installazione di app da questa fonte).
+                </p>
+              </div>
+              <button id="install-button" type="button" hidden>Installa l'app</button>
+            </div>
+          </section>
+
+          <section id="loadout" class="loadout tab-panel" data-panel="personaggio" aria-label="Classe e aspetto">
+            <div class="loadout-classes">
+              <h2>Classe</h2>
+              <div id="class-list" class="class-list"></div>
+              <p id="class-note" class="class-note" hidden></p>
+            </div>
+            <div class="loadout-preview">
+              <canvas id="preview" aria-label="Anteprima del personaggio"></canvas>
+              <div id="preview-caption" class="preview-caption"></div>
+            </div>
+            <div class="loadout-skins">
+              <h2>Aspetto</h2>
+              <div id="character-skin-list" class="skin-grid"></div>
+            </div>
+          </section>
+
+          <div class="columns">
+            <section class="tab-panel" data-panel="impostazioni">
+              <h2>Impostazioni</h2>
+              <label class="row">
+                <span>Sensibilità</span>
+                <input id="set-sensitivity" type="range" min="0.2" max="10" step="0.1" />
+                <output id="out-sensitivity"></output>
+              </label>
+              <label class="row">
+                <span>Campo visivo</span>
+                <input id="set-fov" type="range" min="70" max="120" step="1" />
+                <output id="out-fov"></output>
+              </label>
+              <label class="row">
+                <span>Volume</span>
+                <input id="set-volume" type="range" min="0" max="100" step="1" />
+                <output id="out-volume"></output>
+              </label>
+              <label class="row">
+                <span>Musica del menu</span>
+                <input id="set-music" type="range" min="0" max="100" step="1" />
+                <output id="out-music"></output>
+              </label>
+              <label class="row select-row">
+                <span>Qualità grafica</span>
+                <select id="set-quality">
+                  <option value="bassa">bassa (niente ombre)</option>
+                  <option value="media">media</option>
+                  <option value="alta">alta</option>
+                </select>
+              </label>
+              <label class="row">
+                <span>Bot</span>
+                <input id="set-bot-count" type="range" min="0" max="11" step="1" />
+                <output id="out-bot-count"></output>
+              </label>
+              <label class="row select-row">
+                <span>Comportamento dei bot</span>
+                <select id="set-bot-mode">
+                  <option value="fight">combattono</option>
+                  <option value="roam">girano senza sparare</option>
+                  <option value="idle">fermi</option>
+                </select>
+              </label>
+              <label class="row select-row">
+                <span>Gore</span>
+                <select id="set-gore">
+                  <option value="full">completo</option>
+                  <option value="reduced">ridotto (solo sangue)</option>
+                  <option value="off">spento</option>
+                </select>
+              </label>
+              <label class="check"><input id="set-damage-numbers" type="checkbox" /><span>Numeri di danno</span></label>
+              <label class="check"><input id="set-minimap" type="checkbox" /><span>Minimappa</span></label>
+              <label class="check"><input id="set-dynamic-fov" type="checkbox" /><span>Allarga la visuale in velocità</span></label>
+              <label class="check"><input id="set-show-fps" type="checkbox" /><span>Mostra FPS</span></label>
+              <label class="check"><input id="set-show-debug" type="checkbox" /><span>Dati di debug</span></label>
+
+              <h2 class="subsection">Mirino</h2>
+              <div class="crosshair-editor">
+                <div class="crosshair-fields">
+                  <label class="row"><span>Colore</span><input id="ch-color" type="color" /></label>
+                  <label class="row"><span>Lunghezza</span><input id="ch-length" type="range" min="0" max="30" step="1" /></label>
+                  <label class="row"><span>Spessore</span><input id="ch-thickness" type="range" min="1" max="8" step="1" /></label>
+                  <label class="row"><span>Distanza</span><input id="ch-gap" type="range" min="0" max="30" step="1" /></label>
+                  <label class="check"><input id="ch-dot" type="checkbox" /><span>Punto al centro</span></label>
+                  <label class="check"><input id="ch-outline" type="checkbox" /><span>Bordo scuro</span></label>
+                </div>
+                <div class="crosshair-preview" aria-hidden="true">
+                  <div id="crosshair-preview">
+                    <span class="ch ch-top"></span>
+                    <span class="ch ch-bottom"></span>
+                    <span class="ch ch-left"></span>
+                    <span class="ch ch-right"></span>
+                    <span class="ch-dot"></span>
+                  </div>
+                </div>
+              </div>
+
+              <h2 class="subsection">Controller e touch</h2>
+              <p id="pad-status" class="setting-note"></p>
+              <label class="row">
+                <span>Visuale con la levetta</span>
+                <input id="set-pad-sensitivity" type="range" min="0.2" max="3" step="0.1" />
+                <output id="out-pad-sensitivity"></output>
+              </label>
+              <label class="check"><input id="set-pad-invert" type="checkbox" /><span>Inverti l'asse verticale della levetta</span></label>
+              <label class="row">
+                <span>Visuale col dito</span>
+                <input id="set-touch-sensitivity" type="range" min="0.2" max="3" step="0.1" />
+                <output id="out-touch-sensitivity"></output>
+              </label>
+              <label class="check"><input id="set-vibration" type="checkbox" /><span>Vibrazione quando vieni colpito</span></label>
+              <label class="row">
+                <span>Opacità dei tasti touch</span>
+                <input id="set-touch-opacity" type="range" min="0.2" max="1" step="0.05" />
+                <output id="out-touch-opacity"></output>
+              </label>
+              <button id="touch-edit" type="button" class="small-button">Disponi i comandi touch</button>
+              <label class="check"><input id="set-aim-assist" type="checkbox" /><span>Automira (solo con i comandi touch)</span></label>
+              <label class="row">
+                <span>Forza dell'automira</span>
+                <input id="set-aim-assist-strength" type="range" min="0.1" max="1" step="0.05" />
+                <output id="out-aim-assist-strength"></output>
+              </label>
+
+              <h2 class="subsection">Tasti</h2>
+              <div id="key-list" class="key-list"></div>
+              <button id="keys-reset" type="button" class="small-button">Ripristina i tasti</button>
+
+              <div id="skins-section">
+                <h2 class="subsection">Skin delle armi</h2>
+                <div id="skin-list"></div>
+              </div>
+            </section>
+
+            <section class="tab-panel" data-panel="comandi">
+              <h2>Comandi</h2>
+              <div class="device-tabs" role="tablist" aria-label="Dispositivo">
+                <button type="button" data-device="keyboard">Tastiera e mouse</button>
+                <button type="button" data-device="gamepad">Controller</button>
+                <button type="button" data-device="touch">Touch</button>
+              </div>
+              <p id="device-status" class="setting-note"></p>
+              <dl id="controls-list" class="controls"></dl>
+              <p class="tip">
+                Ogni classe ha vita, velocità, salto e armi propri: l'esploratore vola, il pesante incassa.
+                Il lanciarazzi spinge anche te: spara ai tuoi piedi mentre salti per volare più in alto.
+                Il cecchino è preciso solo mirando. Il coltello alle spalle uccide con un colpo, e con il
+                coltello in mano si corre più veloci.
+              </p>
+            </section>
+          </div>
+          </div>
+        </div>
+      </div>
+      <div id="patch-popup" class="popup" role="dialog" aria-modal="true" aria-labelledby="patch-title" hidden>
+        <div class="popup-card">
+          <h2 id="patch-title">Novità</h2>
+          <div id="patch-list" class="patch-list"></div>
+          <div class="popup-actions">
+            <button id="patch-close" type="button" class="primary">Ho capito</button>
+          </div>
+        </div>
+      </div>
+      <div id="rotate" aria-hidden="true"><span data-icon="reload"></span>Ruota il telefono in orizzontale</div>
+    </div>
+  </body>
+</html>
