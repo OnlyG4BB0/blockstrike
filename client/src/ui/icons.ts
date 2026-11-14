@@ -8,7 +8,7 @@ const FILL = 'fill="currentColor" stroke="none"';
 
 const PATHS = {
   // Comandi di gioco.
-  fire: `<g ${STROKE}><circle cx="12" cy="12" r="6.5"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></g><circle cx="12" cy="12" r="1.6" ${FILL}/>`,
+  fire: `<path ${FILL} d="M22 12l-5.84 1.72 2.91 5.35-5.35-2.91L12 22l-1.72-5.84-5.35 2.91 2.91-5.35L2 12l5.84-1.72-2.91-5.35 5.35 2.91L12 2l1.72 5.84 5.35-2.91-2.91 5.350z"/><circle cx="12" cy="12" r="2.4" fill="rgba(0,0,0,0.35)"/>`,
   aim: `<g ${STROKE}><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></g>`,
   jump: `<g ${STROKE}><path d="M5 13l7-7 7 7"/><path d="M5 19.5l7-7 7 7"/></g>`,
   crouch: `<g ${STROKE}><path d="M5 5l7 7 7-7"/><path d="M5 12l7 7 7-7"/></g>`,

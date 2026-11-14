@@ -461,7 +461,7 @@ export class Game {
     const input = this.input;
     const ctx: PromptContext = { device: input.device, style: input.pad.style, keys: input.keys };
     this.menu.setDevice(ctx.device, ctx.style, ctx.keys, input.pad.connected);
-    const grenadeKey = ctx.device === 'touch' ? '●' : (promptLabels('grenade', ctx)[0] ?? '');
+    const grenadeKey = ctx.device === 'touch' ? '' : (promptLabels('grenade', ctx)[0] ?? '');
     this.hud.setSlotLabels(weaponSlotLabels(this.local.loadout.length, ctx), grenadeKey);
     const hint = document.getElementById('hint');
     if (hint) {

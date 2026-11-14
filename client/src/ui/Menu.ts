@@ -645,7 +645,8 @@ export class Menu implements PadMenuHandler {
   private buildClasses(classes: readonly ClassChoice[]): void {
     const list = byId('class-list');
     list.replaceChildren();
-    byId('loadout').hidden = classes.length === 0;
+    // Senza classi la scheda resta vuota; con le classi decide la scheda aperta (non la si riapre qui).
+    if (classes.length === 0) byId('loadout').hidden = true;
     const most = {
       health: Math.max(...classes.map((c) => c.health)),
       speed: Math.max(...classes.map((c) => c.speed)),

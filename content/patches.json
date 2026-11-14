@@ -1,6 +1,18 @@
 {
   "patches": [
     {
+      "version": "0.3.0",
+      "date": "2026-11-14",
+      "title": "Nuova grafica e personaggi animati",
+      "notes": [
+        "Personaggi molto più vivi: passi veri con il piede che resta a terra, ginocchia e gomiti che si piegano, passi di lato e all’indietro, spalle che ruotano in corsa, salto, caduta e atterraggio. Sbattono anche le palpebre.",
+        "Quello che vedi è quello che colpisci: le aree colpibili seguono le nuove pose.",
+        "Arma in prima persona: si inclina negli spostamenti di lato, resta indietro nei salti, prende il colpo quando atterri e respira da fermo.",
+        "Interfaccia rifatta: nuovi caratteri, pulsanti in rilievo, vita e munizioni su targhe, uccisioni e punteggi più leggibili.",
+        "Tasti touch con icone disegnate e colori per funzione; l’anteprima del personaggio si gira con il dito e mostra tutte le animazioni."
+      ]
+    },
+    {
       "version": "0.2.2",
       "date": "2026-11-14",
       "title": "Nuovo menu Online",

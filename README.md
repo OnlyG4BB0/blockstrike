@@ -331,6 +331,24 @@ Tutti i suoni sono generati dal gioco: vedi [CREDITS.md](CREDITS.md).
 **Grafica**: nebbia, sole con ombre semplici (una mappa d'ombra per tutta la mappa), luce ambiente,
 cielo a gradiente e luci della mappa.
 
+### Grafica e animazioni (versione 0.3)
+
+- **Tema** in `client/src/theme.css`, caricato dopo `style.css`: caratteri *Exo 2* e *Russo One*
+  incorporati in `client/src/fonts/` (licenza SIL OFL, funzionano offline e nell'app), pulsanti in
+  rilievo, HUD a targhe, schede a linguetta. Le icone sono SVG in `client/src/ui/icons.ts`
+  (`<i data-icon="nome">` in pagina): non dipendono dai simboli dei font del dispositivo.
+- **Personaggi**: la posa condivisa (`shared/src/pose.ts`) fa passi veri. Il piede appoggiato resta
+  fermo sul terreno mentre il corpo avanza, poi si alza e torna avanti; i passi vanno nella direzione
+  in cui ci si muove (di lato, all'indietro), le spalle ruotano in corsa, in aria le gambe si
+  raccolgono e all'atterraggio il busto ammortizza.
+- **Gomiti e ginocchia**: braccia e gambe restano un solo box nella posa (la hitbox), ma quel box si
+  allarga dalla parte in cui il giunto sporge. `CharacterRenderer` disegna l'arto in due segmenti che
+  riempiono il box: quello che si vede resta quello che si colpisce.
+- Solo visivi (non toccano le hitbox): battito di ciglia, comparsa alla rinascita, e per l'arma in
+  prima persona inclinazione di lato, inerzia in salto, colpo all'atterraggio e respiro.
+- Il formato di rete non cambia: «cammina all'indietro» usa un bit libero, quindi client 0.2 e
+  server 0.3 (o viceversa) si parlano lo stesso.
+
 ## Classi
 
 Ogni classe ha vita, velocità, altezza del salto e armi propri (tasti 1, 2, 3). Si sceglie nel menu,

@@ -1166,3 +1166,32 @@ body[data-device='touch'].playing #weapon-panel .ammo {
 .chip {
   white-space: nowrap;
 }
+
+/* Impostazioni: più spazio alle etichette, così non vanno a capo. */
+@media (min-width: 700px) {
+  .columns .row {
+    grid-template-columns: minmax(110px, 200px) 1fr 52px;
+  }
+
+  .columns .select-row {
+    grid-template-columns: minmax(110px, 200px) 1fr;
+  }
+}
+
+body[data-device='touch'].playing #health {
+  min-width: 0;
+  padding-right: 22px;
+}
+
+body[data-device='touch'].playing #weapon-panel {
+  left: 41%;
+  padding: 6px 12px 8px;
+}
+
+body[data-device='touch'].playing #weapon-name {
+  font-size: 10px;
+}
+
+body[data-device='touch'].playing .ammo {
+  font-size: 32px;
+}
