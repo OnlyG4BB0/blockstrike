@@ -1,7 +1,9 @@
 import './style.css';
+import './theme.css';
 import { ContentError, GAME_MODES, parseMap, type GameMode, type MapData } from '@blockstrike/shared';
 import { loadGameContent } from './content.ts';
 import { Game } from './game/Game.ts';
+import { hydrateIcons } from './ui/icons.ts';
 import { NetSession, serverUrl, type OnlineKind } from './net/NetSession.ts';
 import { setupInstall } from './pwa/install.ts';
 import { ANDROID_APP } from './target.ts';
@@ -28,6 +30,9 @@ function mapList(): { id: string; name: string }[] {
 }
 
 /** Chiave in cui l'editor lascia la mappa da provare (?mappa=editor). */
+// Icone disegnate al posto dei simboli di testo (vedi ui/icons.ts).
+hydrateIcons();
+
 const EDITOR_MAP_KEY = 'blockstrike.editor.map';
 
 function editorMap(): MapData {

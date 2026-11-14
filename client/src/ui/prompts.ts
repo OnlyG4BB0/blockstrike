@@ -111,9 +111,9 @@ export const TOUCH_PROMPTS: Readonly<Record<PromptAction, string>> = {
   lastWeapon: 'Arma (tieni premuto)',
   grenade: 'Granata',
   scoreboard: 'Punti',
-  respawn: '↺',
-  menu: '❚❚',
-  chat: '💬',
+  respawn: 'Ricomincia',
+  menu: 'Menu',
+  chat: 'Chat',
 };
 
 export function touchPrompt(action: PromptAction): string[] {

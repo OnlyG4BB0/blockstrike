@@ -58,9 +58,10 @@
           <div id="end-timer"></div>
         </div>
         <div id="killfeed"></div>
-        <div id="protection" hidden>PROTETTO</div>
+        <div id="protection" hidden><i data-icon="shield"></i>PROTETTO</div>
 
         <div id="health">
+          <i class="hud-icon" data-icon="health"></i>
           <div id="health-value">100</div>
           <div class="health-bar"><div id="health-fill"></div></div>
         </div>
@@ -73,6 +74,7 @@
         </div>
 
         <div id="weapon-panel">
+          <i class="hud-icon" data-icon="ammo"></i>
           <div class="ammo"><span id="ammo-mag">30</span><span class="ammo-sep">/</span><span id="ammo-max">30</span></div>
           <div id="weapon-name"></div>
           <div class="reload-bar" id="reload-bar" hidden><div id="reload-fill"></div></div>
@@ -81,6 +83,7 @@
         </div>
 
         <div id="death" hidden>
+          <i class="death-icon" data-icon="skull"></i>
           <div class="death-title">ELIMINATO</div>
           <div id="death-by"></div>
           <div id="death-timer"></div>
@@ -104,14 +107,14 @@
             <p class="subtitle">Sparatutto a blocchi · originale</p>
           </div>
           <div class="play-row">
-            <button id="play" class="play" type="button"><span>Gioca</span><kbd id="play-prompt" class="prompt pad" hidden></kbd></button>
+            <button id="play" class="play" type="button"><i class="play-icon" data-icon="play"></i><span>Gioca</span><kbd id="play-prompt" class="prompt pad" hidden></kbd></button>
             <label class="map-choice">
-              <span>Mappa</span>
+              <span><i data-icon="map"></i>Mappa</span>
               <select id="set-map"></select>
             </label>
             <a class="editor-link" href="./editor.html" target="_blank" rel="noopener">Editor di mappe</a>
-            <button id="install-quick" class="install-quick" type="button" hidden>📲 Installa l'app</button>
-            <button id="patch-open" class="patch-open" type="button">✦ Novità</button>
+            <button id="install-quick" class="install-quick" type="button" hidden><i data-icon="install"></i>Installa l'app</button>
+            <button id="patch-open" class="patch-open" type="button"><i data-icon="news"></i>Novità</button>
           </div>
           </header>
           <p id="lock-error" class="lock-error" hidden>
@@ -126,10 +129,10 @@
 
           <nav class="tabs" role="tablist" aria-label="Sezioni del menu">
             <kbd class="prompt pad tab-prompt" id="tab-prev" hidden></kbd>
-            <button type="button" role="tab" data-tab="gioca"><span class="tab-icon" aria-hidden="true">⌁</span>Online</button>
-            <button type="button" role="tab" data-tab="personaggio"><span class="tab-icon" aria-hidden="true">☻</span>Personaggio</button>
-            <button type="button" role="tab" data-tab="impostazioni"><span class="tab-icon" aria-hidden="true">⚙</span>Impostazioni</button>
-            <button type="button" role="tab" data-tab="comandi"><span class="tab-icon" aria-hidden="true">✥</span>Comandi</button>
+            <button type="button" role="tab" data-tab="gioca"><span class="tab-icon" data-icon="online"></span>Online</button>
+            <button type="button" role="tab" data-tab="personaggio"><span class="tab-icon" data-icon="character"></span>Personaggio</button>
+            <button type="button" role="tab" data-tab="impostazioni"><span class="tab-icon" data-icon="settings"></span>Impostazioni</button>
+            <button type="button" role="tab" data-tab="comandi"><span class="tab-icon" data-icon="controls"></span>Comandi</button>
             <kbd class="prompt pad tab-prompt" id="tab-next" hidden></kbd>
           </nav>
 
@@ -148,17 +151,17 @@
 
               <div class="mode-cards" role="radiogroup" aria-label="Modalità">
                 <button type="button" role="radio" class="mode-card" data-mode="ffa">
-                  <span class="mode-icon" aria-hidden="true">✦</span>
+                  <span class="mode-icon" data-icon="ffa"></span>
                   <b>Tutti contro tutti</b>
                   <small>Ognuno per sé: vince chi fa più punti.</small>
                 </button>
                 <button type="button" role="radio" class="mode-card" data-mode="tdm">
-                  <span class="mode-icon" aria-hidden="true">⚔</span>
+                  <span class="mode-icon" data-icon="tdm"></span>
                   <b>A squadre</b>
                   <small>Due squadre: conta il punteggio di squadra.</small>
                 </button>
                 <button type="button" role="radio" class="mode-card" data-mode="ctf">
-                  <span class="mode-icon" aria-hidden="true">⚑</span>
+                  <span class="mode-icon" data-icon="ctf"></span>
                   <b>Cattura la bandiera</b>
                   <small>Prendi la bandiera nemica e portala alla base.</small>
                 </button>
@@ -380,7 +383,7 @@
           </div>
         </div>
       </div>
-      <div id="rotate" aria-hidden="true"><span>⟳</span>Ruota il telefono in orizzontale</div>
+      <div id="rotate" aria-hidden="true"><span data-icon="reload"></span>Ruota il telefono in orizzontale</div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

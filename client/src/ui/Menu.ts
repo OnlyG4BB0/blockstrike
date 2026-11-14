@@ -382,7 +382,7 @@ export class Menu implements PadMenuHandler {
         ? `Nel menu: croce o levetta per spostarti, ${padLabel('a', ctx.style)} per scegliere, ${padLabel('lb', ctx.style)} e ${padLabel('rb', ctx.style)} per cambiare scheda, ${padLabel('start', ctx.style)} per giocare. La chat si usa da tastiera o telefono.`
         : 'Collega un controller e premi un tasto: i comandi qui sotto si adattano al modello.';
     } else if (device === 'touch') {
-      status.textContent = 'Comandi sullo schermo: tieni il telefono in orizzontale. Online la chat si apre con 💬.';
+      status.textContent = 'Comandi sullo schermo: tieni il telefono in orizzontale. Online la chat si apre con il tasto del fumetto.';
     } else {
       status.textContent = 'I tasti si cambiano in Impostazioni → Tasti.';
     }

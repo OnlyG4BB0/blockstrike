@@ -1,0 +1,1168 @@
+/* =============================================================================================
+   Tema grafico (versione 0.3): caratteri, pulsanti, HUD e tasti touch.
+   Si carica dopo style.css e ne ridefinisce l'aspetto: lì restano struttura e comportamento.
+   Caratteri incorporati (licenza SIL OFL, vedi fonts/LICENSE-*.txt): funzionano anche offline.
+   ============================================================================================= */
+
+@font-face {
+  font-family: 'Exo 2';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./fonts/exo-2-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Exo 2';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./fonts/exo-2-latin-wght-italic.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Russo One';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/russo-one-latin-400-normal.woff2') format('woff2');
+}
+
+:root {
+  --font: 'Exo 2', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-display: 'Russo One', 'Exo 2', 'Segoe UI', system-ui, sans-serif;
+  --accent-ink: #1a1206;
+  --ledge: #b46a0e;
+  --plate: rgba(10, 13, 20, 0.8);
+  --plate-soft: rgba(10, 13, 20, 0.5);
+  --ui-line: rgba(255, 255, 255, 0.13);
+  --cut: 12px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Icone disegnate (ui/icons.ts). */
+.icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
+[data-icon] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  line-height: 1;
+}
+
+/* ---------- HUD ---------- */
+
+#health,
+#weapon-panel {
+  bottom: max(16px, env(safe-area-inset-bottom));
+  padding: 10px 16px 12px;
+  text-shadow: none;
+}
+
+#health {
+  left: max(16px, env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  width: auto;
+  min-width: 232px;
+  border-left: 4px solid var(--good);
+  background: linear-gradient(90deg, var(--plate), var(--plate-soft));
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+}
+
+#health .hud-icon {
+  font-size: 26px;
+  color: var(--good);
+}
+
+#health-value {
+  font: 400 40px/1 var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.health-bar {
+  grid-column: 1 / -1;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.13);
+  transform: skewX(-20deg);
+}
+
+#health-fill {
+  background: linear-gradient(90deg, #4ecb3d, #a8f08f);
+  box-shadow: 0 0 10px rgba(125, 220, 106, 0.55);
+}
+
+#health-fill.low {
+  background: linear-gradient(90deg, #ff3b3b, #ff8a6a);
+  box-shadow: 0 0 10px rgba(255, 77, 77, 0.7);
+}
+
+#health:has(#health-fill.low) {
+  border-left-color: var(--hot);
+}
+
+#health:has(#health-fill.low) .hud-icon {
+  color: var(--hot);
+  animation: hud-pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes hud-pulse {
+  50% {
+    transform: scale(1.25);
+    opacity: 0.6;
+  }
+}
+
+#weapon-panel {
+  right: max(16px, env(safe-area-inset-right));
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  justify-items: end;
+  min-width: 232px;
+  border-right: 4px solid var(--accent);
+  background: linear-gradient(270deg, var(--plate), var(--plate-soft));
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
+}
+
+#weapon-name {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin: 0 0 2px;
+  color: var(--ui-dim);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+#weapon-panel .hud-icon {
+  grid-column: 2;
+  grid-row: 2;
+  margin-left: 10px;
+  font-size: 28px;
+  color: var(--accent);
+}
+
+.ammo {
+  grid-column: 1;
+  grid-row: 2;
+  font: 400 40px/1 var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.ammo-sep,
+#ammo-max {
+  font-size: 20px;
+}
+
+.reload-bar {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.13);
+  transform: skewX(-20deg);
+}
+
+#reload-fill {
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+}
+
+#weapon-slots {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  gap: 5px;
+}
+
+.slot {
+  padding: 3px 9px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+
+.slot b {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.slot.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+#grenades {
+  grid-column: 1 / -1;
+  grid-row: 5;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Velocità: più discreta, al centro in basso. */
+#speedometer {
+  bottom: max(14px, env(safe-area-inset-bottom));
+  width: 190px;
+  opacity: 0.92;
+}
+
+.speed-readout {
+  font: 400 22px/1 var(--font-display);
+}
+
+.speed-unit {
+  font: 700 11px var(--font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.speed-bar {
+  height: 5px;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.5);
+  transform: skewX(-20deg);
+}
+
+#speed-peak {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chip {
+  padding: 3px 10px;
+  border-radius: 0;
+  background: var(--plate);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+
+/* In alto: FPS e minimappa a sinistra, partita al centro, uccisioni a destra. */
+#fps {
+  top: max(10px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  font: 700 11px var(--font);
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+
+#app #minimap {
+  left: max(14px, env(safe-area-inset-left));
+  top: 34px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+#match-bar {
+  top: max(10px, env(safe-area-inset-top));
+  padding: 7px 26px;
+  border-radius: 0;
+  border-bottom: 3px solid var(--accent);
+  background: var(--plate);
+  font: 400 15px var(--font-display);
+  letter-spacing: 0.06em;
+  text-shadow: none;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, var(--cut) 100%);
+}
+
+#hint {
+  top: max(12px, env(safe-area-inset-top));
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#hud:has(#match-bar:not([hidden])) #hint {
+  top: calc(max(10px, env(safe-area-inset-top)) + 42px);
+}
+
+#killfeed {
+  top: max(12px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  gap: 5px;
+}
+
+.kill-entry {
+  padding: 5px 14px 5px 18px;
+  border-radius: 0;
+  border-right: 3px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(270deg, var(--plate), var(--plate-soft));
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%);
+  animation: kill-in 0.22s ease-out;
+}
+
+.kill-entry.mine {
+  border: 0;
+  border-right: 3px solid var(--accent);
+  background: linear-gradient(270deg, rgba(60, 40, 6, 0.9), rgba(60, 40, 6, 0.45));
+}
+
+.kill-entry .weapon {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@keyframes kill-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+#protection {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 14px;
+  border-radius: 0;
+  background: rgba(40, 110, 230, 0.55);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+#protection [data-icon] {
+  font-size: 13px;
+}
+
+.label {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.label-bar {
+  width: 58px;
+  height: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.damage-number {
+  font: 400 19px var(--font-display);
+}
+
+.damage-number.head {
+  font-size: 24px;
+}
+
+#announce-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#announce-sub {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+#death {
+  min-width: 300px;
+  padding: 18px 34px 20px;
+  border-radius: 0;
+  border-top: 4px solid var(--hot);
+  background: linear-gradient(180deg, rgba(40, 8, 8, 0.88), rgba(14, 6, 8, 0.82));
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  animation: plate-in 0.25s ease-out;
+}
+
+.death-icon {
+  font-size: 34px;
+  color: var(--hot);
+}
+
+.death-title {
+  font: italic 400 32px var(--font-display);
+  letter-spacing: 0.12em;
+}
+
+#death-by {
+  font-size: 15px;
+}
+
+#death-timer {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@keyframes plate-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.12);
+  }
+}
+
+#scoreboard,
+#end-screen {
+  padding: 0 0 12px;
+  border: 1px solid var(--ui-line);
+  border-top: 4px solid var(--accent);
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(20, 25, 37, 0.95), rgba(11, 14, 22, 0.92));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+#scoreboard {
+  min-width: min(440px, 92vw);
+}
+
+#scoreboard table,
+#end-screen table {
+  font-size: 14px;
+}
+
+#scoreboard th,
+#end-screen th {
+  padding: 10px 18px 8px;
+  border-bottom: 1px solid var(--ui-line);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ui-dim);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+#scoreboard td,
+#end-screen td {
+  padding: 7px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: left;
+}
+
+#scoreboard td + td,
+#scoreboard th + th,
+#end-screen td + td,
+#end-screen th + th {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#scoreboard tr.mine td,
+#end-screen tr.mine td {
+  background: rgba(255, 178, 56, 0.1);
+}
+
+#end-title {
+  margin: 0;
+  padding: 16px 22px 12px;
+  font: italic 400 28px var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#end-timer {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#chat-input {
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+/* ---------- Menu ---------- */
+
+.menu-panel {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px) 0 0 / 34px 34px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px) 0 0 / 34px 34px,
+    linear-gradient(180deg, rgba(27, 33, 48, 0.96), rgba(12, 15, 24, 0.95));
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.menu-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent) 45%, rgba(255, 178, 56, 0));
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(34px, 6.4vw, 54px);
+  letter-spacing: 0.03em;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+
+.subtitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.menu-panel h2,
+.popup-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 400 17px var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.menu-panel h2::before,
+.popup-card h2::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  box-shadow: 4px 4px 0 rgba(255, 178, 56, 0.3);
+}
+
+.columns h2.subsection {
+  font-size: 14px;
+}
+
+/* Pulsanti: un solo linguaggio, a blocco con il bordo inferiore in rilievo. */
+.play,
+.online .online-primary,
+.popup-actions button.primary,
+.install-card button,
+.touch-editor-buttons button.primary {
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffc866, var(--accent) 55%, #f59e1f);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow:
+    0 4px 0 var(--ledge),
+    0 10px 22px rgba(255, 150, 30, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s,
+    filter 0.15s;
+}
+
+.play:hover,
+.online .online-primary:hover,
+.popup-actions button.primary:hover,
+.install-card button:hover,
+.touch-editor-buttons button.primary:hover {
+  background: linear-gradient(180deg, #ffd88a, #ffbe55 55%, #f8a62c);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.play:active,
+.online .online-primary:active,
+.popup-actions button.primary:active,
+.install-card button:active,
+.touch-editor-buttons button.primary:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 var(--ledge),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.play {
+  padding: 15px 18px;
+  font-size: 23px;
+  letter-spacing: 0.12em;
+}
+
+.play-icon {
+  font-size: 0.85em;
+}
+
+.online button,
+.small-button,
+.key-list button,
+.install-quick,
+.patch-open,
+.popup-actions button,
+.update-toast button,
+.touch-editor-buttons button,
+.device-tabs button {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
+  color: var(--ui-text);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s,
+    border-color 0.15s,
+    background 0.15s;
+  cursor: pointer;
+}
+
+.online button:hover,
+.small-button:hover,
+.key-list button:hover,
+.install-quick:hover,
+.patch-open:hover,
+.popup-actions button:hover,
+.update-toast button:hover,
+.touch-editor-buttons button:hover,
+.device-tabs button:hover {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(255, 178, 56, 0.22), rgba(255, 178, 56, 0.06));
+}
+
+.online button:active,
+.small-button:active,
+.key-list button:active,
+.install-quick:active,
+.patch-open:active,
+.popup-actions button:active,
+.update-toast button:active,
+.touch-editor-buttons button:active,
+.device-tabs button:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.install-quick,
+.patch-open {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.install-quick [data-icon],
+.patch-open [data-icon] {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.small-button,
+.key-list button {
+  padding: 7px 12px;
+}
+
+.device-tabs button {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.device-tabs button.active {
+  border-color: transparent;
+  background: linear-gradient(180deg, #ffc866, var(--accent));
+  color: var(--accent-ink);
+  box-shadow:
+    0 3px 0 var(--ledge),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.editor-link {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.map-choice > span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.map-choice [data-icon] {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+/* Schede: linguette a blocco, quella attiva piena. */
+.menu-panel .tabs {
+  gap: 6px;
+  border-bottom: 2px solid rgba(255, 178, 56, 0.55);
+}
+
+.menu-panel .tabs button {
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.menu-panel .tabs button:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.menu-panel .tabs button.active {
+  border-color: transparent;
+  background: linear-gradient(180deg, #ffc866, var(--accent));
+  color: var(--accent-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.menu-panel .tabs button.active .tab-icon {
+  color: var(--accent-ink);
+}
+
+/* Campi: testo, tendine, cursori, interruttori. */
+.menu-panel select,
+.menu-panel input[type='text'] {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  background-color: rgba(0, 0, 0, 0.38);
+  color: var(--ui-text);
+  font-weight: 600;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.menu-panel select {
+  padding-right: 30px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23ffb238' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 11px;
+  cursor: pointer;
+}
+
+.menu-panel select option {
+  background: #161b27;
+  color: var(--ui-text);
+}
+
+.menu-panel select:focus,
+.menu-panel input[type='text']:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 178, 56, 0.22);
+}
+
+.menu-panel input[type='range'] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.row output {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.check input[type='checkbox'] {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  appearance: none;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.check input[type='checkbox']::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: #b9b4a8;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+
+.check input[type='checkbox']:checked {
+  border-color: var(--accent);
+  background: rgba(255, 178, 56, 0.3);
+}
+
+.check input[type='checkbox']:checked::before {
+  background: var(--accent);
+  transform: translateX(16px);
+}
+
+.check input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Classi e skin. */
+.class-card,
+.skin-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    transform 0.08s;
+}
+
+.class-card:hover,
+.skin-card:hover {
+  transform: translateY(-1px);
+}
+
+.class-card.selected,
+.skin-card.selected {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(255, 178, 56, 0.22), rgba(255, 178, 56, 0.06));
+  box-shadow:
+    0 3px 0 var(--ledge),
+    inset 0 0 0 1px var(--accent);
+}
+
+.class-name {
+  font: 400 15px var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stat-bar {
+  height: 6px;
+  border-radius: 0;
+  transform: skewX(-20deg);
+}
+
+.stat-fill {
+  border-radius: 0;
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+}
+
+.loadout-preview {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(255, 178, 56, 0.22), rgba(0, 0, 0, 0) 65%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.15));
+}
+
+.preview-caption {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* Tasti: cappucci in rilievo. */
+kbd.prompt {
+  font-family: var(--font);
+  font-weight: 800;
+}
+
+kbd.prompt.key {
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ffffff, #dedad0);
+  box-shadow:
+    0 3px 0 #77736a,
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+kbd.prompt.pad {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.controls dt {
+  font-weight: 700;
+}
+
+.tip {
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: rgba(255, 178, 56, 0.07);
+}
+
+/* Online: i riquadri prendono lo stesso rilievo. */
+.online .mode-card,
+.online-card,
+.install-card {
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.online .mode-card[aria-checked='true'] {
+  box-shadow:
+    0 3px 0 var(--ledge),
+    inset 0 0 0 1px var(--accent);
+}
+
+.mode-card b,
+.online-card h3,
+.install-card h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mode-icon {
+  font-size: 20px;
+}
+
+.server-pill {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.room-code {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+/* Finestre e avvisi. */
+.popup-card {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 4px solid var(--accent);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(27, 33, 48, 0.98), rgba(12, 15, 24, 0.98));
+  animation: popup-in 0.2s ease-out;
+}
+
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+
+.popup-actions button {
+  padding: 10px 18px;
+  font-size: 14px;
+}
+
+#rotate span {
+  font-size: 58px;
+}
+
+/* ---------- Tasti touch ---------- */
+
+.tbtn {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%),
+    rgba(12, 16, 26, 0.55);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.22);
+  color: #fff;
+  transition:
+    transform 0.06s,
+    background 0.1s,
+    box-shadow 0.1s;
+}
+
+.tbtn .icon {
+  width: 52%;
+  height: 52%;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.55));
+}
+
+.tbtn.down {
+  border-color: #fff;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
+    rgba(255, 178, 56, 0.7);
+  box-shadow:
+    0 0 0 6px rgba(255, 178, 56, 0.28),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.18);
+  transform: scale(0.92);
+}
+
+.tbtn.on {
+  border-color: var(--accent);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 60%),
+    rgba(255, 178, 56, 0.45);
+  box-shadow:
+    0 0 0 4px rgba(255, 178, 56, 0.22),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.2);
+}
+
+.tbtn-fire {
+  border-color: rgba(255, 214, 205, 0.9);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 60%),
+    rgba(214, 48, 38, 0.72);
+}
+
+.tbtn-fire.down {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 60%),
+    rgba(255, 84, 60, 0.92);
+  box-shadow:
+    0 0 0 7px rgba(255, 84, 60, 0.3),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.18);
+}
+
+.tbtn-aim {
+  border-color: rgba(255, 214, 150, 0.85);
+}
+
+.tbtn-jump,
+.tbtn-crouch {
+  border-color: rgba(160, 205, 255, 0.85);
+}
+
+.tbtn-reload .icon,
+.tbtn-weapon .icon,
+.tbtn-grenade .icon {
+  width: 56%;
+  height: 56%;
+}
+
+.tbtn-pause,
+.tbtn-score,
+.tbtn-chat,
+.tbtn-respawn {
+  border-width: 1px;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-radius: 9px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+}
+
+.touch-stick {
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0) 52%, rgba(255, 255, 255, 0.1) 54%, rgba(255, 255, 255, 0.04) 100%),
+    rgba(12, 16, 26, 0.3);
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.18);
+}
+
+.touch-knob {
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: radial-gradient(circle at 50% 30%, #ffffff, #c9c4b8);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.touch-editor {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 4px solid var(--accent);
+  border-radius: 10px;
+}
+
+/* ---------- Schermi bassi (telefoni in orizzontale) ---------- */
+@media (max-height: 540px) {
+  .title {
+    font-size: 24px;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  }
+
+  .play {
+    padding: 9px 12px;
+    font-size: 17px;
+  }
+
+  .menu-panel .tabs button {
+    padding: 7px 11px;
+    font-size: 12px;
+  }
+
+  .menu-panel h2 {
+    font-size: 14px;
+  }
+
+  .install-quick,
+  .patch-open {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  #app #minimap {
+    top: 26px;
+  }
+}
+
+/* Con i comandi touch: HUD compatto, niente sotto i pollici. */
+body[data-device='touch'].playing #weapon-panel {
+  min-width: 0;
+  border-right: 0;
+  border-bottom: 3px solid var(--accent);
+  background: var(--plate-soft);
+  clip-path: none;
+  justify-items: center;
+}
+
+body[data-device='touch'].playing #weapon-slots {
+  justify-content: center;
+}
+
+body[data-device='touch'] #weapon-panel .hud-icon {
+  display: none;
+}
+
+body[data-device='touch'].playing #weapon-panel .ammo {
+  grid-column: 1 / -1;
+}
+
+.chip {
+  white-space: nowrap;
+}

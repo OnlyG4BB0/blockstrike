@@ -8,12 +8,14 @@
  * (`edit`): si trascinano i tasti, si sceglie la dimensione, si ripristina la disposizione.
  * Si usano i Pointer Events: ogni dito ha il suo ruolo finché non si alza.
  */
+import { icon } from '../ui/icons.ts';
 import { TOUCH } from '../config.ts';
 import { toDigital } from './devices.ts';
 import { LOOK_BUTTONS, defaultTouchLayout, lookGain, type TouchButton, type TouchLayout } from './touchLayout.ts';
 
 type Role = TouchButton | 'move' | 'look';
 
+/** Nome di ogni tasto (per chi usa lo schermo con la lettura vocale e per l'editor); l'icona è in ui/icons.ts. */
 const LABELS: Record<TouchButton, { label: string; title: string }> = {
   fire: { label: '✹', title: 'Fuoco' },
   aim: { label: '◎', title: 'Mirino' },
@@ -100,7 +102,7 @@ export class TouchControls {
       button.dataset.role = role;
       button.setAttribute('role', 'button');
       button.setAttribute('aria-label', info.title);
-      button.textContent = info.label;
+      button.innerHTML = icon(role);
       root.append(button);
       this.buttons.set(role, button);
     }
