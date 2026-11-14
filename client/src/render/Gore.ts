@@ -27,7 +27,10 @@ import {
   Vector3,
 } from 'three';
 import {
+  BODY,
   BodyPose,
+  PART_ARM_LEFT,
+  PART_LEG_LEFT,
   PART_COUNT,
   PART_HEAD,
   PART_STRIDE,
@@ -188,6 +191,13 @@ function createSplatTexture(): CanvasTexture {
   texture.minFilter = NearestFilter;
   texture.generateMipmaps = false;
   return texture;
+}
+
+/** Semi-profondità massima di una parte da morta: gli arti tornano dritti, testa e busto restano com'erano. */
+function limbHalfDepth(part: number): number {
+  if (part >= PART_LEG_LEFT) return BODY.legHalfDepth;
+  if (part >= PART_ARM_LEFT) return BODY.armHalfDepth;
+  return Infinity;
 }
 
 export class Gore {
@@ -661,7 +671,8 @@ export class Gore {
       }
       ragdoll.half[part * 3] = parts[o + POSE_HALF]!;
       ragdoll.half[part * 3 + 1] = hy;
-      ragdoll.half[part * 3 + 2] = parts[o + POSE_HALF + 2]!;
+      // Arti: spessore dell'arto disteso (da vivi il box è più profondo quando gomito o ginocchio sporgono).
+      ragdoll.half[part * 3 + 2] = Math.min(parts[o + POSE_HALF + 2]!, limbHalfDepth(part));
     }
     // Il collo del busto coincide con quello della testa (la posa li fa già combaciare).
     for (let s = 0; s < STICKS.length; s++) {
@@ -941,7 +952,7 @@ export class Gore {
     piece.trail = 0;
     piece.resting = false;
     piece.position.set(parts[o + POSE_CENTER]!, parts[o + POSE_CENTER + 1]!, parts[o + POSE_CENTER + 2]!);
-    piece.half.set(parts[o + POSE_HALF]!, parts[o + POSE_HALF + 1]!, parts[o + POSE_HALF + 2]!);
+    piece.half.set(parts[o + POSE_HALF]!, parts[o + POSE_HALF + 1]!, Math.min(parts[o + POSE_HALF + 2]!, limbHalfDepth(part)));
     this.matrix.set(
       parts[o + POSE_AXIS_X]!,
       parts[o + POSE_AXIS_Y]!,

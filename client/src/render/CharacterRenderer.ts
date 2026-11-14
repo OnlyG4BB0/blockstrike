@@ -290,7 +290,6 @@ export class CharacterRenderer {
     const leg = index >= PART_LEG_LEFT;
     const nominal = leg ? BODY.legHalfDepth : BODY.armHalfDepth;
     const hy = p[o + POSE_HALF + 1]!;
-    const hz = p[o + POSE_HALF + 2]!;
     const yx = p[o + POSE_AXIS_Y]!;
     const yy = p[o + POSE_AXIS_Y + 1]!;
     const yz = p[o + POSE_AXIS_Y + 2]!;
@@ -305,9 +304,10 @@ export class CharacterRenderer {
     const my = ay - yy * hy;
     const mz = az - yz * hy;
     const off = (p[o + POSE_CENTER]! - mx) * zx + (p[o + POSE_CENTER + 1]! - my) * zy + (p[o + POSE_CENTER + 2]! - mz) * zz;
-    const size = Math.abs(off) + hz - nominal;
-    if (size < MIN_BEND) return false;
-    const bend = off >= 0 ? size : -size;
+    // Il box della posa è spostato di metà sporgenza verso il giunto: se è centrato sull'asse (corpi
+    // dei morti, pezzi staccati) l'arto è dritto.
+    const bend = off * 2;
+    if (Math.abs(bend) < MIN_BEND) return false;
     const kx = mx + zx * bend;
     const ky = my + zy * bend;
     const kz = mz + zz * bend;

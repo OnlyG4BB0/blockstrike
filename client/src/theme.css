@@ -763,8 +763,9 @@ textarea {
 }
 
 /* Campi: testo, tendine, cursori, interruttori. */
+/* :where tiene bassa la precedenza: i campi con una forma propria (nome e codice online) la conservano. */
 .menu-panel select,
-.menu-panel input[type='text'] {
+:where(.menu-panel) input[type='text'] {
   padding: 8px 10px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 7px;
